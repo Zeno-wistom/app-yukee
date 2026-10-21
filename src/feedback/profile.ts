@@ -16,7 +16,7 @@ export function feedback(phase: Phase): {
   if (phase === "yukeeRun" || phase === "calibration")
     return { mood: "play", color: "#92e7d0", label: "跟着我，慢慢来" };
   if (phase === "leanCalibration" || phase === "leanSurf")
-    return { mood: "play", color: "#8de9bc", label: "轻轻侧倾，去接星星" };
+    return { mood: "play", color: "#8de9bc", label: "轻轻侧倾，去接阳光" };
   if (phase === "wingCalibration" || phase === "winglight")
     return { mood: "play", color: "#ffd98e", label: "展开就好，不用快" };
   return { mood: "calm", color: "#b8e7d7", label: "陪你专注" };

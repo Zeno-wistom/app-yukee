@@ -154,6 +154,41 @@ describe("G03 v2 接星循环", () => {
     // 六次只用了不到 7 秒有效时间，不再每次等待 4.2 秒巡航
     expect(v.effectiveMs).toBeLessThan(7000);
   });
+  it("迟滞：接光中轻微回落（仍高于保留线）不中断；短暂丢一两帧只冻结不清零", () => {
+    const s = new LeanSession(p);
+    run(s, sample(), 300);
+    // 刚好越过进入线后回落到约 0.38（低于 0.42、高于 0.34）仍能完成
+    let v = run(s, sample({ leanDeg: -2.8 }), 300);
+    expect(v.arrived).toBe(true);
+    v = run(s, sample({ leanDeg: -2.2 }), 400);
+    expect(v.reps).toBe(1);
+    // 短暂丢帧：保持进度冻结，不加时
+    const s2 = new LeanSession(p);
+    run(s2, sample(), 300);
+    v = run(s2, sample({ leanDeg: -4 }), 200);
+    const held = v.hold;
+    expect(v.reps).toBe(0);
+    v = s2.update(40, null);
+    v = s2.update(40, null);
+    expect(v.reps).toBe(0);
+    expect(v.hold).toBeCloseTo(held, 5);
+    v = run(s2, sample({ leanDeg: -4 }), 160);
+    expect(v.reps).toBe(1);
+  });
+  it("丢帧超过冻结窗口：本次保持作废，不补算", () => {
+    const s = new LeanSession(p);
+    run(s, sample(), 300);
+    run(s, sample({ leanDeg: -4 }), 180);
+    let v = run(s, null, 300);
+    expect(v.hold).toBe(0);
+    expect(v.reps).toBe(0);
+  });
+  it("校准：单帧离群点不让进度归零", () => {
+    const c = new LeanCalibrator();
+    for (let t = 0; t <= 1200; t += 33)
+      c.update(t === 495 ? sample({ leanDeg: 8 }) : sample(), t);
+    expect(c.stage).toBe("ready");
+  });
   it("完全不动 60 秒：0 分", () => {
     const s = new LeanSession(p);
     const v = run(s, sample(), 60000);

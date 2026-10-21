@@ -12,6 +12,7 @@ import type { PoseFrame } from "../vision/wingPose";
 import type { GameResult } from "../state/machine";
 import type { GameEventKind } from "./YukeeRun";
 import LeanSurfScene from "./LeanSurfScene";
+import { RAINBOW } from "./sunSurfScene";
 import "./leanSurf.css";
 
 /** 键盘演示：模拟肩线约 4.3° 的轻微侧倾，仍经过同一套平滑、阈值与回中逻辑。 */
@@ -135,16 +136,16 @@ export default function LeanSurf({
   const side = hud.target < 0 ? "左" : "右";
   const firstTime = hud.reps === 0;
   const instruction = hud.complete
-    ? "星海点亮了"
+    ? "彩虹完成了"
     : hud.returning
-      ? `接住了！回到中间，下一颗在${side}边`
+      ? `接住了！回到中间，下一束阳光在${side}边`
       : hud.arrived
-        ? "接住它…保持一下下"
+        ? "接住阳光…保持一下下"
         : hud.approach > 0.35
           ? `再往${side}一点点`
           : firstTime
-            ? `像被海风吹一样，上身轻轻往${side}歪一点`
-            : `星星在${side}边，轻轻侧倾去接`;
+            ? `阳光落在${side}边，上身轻轻往${side}歪一点`
+            : `阳光在${side}边，轻轻侧倾去接`;
   const subline =
     mode === "demo"
       ? "按住 ← / → 侧倾，松开回中"
@@ -168,12 +169,13 @@ export default function LeanSurf({
       <header className="lean-hud">
         <span className="lean-title">
           <b>星海冲浪</b>
-          <small>LEAN SURF · 躯干左右轻微侧倾</small>
+          <small>LEAN SURF · 晴日河湾 · 躯干左右轻微侧倾</small>
         </span>
         <span className="lean-stars" aria-label={`进度 ${hud.reps}/${reps}`}>
           {Array.from({ length: reps }, (_, i) => (
             <i
               key={i}
+              style={{ "--c": RAINBOW[i] } as CSSProperties}
               className={`${i < hud.reps ? "lit" : ""} ${i === hud.reps && !hud.complete ? "next" : ""}`}
             />
           ))}
@@ -273,17 +275,17 @@ export default function LeanSurf({
       {softBlocked && (
         <div className="lean-modal" data-testid="lean-soft-limit">
           <b>已经有效活动 45 秒了</b>
-          <p>星星会等你。可以结束，也可以继续。</p>
+          <p>阳光会等你。可以结束，也可以继续。</p>
           <button onClick={() => setSoftAck(true)}>继续冲浪</button>
           <button onClick={onEarlyExit}>结束本次</button>
         </div>
       )}
       {hud.complete && (
         <div className="lean-modal lean-result" data-testid="lean-complete">
-          <small>STAR SEA · LIGHTHOUSE ON</small>
-          <h2>灯塔亮了，星海被你点亮。</h2>
+          <small>SUNLIT SURF · RAINBOW COMPLETE</small>
+          <h2>六束阳光，画出了一道彩虹。</h2>
           <p>
-            {reps}/{reps} 颗星 · 左右各 {reps / 2} 次 · 有效时间{" "}
+            {reps}/{reps} 束阳光 · 左右各 {reps / 2} 次 · 有效时间{" "}
             {(hud.effectiveMs / 1000).toFixed(1)} 秒
           </p>
           {mode === "demo" && <p className="lean-note">键盘演示数据 · 待真人实测</p>}

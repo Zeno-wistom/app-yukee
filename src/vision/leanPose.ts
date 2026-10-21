@@ -47,6 +47,10 @@ export const DEFAULT_LEAN_CONFIG = {
   catchThreshold: 0.42,
   /** 接星需要的连续保持（原 600ms） */
   catchHoldMs: 220,
+  /** 迟滞（取自 Codex v2 思路）：进入需 0.42，保持中允许回落到 0.34 不中断 */
+  catchRetain: 0.34,
+  /** 保持中短暂跌出保留线 / 短暂无效帧的冻结窗口：不加时、不清零 */
+  holdGraceMs: 140,
   /** 接住后必须越过该线（靠近中间或到另一侧）才开放下一颗（替代原 400ms 回中保持） */
   releaseThreshold: 0.22,
   /** 显示死区：抖动不推动角色 */
@@ -126,6 +130,10 @@ export function leanAmount(s: LeanSample, p: LeanProfile) {
   return clamp(0.62 * ut + 0.38 * us, -1, 1);
 }
 
+const quantile = (v: number[], q: number) => {
+  const a = [...v].sort((x, y) => x - y);
+  return a[Math.floor((a.length - 1) * q)];
+};
 export type LeanCalibrationStage = "visible" | "neutral" | "ready";
 const median = (v: number[]) => {
   const a = [...v].sort((x, y) => x - y);
@@ -162,9 +170,10 @@ export class LeanCalibrator {
     this.stage = "neutral";
     this.samples.push({ s, at });
     const sh = this.samples.map((x) => x.s.shoulder);
-    if (Math.max(...sh) - Math.min(...sh) > 0.06) {
-      // 不整体清空：只保留最近一帧，给用户「稍微坐稳」的即时机会。
-      this.samples = [{ s, at }];
+    // 用 10%–90% 分位范围判稳（取自 Codex v2）：单帧离群点不会让进度归零，持续摇晃仍不通过。
+    if (quantile(sh, 0.9) - quantile(sh, 0.1) > 0.06) {
+      // 丢掉最早的一半样本，而不是整体清空，给用户「稍微坐稳」的即时机会。
+      this.samples = this.samples.slice(Math.floor(this.samples.length / 2));
       this.progress = 0;
       return;
     }
@@ -231,6 +240,7 @@ export class LeanSession {
   private profile: LeanProfile;
   private filtered: number | null = null;
   private holdMs = 0;
+  private graceMs = 0;
   private lostMs = 0;
   private resumeMs = 0;
   private last: LeanSample | null = null;
@@ -290,10 +300,13 @@ export class LeanSession {
     if (s === null || !Number.isFinite(s.shoulder)) {
       this.lostMs += dt;
       this.resumeMs = 0;
-      // 无效帧不能拼接成连续保持；时间与计分冻结。
-      this.holdMs = 0;
-      v.hold = 0;
-      v.arrived = false;
+      // 极短无效帧（≤ holdGraceMs）只冻结保持进度：不加时、不计分；超过才清零。
+      // （取自 Codex v2：一帧丢失不应让已经做对的动作作废。）
+      if (this.lostMs > c.holdGraceMs) {
+        this.holdMs = 0;
+        v.hold = 0;
+        v.arrived = false;
+      }
       v.source = "none";
       if (this.lostMs > c.lossGraceMs && !v.recovering) this.pause();
       v.tracking = this.lostMs > c.lossGraceMs ? "lost" : "unstable";
@@ -332,8 +345,24 @@ export class LeanSession {
       return { ...v };
     }
     v.approach = clamp(toward / c.catchThreshold, 0, 1);
-    v.arrived = toward >= c.catchThreshold;
-    this.holdMs = v.arrived ? this.holdMs + dt : 0;
+    if (!v.arrived) {
+      v.arrived = toward >= c.catchThreshold;
+      this.graceMs = 0;
+      this.holdMs = v.arrived ? this.holdMs + dt : 0;
+    } else if (toward >= c.catchRetain) {
+      // 已进入：在保留线以上继续累计
+      this.graceMs = 0;
+      this.holdMs += dt;
+      v.approach = 1;
+    } else {
+      // 跌出保留线：短暂冻结，超时才放弃这次接光
+      this.graceMs += dt;
+      if (this.graceMs > c.holdGraceMs) {
+        v.arrived = false;
+        this.holdMs = 0;
+        this.graceMs = 0;
+      }
+    }
     v.hold = Math.min(1, this.holdMs / c.catchHoldMs);
     if (this.holdMs >= c.catchHoldMs) {
       this.holdMs = 0;

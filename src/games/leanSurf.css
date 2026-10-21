@@ -21,7 +21,7 @@
   justify-content: space-between;
   align-items: center;
   padding: 2% 3%;
-  background: linear-gradient(#040b1ccc, #040b1c00);
+  background: linear-gradient(#06203acc, #06203a00);
   font-size: calc(1.1 * var(--portal-cqw));
 }
 .lean-hud > span {
@@ -57,20 +57,22 @@
   width: calc(2.5 * var(--portal-cqw));
   height: calc(2.5 * var(--portal-cqw));
 }
+/* 进度：六颗小太阳，点亮后变成对应的彩虹色 */
 .lean-stars i {
   display: inline-block;
-  width: calc(1.25 * var(--portal-cqw));
-  height: calc(1.25 * var(--portal-cqw));
-  background: #2c4a58;
-  clip-path: polygon(50% 0, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%);
+  width: calc(1.2 * var(--portal-cqw));
+  height: calc(1.2 * var(--portal-cqw));
+  border-radius: 50%;
+  background: #24465a;
+  border: 2px solid #0b3b4d;
   transition:
     background 0.4s,
     transform 0.4s;
 }
 .lean-stars i.lit {
-  background: #ffd98e;
+  background: var(--c, #ffd98e);
   transform: scale(1.2);
-  filter: drop-shadow(0 0 4px #ffd98e);
+  box-shadow: 0 0 6px var(--c, #ffd98e);
 }
 .lean-stars i.next {
   background: #6d8f8a;
@@ -115,16 +117,16 @@
 .lean-guide {
   position: absolute;
   left: 50%;
-  bottom: 3.2%;
+  bottom: 2.4%;
   transform: translateX(-50%);
-  width: min(72%, calc(58 * var(--portal-cqw)));
+  width: min(66%, calc(54 * var(--portal-cqw)));
   display: grid;
   grid-template-columns: auto 1fr;
   grid-template-rows: auto auto;
   column-gap: calc(1 * var(--portal-cqw));
-  row-gap: calc(0.6 * var(--portal-cqw));
+  row-gap: calc(0.35 * var(--portal-cqw));
   align-items: center;
-  padding: calc(0.7 * var(--portal-cqw)) calc(1.2 * var(--portal-cqw));
+  padding: calc(0.5 * var(--portal-cqw)) calc(1.1 * var(--portal-cqw));
   background: linear-gradient(#071a2cd9, #04101ee6);
   border: 1px solid #7fd6c63d;
   border-radius: calc(1.2 * var(--portal-cqw));
@@ -327,7 +329,8 @@
   cursor: pointer;
 }
 .lean-game .lean-result {
-  inset: auto 27% 5%;
+  inset: auto 3% 5% auto;
+  width: 37%;
   height: auto;
   padding: 1.6% 3%;
   gap: calc(0.55 * var(--portal-cqw));
@@ -346,6 +349,7 @@
 }
 .lean-game .lean-result p {
   margin: 0;
+  font-size: calc(1 * var(--portal-cqw));
 }
 .lean-result .lean-note {
   font-size: calc(0.85 * var(--portal-cqw));

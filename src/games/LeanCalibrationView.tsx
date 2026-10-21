@@ -88,8 +88,14 @@ export default function LeanCalibrationView({
     const draw = (f: PoseFrame | null) => {
       const ctx = canvas.current?.getContext("2d");
       if (!ctx) return;
-      ctx.clearRect(0, 0, 480, 270);
+      const cv = canvas.current!;
+      ctx.clearRect(0, 0, cv.width, cv.height);
       if (!f) return;
+      // 骨架画布使用真实视频宽高（取自 Codex v2），避免 16:9 覆盖层与 4:3 摄像头错位
+      if (cv.width !== f.videoWidth || cv.height !== f.videoHeight) {
+        cv.width = f.videoWidth;
+        cv.height = f.videoHeight;
+      }
       ctx.lineWidth = 4;
       ctx.lineCap = "round";
       for (const [i, j] of [
@@ -105,8 +111,8 @@ export default function LeanCalibrationView({
         if (!ok && (i !== 11 || j !== 12)) continue;
         ctx.strokeStyle = ok ? "#8de9bc" : "#ffd98e";
         ctx.beginPath();
-        ctx.moveTo(p.x * 480, p.y * 270);
-        ctx.lineTo(q.x * 480, q.y * 270);
+        ctx.moveTo(p.x * cv.width, p.y * cv.height);
+        ctx.lineTo(q.x * cv.width, q.y * cv.height);
         ctx.stroke();
       }
     };
@@ -157,7 +163,7 @@ export default function LeanCalibrationView({
   const body = error
     ? error
     : hud.stage === "ready"
-      ? "接下来：星星在哪边，上身就往哪边轻轻歪一点。"
+      ? "接下来：阳光落在哪边，上身就往哪边轻轻歪一点。"
       : hud.stage === "neutral"
         ? "不用挺胸，也不用憋气。记住这个放松的姿势，它就是「中间」。"
         : "离屏幕一臂左右，头和肩膀露出来就行；髋部被桌子挡住也没关系。";
@@ -179,7 +185,7 @@ export default function LeanCalibrationView({
           <span>本机实时处理 · 画面不保存、不上传</span>
         </div>
         <section>
-          <small>星海在等你 · 大约 20–40 秒的轻松侧倾</small>
+          <small>阳光在等你 · 大约 20–40 秒的轻松侧倾</small>
           <h2>{title}</h2>
           <p>{body}</p>
           <div className="lean-ring" style={{ "--p": hud.progress } as CSSProperties}>

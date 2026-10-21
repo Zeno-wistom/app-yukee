@@ -87,11 +87,11 @@ export const GAMES: readonly GameCard[] = [
     title: "星海冲浪",
     en: "LEAN SURF",
     type: "躯干左右轻微侧倾",
-    subtitle: "坐着就能玩 · 往星星那边轻轻歪",
+    subtitle: "坐着就能玩 · 往阳光那边轻轻歪",
     available: true,
     preview: "image",
-    // 由 G03 实际 Canvas 场景函数（drawStarSea 预览构图）按卡片 6.3:1 导出
-    previewImage: "/game-previews/star-sea-surf.png",
+    // 由 G03 实际 Canvas 场景函数（drawSunSurf 预览构图，底图为晴日城堡原画）按卡片 6.3:1 导出
+    previewImage: "/game-previews/sun-surf-card.png",
     fullBleed: true,
     palette: {
       sky: "#dcead8",
