@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { cameraVision } from "../vision/CameraVision";
 import {
   DEMO_LEAN_PROFILE,
@@ -7,17 +7,15 @@ import {
   measureLean,
   type LeanMode,
   type LeanProfile,
+  type LeanSample,
 } from "../vision/leanPose";
 import type { PoseFrame } from "../vision/wingPose";
 import "./leanSurf.css";
 
-const copy = {
-  visible: ["让双肩和双髋都入镜", "身体稳定可见约 1 秒"],
-  neutral: ["保持自然中立姿态", "放松站稳约 2 秒，不必挺胸或憋气"],
-  left: ["身体慢慢向左侧倾", "在舒适范围保持一下；不用转腰或追求大角度"],
-  right: ["身体慢慢向右侧倾", "在舒适范围保持一下；只摆头不会通过校准"],
-  ready: ["回到中间，准备出发", "保持自然站姿，3 秒后进入光海"],
-};
+/**
+ * v2 一步校准：看见双肩 → 自然坐好约 1 秒 → 直接出发。
+ * 不再要求左右各做一次校准动作、不再 3 秒倒计时；髋部可选。
+ */
 export default function LeanCalibrationView({
   paused,
   onCalibrated,
@@ -34,10 +32,11 @@ export default function LeanCalibrationView({
   const done = useRef(false);
   const [attempt, setAttempt] = useState(0);
   const [hud, setHud] = useState({
-    stage: "visible" as keyof typeof copy,
+    stage: "visible" as "visible" | "neutral" | "ready",
     progress: 0,
-    missing: true,
-    countdown: 0,
+    shoulders: false,
+    hips: false,
+    u: 0,
   });
   const [error, setError] = useState("");
   useEffect(() => {
@@ -47,47 +46,40 @@ export default function LeanCalibrationView({
       preview: HTMLVideoElement | null = null;
     let latest: PoseFrame | null = null,
       lastSample = -Infinity,
-      last = performance.now(),
-      ready = 0,
+      readyAt = 0,
       flush = 0;
     const calibrator = new LeanCalibrator();
     done.current = false;
     const tick = (now: number) => {
-      const dt = Math.min(120, now - last);
-      last = now;
-      const fresh = latest && now - latest.at < 200;
-      const a = fresh ? measureLean(latest) : null;
+      const fresh = latest && now - latest.at < 250;
+      const s: LeanSample | null = fresh ? measureLean(latest) : null;
       if (pauseRef.current) {
         calibrator.update(null, now);
-        ready = 0;
       } else if (calibrator.stage !== "ready") {
-        if (a === null) calibrator.update(null, now);
+        if (s === null) calibrator.update(null, now);
         else if (latest!.at > lastSample) {
           lastSample = latest!.at;
-          calibrator.update(a, latest!.at);
+          calibrator.update(s, latest!.at);
         }
-      } else {
-        ready =
-          a !== null &&
-          calibrator.profile &&
-          Math.abs(leanAmount(a, calibrator.profile)) <= 0.2
-            ? ready + dt
-            : 0;
-        if (ready >= 3000 && calibrator.profile && !done.current) {
+      } else if (calibrator.profile && !done.current) {
+        // 「好了」状态展示 0.7 秒后直接进入游戏
+        if (!readyAt) readyAt = now;
+        if (now - readyAt > 700) {
           done.current = true;
           callback.current(calibrator.profile, "camera");
           return;
         }
       }
-      if (now - flush > 100) {
+      if (now - flush > 80) {
         flush = now;
         setHud({
           stage: calibrator.stage,
           progress: calibrator.progress,
-          missing: a === null,
-          countdown:
-            calibrator.stage === "ready"
-              ? Math.max(1, Math.ceil((3000 - ready) / 1000))
+          shoulders: s !== null,
+          hips: s?.torso != null,
+          u:
+            s && calibrator.profile
+              ? leanAmount(s, calibrator.profile)
               : 0,
         });
       }
@@ -98,7 +90,8 @@ export default function LeanCalibrationView({
       if (!ctx) return;
       ctx.clearRect(0, 0, 480, 270);
       if (!f) return;
-      ctx.lineWidth = 3;
+      ctx.lineWidth = 4;
+      ctx.lineCap = "round";
       for (const [i, j] of [
         [11, 12],
         [11, 23],
@@ -108,10 +101,9 @@ export default function LeanCalibrationView({
         const p = f.landmarks[i],
           q = f.landmarks[j];
         if (!p || !q) continue;
-        ctx.strokeStyle =
-          (p.visibility ?? 0) >= 0.65 && (q.visibility ?? 0) >= 0.65
-            ? "#8de9bc"
-            : "#ffd98e";
+        const ok = (p.visibility ?? 0) >= 0.5 && (q.visibility ?? 0) >= 0.5;
+        if (!ok && (i !== 11 || j !== 12)) continue;
+        ctx.strokeStyle = ok ? "#8de9bc" : "#ffd98e";
         ctx.beginPath();
         ctx.moveTo(p.x * 480, p.y * 270);
         ctx.lineTo(q.x * 480, q.y * 270);
@@ -155,41 +147,62 @@ export default function LeanCalibrationView({
       }
     };
   }, [attempt]);
+  const title = error
+    ? "摄像头暂不可用"
+    : hud.stage === "ready"
+      ? "好了，出发！"
+      : hud.stage === "neutral"
+        ? "很好，自然坐着别动 1 秒"
+        : "坐在屏幕前，让双肩出现在画面里";
+  const body = error
+    ? error
+    : hud.stage === "ready"
+      ? "接下来：星星在哪边，上身就往哪边轻轻歪一点。"
+      : hud.stage === "neutral"
+        ? "不用挺胸，也不用憋气。记住这个放松的姿势，它就是「中间」。"
+        : "离屏幕一臂左右，头和肩膀露出来就行；髋部被桌子挡住也没关系。";
   return (
     <div
       className="lean-calibration"
       data-testid="lean-calibration"
       data-stage={hud.stage}
     >
-      <span className="eyebrow">G03 / LEAN SURF · 个人躯干校准</span>
+      <span className="eyebrow">G03 / 星海冲浪 · 只需 1 秒准备</span>
       <div className="lean-calibration-body">
         <div className="lean-camera">
           <div ref={slot} />
           <canvas ref={canvas} width={480} height={270} />
-          <span>双肩 + 双髋 · 本机实时处理</span>
+          <svg className="lean-frame-guide" viewBox="0 0 480 270" aria-hidden>
+            <path d="M190 86a50 50 0 1 1 100 0a50 50 0 1 1 -100 0" />
+            <path d="M120 270 Q130 160 240 150 Q350 160 360 270" />
+          </svg>
+          <span>本机实时处理 · 画面不保存、不上传</span>
         </div>
         <section>
-          <small>光海在等你 · 35–45 秒舒缓活动</small>
-          <h2>{error ? "摄像头暂不可用" : copy[hud.stage][0]}</h2>
-          <p>{error || copy[hud.stage][1]}</p>
-          <progress value={hud.progress} max={1} />
-          <p role="status">
-            {hud.missing
-              ? "看不到完整躯干：调整摄像头；髋部被桌沿遮挡时，请重新选择可见的舒适站姿并校准。"
-              : "绿色连线表示关键点可见；请缓慢、自然活动。"}
-          </p>
-          {hud.countdown > 0 && (
-            <b className="lean-countdown">{hud.countdown}</b>
-          )}
-          <button
-            onClick={() => {
-              setError("");
-              setAttempt((n) => n + 1);
-            }}
-          >
-            重新连接 / 校准
-          </button>
-          <small>画面不保存、不上传。无法看见双髋时不会开放正式游戏。</small>
+          <small>星海在等你 · 大约 20–40 秒的轻松侧倾</small>
+          <h2>{title}</h2>
+          <p>{body}</p>
+          <div className="lean-ring" style={{ "--p": hud.progress } as CSSProperties}>
+            <b>{hud.stage === "ready" ? "✓" : `${Math.round(hud.progress * 100)}%`}</b>
+          </div>
+          <ul className="lean-checks" role="status">
+            <li className={hud.shoulders ? "ok" : ""}>
+              {hud.shoulders ? "已看到双肩" : "还没看到双肩"}
+            </li>
+            <li className={hud.hips ? "ok" : "optional"}>
+              {hud.hips ? "也看到髋部（更稳）" : "髋部可选"}
+            </li>
+          </ul>
+          <div className="lean-calibration-actions">
+            <button
+              onClick={() => {
+                setError("");
+                setAttempt((n) => n + 1);
+              }}
+            >
+              重新连接摄像头
+            </button>
+          </div>
         </section>
       </div>
       <button

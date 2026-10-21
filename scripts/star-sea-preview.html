@@ -1,0 +1,13 @@
+<!doctype html><html><body style="margin:0;background:#000">
+<!-- 开发用：渲染 G03 场景单帧。卡片预览：/scripts/star-sea-preview.html?preview&w=1290&h=205&t=4.2&u=0.3&target=1&ap=0.75&reps=3 ，截图 canvas 即 public/game-previews/star-sea-surf.png -->
+<canvas id="c" width="1280" height="720"></canvas>
+<script type="module">
+import { drawStarSea, layoutFor } from "/src/games/starSeaScene.ts";
+const q = new URLSearchParams(location.search);
+const c = document.getElementById("c");
+if (q.get("w")) { c.width = +q.get("w"); c.height = +q.get("h"); }
+const L = layoutFor(c.width, c.height, q.has("preview"));
+const s = { t: +(q.get("t")||3), x: L.cx + (+(q.get("u")||0))*L.laneDX, u: +(q.get("u")||0), target: +(q.get("target")||-1), approach: +(q.get("ap")||0), hold: +(q.get("hold")||0), arrived: q.has("arrived"), returning: q.has("returning"), reps: +(q.get("reps")||0), complete: q.has("complete"), catchT: +(q.get("catchT")||-10), catchSide: +(q.get("cs")||-1), spawnT: 0, completeT: +(q.get("ct")||0), tracking: "ok", preview: q.has("preview") };
+drawStarSea(c.getContext("2d"), s);
+window.done = true;
+</script></body></html>

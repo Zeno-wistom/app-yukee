@@ -194,6 +194,7 @@ export function SelectionCardStack({
               isEntering ? "is-entering" : "",
               showDev ? "dev-notice" : "",
               isCurrent && confirming ? "is-confirming" : "",
+              card.fullBleed ? "is-full-bleed" : "",
             ]
               .filter(Boolean)
               .join(" ")}

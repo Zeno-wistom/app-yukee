@@ -21,7 +21,7 @@ async function withPage(run: (page: Page) => Promise<void>) {
 async function enter(page: Page) {
   await page.goto("http://127.0.0.1:5173/");
   await page.getByRole("button", { name: "开始体验", exact: true }).click();
-  await expect(page.locator("main")).toHaveClass(/arrived/);
+  await expect(page.locator("main")).toHaveClass(/arrived/, { timeout: 20000 });
   await page
     .getByTestId("lamp-home")
     .getByRole("button", { name: "开始活动", exact: true })
@@ -45,7 +45,10 @@ async function demo(page: Page) {
   await expect(page.getByTestId("lean-surf")).toBeVisible();
 }
 
-test("G03 键盘演示：六次左右交替、回中集星、截图、结果退出", async () => {
+const shot = (page: Page, name: string) =>
+  page.getByTestId("lean-surf").screenshot({ path: `docs/screenshots/${name}.png` });
+
+test("G03 星海冲浪 键盘演示：六次左右交替、即时接星、截图、结果退出", async () => {
   test.setTimeout(110000);
   await withPage(async (page) => {
     const errors: string[] = [],
@@ -57,43 +60,89 @@ test("G03 键盘演示：六次左右交替、回中集星、截图、结果退�
       external.push(u.href);
       return route.abort();
     });
-    await demo(page);
-    await page.waitForTimeout(4400);
+    await page.goto("http://127.0.0.1:5173/");
+    await page.getByRole("button", { name: "开始体验", exact: true }).click();
+    await expect(page.locator("main")).toHaveClass(/arrived/, { timeout: 20000 });
     await page
-      .getByTestId("lean-surf")
-      .screenshot({ path: "docs/screenshots/g03-01-ocean.png" });
+      .getByTestId("lamp-home")
+      .getByRole("button", { name: "开始活动", exact: true })
+      .click();
+    await page.getByRole("button", { name: "下一个活动", exact: true }).click();
+    await page.waitForTimeout(800);
+    await page
+      .locator(".lamp-card.is-current")
+      .screenshot({ path: "docs/screenshots/g02-00-card.png" });
+    await page.getByRole("button", { name: "下一个活动", exact: true }).click();
+    await page.waitForTimeout(800);
+    const card = page.locator(".lamp-card.is-current");
+    await expect(card).toHaveAttribute("data-card-id", "leanSurf");
+    await expect(card).toContainText("星海冲浪");
+    await expect(card).toHaveClass(/is-full-bleed/);
+    // 预览铺满整卡（不是左侧 70% 局部图），且图片按卡片比例构图（不拉伸）
+    const fit = await card.evaluate((el) => {
+      const r = el.getBoundingClientRect();
+      const img = el.querySelector(".lamp-card-preview img") as HTMLImageElement;
+      const q = img.getBoundingClientRect();
+      return {
+        cover: q.width / r.width,
+        cardRatio: r.width / r.height,
+        imgRatio: img.naturalWidth / img.naturalHeight,
+      };
+    });
+    expect(fit.cover).toBeGreaterThan(0.98);
+    expect(Math.abs(fit.cardRatio - fit.imgRatio) / fit.cardRatio).toBeLessThan(0.06);
+    await card.screenshot({ path: "docs/screenshots/g03-00-card.png" });
+    await page.getByRole("button", { name: "开始这个活动", exact: true }).click();
+    await expect(page.getByTestId("lean-calibration")).toBeVisible();
+    await page.waitForTimeout(1500);
+    await page
+      .getByTestId("lean-calibration")
+      .screenshot({ path: "docs/screenshots/g03-00-calibration.png" });
+    await page
+      .getByRole("button", { name: "键盘演示 · 非人体识别", exact: true })
+      .click();
+    const game = page.getByTestId("lean-surf");
+    await expect(game).toBeVisible();
+    await expect(page.locator(".lean-title")).toContainText("星海冲浪");
+    await page.waitForTimeout(1600);
+    await shot(page, "g03-01-ocean");
     for (let i = 0; i < 6; i++) {
       const direction = i % 2 ? "ArrowRight" : "ArrowLeft";
+      await expect(game).toHaveAttribute("data-target", i % 2 ? "1" : "-1");
       await page.keyboard.down(direction);
-      await page.waitForTimeout(1300);
-      await expect(page.getByTestId("lean-surf")).toHaveAttribute(
-        "data-arrived",
-        "1",
-      );
-      await expect(page.getByTestId("lean-surf")).toHaveAttribute(
-        "data-reps",
-        String(i),
-      );
-      if (i === 0)
-        await page
-          .getByTestId("lean-surf")
-          .screenshot({ path: "docs/screenshots/g03-02-arrived.png" });
+      // 不再需要保持 600ms + 回中 400ms + 巡航 4.2s：约 0.5 秒内接住
+      await expect(game).toHaveAttribute("data-reps", String(i + 1), {
+        timeout: 2500,
+      });
+      if (i === 0) await shot(page, "g03-02-catch");
+      if (i === 2) {
+        await page.waitForTimeout(350);
+        await shot(page, "g03-03-absorb");
+      }
+      if (i < 5) {
+        await expect(game).toHaveAttribute("data-returning", "1");
+        // 保持侧倾不会继续得分：必须回中
+        await page.waitForTimeout(600);
+        await expect(game).toHaveAttribute("data-reps", String(i + 1));
+      }
       await page.keyboard.up(direction);
-      await page.waitForTimeout(1100);
-      await expect(page.getByTestId("lean-surf")).toHaveAttribute(
-        "data-reps",
-        String(i + 1),
-      );
-      if (i < 5) await page.waitForTimeout(3800);
+      if (i < 5)
+        await expect(game).toHaveAttribute("data-returning", "0", {
+          timeout: 2500,
+        });
+      if (i === 3) {
+        await page.waitForTimeout(500);
+        await shot(page, "g03-04-next-star");
+      }
+      await page.waitForTimeout(700);
     }
     await expect(page.getByTestId("lean-complete")).toBeVisible();
     await expect(page.locator(".lean-stars .lit")).toHaveCount(6);
     await expect(page.getByTestId("lean-complete")).toContainText(
       "键盘演示数据",
     );
-    await page
-      .getByTestId("lean-surf")
-      .screenshot({ path: "docs/screenshots/g03-03-complete.png" });
+    await page.waitForTimeout(2000);
+    await shot(page, "g03-05-complete");
     await page.getByRole("button", { name: "回到专注", exact: true }).click();
     await expect(page.locator("[data-phase]")).toHaveAttribute(
       "data-phase",
@@ -108,9 +157,10 @@ test("G03 暂停冻结、退出关闭 Pose；G01/G02 入口保留", async () => 
   test.setTimeout(65000);
   await withPage(async (page) => {
     await demo(page);
-    await page.waitForTimeout(4500);
+    await page.waitForTimeout(1200);
+    // 刚开始侧倾（尚未达到 220ms 保持）就暂停：暂停会清空保持，不允许偷偷计分
     await page.keyboard.down("ArrowLeft");
-    await page.waitForTimeout(500);
+    await page.waitForTimeout(60);
     await page.keyboard.press("Escape");
     await expect(page.locator(".display-overlay")).toBeVisible();
     await page.waitForTimeout(150);
@@ -119,7 +169,7 @@ test("G03 暂停冻结、退出关闭 Pose；G01/G02 入口保留", async () => 
     expect(await page.getByTestId("lean-time").innerText()).toBe(frozen);
     await page.keyboard.up("ArrowLeft");
     await page.keyboard.press("Escape");
-    await page.waitForTimeout(4400);
+    await page.waitForTimeout(1500);
     await expect(page.getByTestId("lean-surf")).toHaveAttribute(
       "data-reps",
       "0",
@@ -162,6 +212,7 @@ test("G03 暂停冻结、退出关闭 Pose；G01/G02 入口保留", async () => 
 });
 
 // 明确为合成 Pose 帧注入：验证真实页面的校准/输入/生命周期，绝非人体识别实测。
+// 合成一位坐姿用户：以髋为轴侧倾 deg 度，肩线随躯干一起倾斜（与单元测试同一几何）。
 async function injectPose(page: Page) {
   await page.evaluate(async () => {
     const resource = performance
@@ -169,7 +220,7 @@ async function injectPose(page: Page) {
       .find((r) => new URL(r.name).pathname === "/src/vision/CameraVision.ts")!;
     const { cameraVision: c } = await import(/* @vite-ignore */ resource.name);
     const w = window as any;
-    w.leanTest = { c, a: 0, missing: false, timer: 0 };
+    w.leanTest = { c, deg: 0, shift: 0, noseX: 0.5, missing: false, hipHidden: false, timer: 0 };
     // 保留真实单视频流，替换推理输出以免合成摄像头空帧与注入竞争。
     c.tickPose = () => {};
     w.leanTest.timer = setInterval(() => {
@@ -178,110 +229,108 @@ async function injectPose(page: Page) {
         c.emitPose(null);
         return;
       }
-      const dx = (-Math.tan(s.a) * (0.4 * 480)) / 640;
+      const W = 640,
+        H = 480,
+        a = (s.deg * Math.PI) / 180;
+      const hip = { x: 320 + s.shift * W, y: 420 };
+      const sc = { x: hip.x - Math.sin(a) * 230, y: hip.y - Math.cos(a) * 230 };
+      const ux = Math.cos(a),
+        uy = Math.sin(a);
       const landmarks = Array.from({ length: 33 }, () => ({
         x: 0.5,
         y: 0.2,
-        visibility: 1,
+        visibility: 0.2,
       }));
-      landmarks[11] = { x: 0.4 + dx, y: 0.3, visibility: 1 };
-      landmarks[12] = { x: 0.6 + dx, y: 0.3, visibility: 1 };
-      landmarks[23] = { x: 0.43, y: 0.7, visibility: 1 };
-      landmarks[24] = { x: 0.57, y: 0.7, visibility: s.hipHidden ? 0.2 : 1 };
-      c.emitPose({
-        landmarks,
-        videoWidth: 640,
-        videoHeight: 480,
-        at: performance.now(),
-      });
+      landmarks[0] = { x: s.noseX, y: (sc.y - 90) / H, visibility: 1 };
+      landmarks[11] = { x: (sc.x + ux * 80) / W, y: (sc.y - uy * 80) / H, visibility: 0.95 };
+      landmarks[12] = { x: (sc.x - ux * 80) / W, y: (sc.y + uy * 80) / H, visibility: 0.95 };
+      landmarks[23] = { x: (hip.x + 50) / W, y: hip.y / H, visibility: s.hipHidden ? 0.1 : 0.9 };
+      landmarks[24] = { x: (hip.x - 50) / W, y: hip.y / H, visibility: s.hipHidden ? 0.1 : 0.9 };
+      c.emitPose({ landmarks, videoWidth: W, videoHeight: H, at: performance.now() });
     }, 50);
   });
 }
-async function angle(page: Page, a: number) {
-  await page.evaluate((a) => {
-    (window as any).leanTest.a = a;
-  }, a);
+async function set(page: Page, patch: Record<string, unknown>) {
+  await page.evaluate((patch) => {
+    Object.assign((window as any).leanTest, patch);
+  }, patch);
 }
-async function cameraGame(page: Page) {
+async function cameraGame(page: Page, hipHidden = false) {
   await enter(page);
   await injectPose(page);
-  await expect(page.getByTestId("lean-calibration")).toHaveAttribute(
-    "data-stage",
-    "left",
-    { timeout: 10000 },
-  );
-  await angle(page, -0.16);
-  await expect(page.getByTestId("lean-calibration")).toHaveAttribute(
-    "data-stage",
-    "right",
-  );
-  await angle(page, 0.18);
-  await expect(page.getByTestId("lean-calibration")).toHaveAttribute(
-    "data-stage",
-    "ready",
-  );
-  await angle(page, 0);
+  await set(page, { hipHidden });
+  // 一步校准：看到双肩、自然坐好约 1 秒即进入游戏（无左右校准、无 3 秒倒计时）
   await expect(page.getByTestId("lean-surf")).toHaveAttribute(
     "data-mode",
     "camera",
-    { timeout: 7000 },
+    { timeout: 6000 },
   );
 }
 
-test("G03 合成 Pose：校准、髋遮挡暂停、断流恢复准备、单流订阅释放", async () => {
+test("G03 合成 Pose：一步校准、3° 小幅侧倾即可接星、甩头/平移不计分", async () => {
   test.setTimeout(70000);
   await withPage(async (page) => {
     await cameraGame(page);
-    await page.waitForTimeout(4500);
-    await angle(page, -0.16);
-    await expect(page.getByTestId("lean-surf")).toHaveAttribute(
-      "data-arrived",
-      "1",
-    );
-    await page.evaluate(() => {
-      (window as any).leanTest.hipHidden = true;
-    });
-    await expect(page.getByTestId("lean-surf")).toHaveAttribute(
-      "data-tracking",
-      "lost",
-    );
-    const frozen = await page.getByTestId("lean-time").innerText();
+    const game = page.getByTestId("lean-surf");
+    // 静止 3 秒：0 分
+    await page.waitForTimeout(3000);
+    await expect(game).toHaveAttribute("data-reps", "0");
+    // 只动头（鼻子大幅横移）+ 整体平移：0 分
+    for (const [noseX, shift] of [[0.2, 0.15], [0.8, -0.15], [0.3, 0.1], [0.7, -0.1]]) {
+      await set(page, { noseX, shift });
+      await page.waitForTimeout(500);
+    }
+    await set(page, { noseX: 0.5, shift: 0 });
+    await page.waitForTimeout(400);
+    await expect(game).toHaveAttribute("data-reps", "0");
+    // 约 3° 的轻微侧倾就能接住
+    await set(page, { deg: -3 });
+    await expect(game).toHaveAttribute("data-reps", "1", { timeout: 2500 });
+    await set(page, { deg: 0 });
+    await expect(game).toHaveAttribute("data-returning", "0", { timeout: 2500 });
+    await set(page, { deg: 3 });
+    await expect(game).toHaveAttribute("data-reps", "2", { timeout: 2500 });
+    await set(page, { deg: 0 });
+    await page.getByRole("button", { name: "退出冲浪", exact: true }).click();
+    await page.getByRole("button", { name: "退出活动", exact: true }).click();
+  });
+});
+
+test("G03 合成 Pose：髋部被桌沿挡住也能玩；断流冻结不计分，恢复后无需倒计时；单流订阅释放", async () => {
+  test.setTimeout(70000);
+  await withPage(async (page) => {
+    await cameraGame(page, true);
+    const game = page.getByTestId("lean-surf");
+    await expect(page.locator(".lean-mode")).toContainText("肩线");
+    await set(page, { deg: -3 });
+    await expect(game).toHaveAttribute("data-reps", "1", { timeout: 2500 });
+    await set(page, { deg: 0 });
     await page.waitForTimeout(600);
+    // 肩膀也看不到（离开画面）：冻结、提示，侧倾不会补算
+    await set(page, { missing: true });
+    await expect(game).toHaveAttribute("data-tracking", "lost");
+    await expect(page.getByTestId("lean-lost")).toBeVisible();
+    const frozen = await page.getByTestId("lean-time").innerText();
+    await page.waitForTimeout(700);
     expect(await page.getByTestId("lean-time").innerText()).toBe(frozen);
-    await angle(page, 0);
-    await page.evaluate(() => {
-      (window as any).leanTest.hipHidden = false;
-    });
-    await page.waitForTimeout(2500);
-    await expect(page.getByTestId("lean-surf")).toHaveAttribute(
-      "data-reps",
-      "0",
-    );
-    await page.waitForTimeout(2200);
-    await expect(page.getByTestId("lean-surf")).toHaveAttribute(
-      "data-tracking",
-      "ok",
-    );
+    await expect(game).toHaveAttribute("data-reps", "1");
+    await set(page, { missing: false });
+    await expect(game).toHaveAttribute("data-tracking", "ok", { timeout: 1500 });
+    await set(page, { deg: 3 });
+    await expect(game).toHaveAttribute("data-reps", "2", { timeout: 2500 });
+    await set(page, { deg: 0 });
+    // 摄像头真断流后重新连接
     await page.evaluate(() => {
       const s = (window as any).leanTest;
       s.missing = true;
       s.c.stop();
     });
-    await expect(page.getByTestId("lean-surf")).toHaveAttribute(
-      "data-tracking",
-      "lost",
-    );
+    await expect(game).toHaveAttribute("data-tracking", "lost");
     await page
       .getByRole("button", { name: "重新连接摄像头", exact: true })
       .click();
-    await page.evaluate(() => {
-      (window as any).leanTest.missing = false;
-    });
-    await page.waitForTimeout(4600);
-    await expect(page.getByTestId("lean-surf")).toHaveAttribute(
-      "data-tracking",
-      "ok",
-    );
+    await set(page, { missing: false });
+    await expect(game).toHaveAttribute("data-tracking", "ok", { timeout: 4000 });
     expect(
       await page.evaluate(() => {
         const c = (window as any).leanTest.c;
