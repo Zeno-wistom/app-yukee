@@ -490,3 +490,5 @@
     animation: none !important;
   }
 }
+
+.lean-guide .lean-chapter { color: #ffe2a0; letter-spacing: .08em; font-size: calc(.75 * var(--portal-cqw)); }

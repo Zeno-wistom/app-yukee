@@ -12,6 +12,7 @@ import type { PoseFrame } from "../vision/wingPose";
 import type { GameResult } from "../state/machine";
 import type { GameEventKind } from "./YukeeRun";
 import LeanSurfScene from "./LeanSurfScene";
+import { surfChapter, SURF_CHAPTERS } from "./sunSurfMotion";
 import { RAINBOW } from "./sunSurfScene";
 import "./leanSurf.css";
 
@@ -60,7 +61,10 @@ export default function LeanSurf({
     }
   }, [paused, softBlocked]);
   useEffect(() => {
-    if (mode !== "camera") return;
+    if (mode !== "camera") {
+      cameraVision.stop(); // Explicit keyboard demo has no camera consumer.
+      return;
+    }
     return cameraVision.onPose((f) => {
       pose.current = f;
     });
@@ -102,7 +106,7 @@ export default function LeanSurf({
     const tick = (now: number) => {
       const dt = now - last;
       last = now;
-      if (!pausedRef.current && !blockedRef.current) {
+      if (!pausedRef.current && !blockedRef.current && !document.hidden) {
         const p = pose.current;
         let sample: LeanSample | null;
         if (mode === "demo")
@@ -122,7 +126,7 @@ export default function LeanSurf({
           completed = true;
           callbacks.current.onGameEvent("complete");
         }
-        if (now - flush > 80 || value.complete) {
+        if (now - flush > 80) {
           flush = now;
           setHud(value);
         }
@@ -164,6 +168,7 @@ export default function LeanSurf({
       data-arrived={hud.arrived ? "1" : "0"}
       data-returning={hud.returning ? "1" : "0"}
       data-target={hud.target}
+      data-chapter={surfChapter(hud.reps) + 1}
     >
       <LeanSurfScene frame={frame} running={running} />
       <header className="lean-hud">
@@ -220,6 +225,9 @@ export default function LeanSurf({
             </svg>
           </div>
           <div className="lean-guide-text">
+            <small className="lean-chapter">
+              {SURF_CHAPTERS[surfChapter(hud.reps)]}
+            </small>
             <b role="status">{instruction}</b>
             <small>{subline}</small>
           </div>
@@ -250,9 +258,10 @@ export default function LeanSurf({
           </div>
         </footer>
       )}
-      {hud.recovering && hud.tracking !== "lost" && !hud.complete && !paused && (
-        <div className="lean-toast">找到你了，继续冲浪…</div>
-      )}
+      {hud.recovering &&
+        hud.tracking !== "lost" &&
+        !hud.complete &&
+        !paused && <div className="lean-toast">找到你了，继续冲浪…</div>}
       {hud.tracking === "lost" && !hud.complete && !paused && (
         <div className="lean-modal" data-testid="lean-lost">
           <b>看不到你的肩膀了</b>
@@ -288,7 +297,9 @@ export default function LeanSurf({
             {reps}/{reps} 束阳光 · 左右各 {reps / 2} 次 · 有效时间{" "}
             {(hud.effectiveMs / 1000).toFixed(1)} 秒
           </p>
-          {mode === "demo" && <p className="lean-note">键盘演示数据 · 待真人实测</p>}
+          {mode === "demo" && (
+            <p className="lean-note">键盘演示数据 · 待真人实测</p>
+          )}
           <button
             className="primary"
             onClick={() =>

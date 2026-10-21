@@ -11,7 +11,7 @@ async function withPose(run: (page: Page, errors: string[]) => Promise<void>) {
   page.on('pageerror', e => errors.push(e.message));
   page.on('console', m => { if (m.type() === 'error' && m.text() !== 'INFO: Created TensorFlow Lite XNNPACK delegate for CPU.') errors.push(m.text()); });
   try {
-    await page.goto('http://127.0.0.1:5173/');
+    await page.goto('http://127.0.0.1:5176/');
     const installPose = async () => page.evaluate(async () => {
       const { cameraVision: c } = await import(/* @vite-ignore */ performance.getEntriesByType('resource').find(r => new URL(r.name).pathname === '/src/vision/CameraVision.ts')!.name);
       const w = window as any;

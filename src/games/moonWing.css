@@ -356,3 +356,9 @@
     transition: none !important;
   }
 }
+
+/* Three visual responses share the same sail targets and complete-cycle counter. */
+.moon-firefly-wings { display: none; opacity: .45; }
+.moon-fireflies [data-kind="fireflies"] .moon-firefly-wings { display: block; }
+.moon-fireflies [data-kind="fireflies"] .moon-firefly-glow { fill: #d4ff9b; }
+.moon-fireflies [data-kind="meteor"] .moon-firefly-glow { fill: #a7eaff; opacity: .6; }

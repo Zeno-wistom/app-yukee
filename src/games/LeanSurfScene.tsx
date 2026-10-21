@@ -1,6 +1,12 @@
 import { useEffect, useRef, type MutableRefObject } from "react";
+import { resizeSurfX, stepSurfMotion } from "./sunSurfMotion";
 import type { LeanUpdate } from "../vision/leanPose";
-import { drawSunSurf, layoutFor, type SunSurfAssets, type SunSurfState } from "./sunSurfScene";
+import {
+  drawSunSurf,
+  layoutFor,
+  type SunSurfAssets,
+  type SunSurfState,
+} from "./sunSurfScene";
 
 /** 晴日河湾底图（用户提供的原画，原样使用）。 */
 export const SUNLIT_BG = "/art/g03-sunlit-castle.png";
@@ -24,7 +30,10 @@ export default function LeanSurfScene({
     const assets: SunSurfAssets = { img: null, off: { c: null } };
     const img = new Image();
     img.decoding = "async";
+    let dirty = true,
+      resizePending = false;
     img.onload = () => {
+      dirty = true;
       assets.img = img;
     };
     img.src = SUNLIT_BG;
@@ -38,11 +47,11 @@ export default function LeanSurfScene({
         w = 2200;
       }
       if (el.width !== w || el.height !== h) {
-        const prevW = el.width,
-          prevCx = layoutFor(el.width, el.height).cx;
+        const oldLayout = layoutFor(el.width, el.height);
         el.width = w;
         el.height = h;
-        s.x = layoutFor(w, h).cx + (s.x - prevCx) * (w / Math.max(1, prevW));
+        s.x = resizeSurfX(s.x, oldLayout, layoutFor(w, h));
+        dirty = true;
       }
     };
     const s: SunSurfState = {
@@ -64,46 +73,37 @@ export default function LeanSurfScene({
     };
     resize();
     s.x = layoutFor(el.width, el.height).cx;
-    const observer = new ResizeObserver(resize);
+    const observer = new ResizeObserver(() => {
+      resizePending = true;
+    });
     observer.observe(el);
     let raf = 0,
-      last = performance.now(),
-      wasReturning = false;
+      last = performance.now();
     const draw = (now: number) => {
-      const dt = Math.min(0.1, (now - last) / 1000);
+      const elapsedMs = now - last;
       last = now;
-      const v = frame.current;
-      const L = layoutFor(el.width, el.height);
-      const live = running.current && (v.tracking !== "lost" || v.complete);
-      if (live) {
-        s.t += dt;
-        // 横移 + 惯性：时间常数插值，与刷新率无关
-        const dest = v.complete ? L.W * 0.4 : L.cx + v.u * L.laneDX;
-        s.x += (dest - s.x) * (1 - Math.exp(-dt * 7));
-        s.u += (v.u - s.u) * (1 - Math.exp(-dt * 10));
+      if (resizePending) {
+        resizePending = false;
+        resize();
       }
-      if (v.reps > s.reps) {
-        s.catchT = s.t;
-        s.catchSide = v.target === 1 ? -1 : 1;
-        if (v.complete) s.completeT = s.t;
+      const live = stepSurfMotion(
+        s,
+        frame.current,
+        elapsedMs,
+        running.current && !document.hidden,
+        layoutFor(el.width, el.height),
+      );
+      if (live || dirty) {
+        drawSunSurf(ctx, s, assets);
+        dirty = false;
       }
-      if (wasReturning && !v.returning) s.spawnT = s.t;
-      wasReturning = v.returning;
-      s.target = v.target;
-      s.approach = v.approach;
-      s.hold = v.hold;
-      s.arrived = v.arrived;
-      s.returning = v.returning;
-      s.reps = v.reps;
-      s.complete = v.complete;
-      s.tracking = v.tracking;
-      drawSunSurf(ctx, s, assets);
       raf = requestAnimationFrame(draw);
     };
     raf = requestAnimationFrame(draw);
     return () => {
       cancelAnimationFrame(raf);
       observer.disconnect();
+      img.onload = null;
     };
   }, [frame, running]);
   return (

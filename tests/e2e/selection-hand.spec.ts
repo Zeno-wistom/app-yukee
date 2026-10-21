@@ -10,7 +10,7 @@ test('鼠标选择：忽略旧手势设置与视觉事件，连续三次进入�
     page.on('pageerror', e => errors.push(e.message));
     // 模拟旧用户的配置：即便保存了 hand，也只能通过鼠标选游戏。
     await page.addInitScript(() => localStorage.setItem('gameSelectionInputMode','hand'));
-    await page.goto('http://127.0.0.1:5173/');
+    await page.goto('http://127.0.0.1:5176/');
     await page.getByRole('button',{name:'开始体验',exact:true}).click();
     await expect(page.locator('main')).toHaveClass(/arrived/);
     for(let entry=0; entry<3; entry++) {

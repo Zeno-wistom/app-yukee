@@ -1,0 +1,38 @@
+
+> screen-light-prototype@0.1.0 test:e2e
+> playwright test
+
+
+Running 27 tests using 1 worker
+
+(node:44260) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ok  1 tests\e2e\lean-surf.spec.ts:53:1 › G03 星海冲浪 键盘演示：六次左右交替、即时接星、截图、结果退出 (39.8s)
+  ok  2 tests\e2e\lean-surf.spec.ts:176:1 › G03 暂停冻结、退出关闭 Pose；G01/G02 入口保留 (19.7s)
+  ok  3 tests\e2e\lean-surf.spec.ts:319:1 › G03 合成 Pose：一步校准、3° 小幅侧倾即可接星、甩头/平移不计分 (18.0s)
+  ok  4 tests\e2e\lean-surf.spec.ts:355:1 › G03 合成 Pose：髋部被桌沿挡住也能玩；断流冻结不计分，恢复后无需倒计时；单流订阅释放 (16.8s)
+  ok  5 tests\e2e\lean-surf.spec.ts:411:1 › G03 45 秒未完成提供结束或继续，不出现成功 (57.6s)
+  ok  6 tests\e2e\lean-surf.spec.ts:428:1 › G03 static cache invalidation, pause pixels and aspect-ratio resize (16.8s)
+  ok  7 tests\e2e\prototype.spec.ts:2:1 › 只有主按钮可进入，减少动态模式仍连续推进 (11.4s)
+  ok  8 tests\e2e\prototype.spec.ts:62:1 › 强提示稍后会完整经历 snooze，截止前不重开、到期后再出现 (6.8s)
+  ok  9 tests\e2e\prototype.spec.ts:93:1 › 游戏卡片切换为连续整叠洗牌，无瞬时内容替换 (5.9s)
+  ok 10 tests\e2e\prototype.spec.ts:137:1 › 活动可暂停保存与继续，退出不遗留定时器 (9.8s)
+  ok 11 tests\e2e\prototype.spec.ts:174:1 › 权限拒绝保留明确错误与返回路径 (1.2s)
+  ok 12 tests\e2e\regression-visual-qa.spec.ts:4:3 › Goal regression visual QA › AFTER 1 · HOME safe area (8.1s)
+  ok 13 tests\e2e\regression-visual-qa.spec.ts:85:3 › Goal regression visual QA › AFTER 8–11 · complete reset and celebrate (9.9s)
+  ok 14 tests\e2e\regression-visual-qa.spec.ts:195:3 › Goal regression visual QA › AFTER 7 · GAME SELECT keeps old and new cards (6.0s)
+  ok 15 tests\e2e\regression-visual-qa.spec.ts:238:3 › Goal regression visual QA › GAME SELECT 逐帧保持真实旧卡与目标卡 (24.8s)
+  ok 16 tests\e2e\selection-hand.spec.ts:4:1 › 鼠标选择：忽略旧手势设置与视觉事件，连续三次进入后仍可点击进入 G02/G01 (20.3s)
+  ok 17 tests\e2e\vision.spec.ts:2:1 › 本地模型无外部网络依赖，模拟视频完成推理且停止释放轨道 (3.3s)
+  ok 18 tests\e2e\visual-upgrade.spec.ts:2:1 › Yukee 分身转场、完整收尾与重复体验 (1.2m)
+  ok 19 tests\e2e\wing-camera-lifecycle.spec.ts:108:1 › B：真实校准交接后视频和 Pose 持续更新；无脸也能完成五次 (42.0s)
+  ok 20 tests\e2e\wing-camera-lifecycle.spec.ts:197:1 › B：肘/腕丢失、断帧与连续恢复；暂停期间不补分；退出重进和 G01 往返 (56.4s)
+  ok 21 tests\e2e\wing-camera-lifecycle.spec.ts:248:1 › B：校准时暂停不偷偷进入游戏，重试仍复用视频且更新预览 (42.3s)
+  ok 22 tests\e2e\wing-camera-lifecycle.spec.ts:274:1 › B：权限拒绝和设备占用均显示原因，重新连接后仍可校准 (25.9s)
+  ok 23 tests\e2e\wing-camera-lifecycle.spec.ts:293:1 › 回归敏感性：重新引入旧版的移动推理视频行为，确实触发停帧和 Lost (15.6s)
+  ok 24 tests\e2e\wing-camera-lifecycle.spec.ts:314:1 › B：实际本地 PoseLandmarker 在合成空视频上持续推理，报告无身体而非伪造正常 (9.8s)
+  ok 25 tests\e2e\wing-camera-lifecycle.spec.ts:333:1 › B：G02 游戏中刷新后从原网站重新进入，重新校准并正常计数 (33.0s)
+  ok 26 tests\e2e\winglight.spec.ts:81:1 › G02：从挂灯入口完成校准 → 五次接光 → 返回工作态 (23.7s)
+  ok 27 tests\e2e\winglight.spec.ts:135:1 › G02：Esc 暂停冻结计时与计数，退出后可以再次进入 (19.8s)
+
+  27 passed (10.3m)

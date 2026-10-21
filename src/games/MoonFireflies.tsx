@@ -3,6 +3,7 @@ import {
   bezier,
   FIREFLY_SOURCES,
   MoonFireflyField,
+  moonCollectionKind,
   type Point,
 } from "./moonFireflyField";
 
@@ -58,6 +59,7 @@ export default forwardRef<MoonFirefliesHandle>(function MoonFireflies(_, ref) {
         if (!reduced)
           field.current.step(dt, open, charged, reps, finished, targets);
         const f = field.current;
+        layer.dataset.collectionKind = moonCollectionKind(reps);
         for (const [i, p] of f.particles.entries()) {
           const node = nodes.current[i],
             trail = trails.current[i];
@@ -67,24 +69,35 @@ export default forwardRef<MoonFirefliesHandle>(function MoonFireflies(_, ref) {
             `translate(${p.position.x.toFixed(2)} ${p.position.y.toFixed(2)})`,
           );
           node.dataset.flightPhase = p.phase;
+          node.dataset.kind = p.kind;
           const pulse = 0.65 + 0.35 * Math.sin(f.time / (650 + i * 37) + i);
           const opacity =
             p.phase === "ambient"
               ? (0.18 + pulse * 0.23) * Math.min(1, p.ambientAge / 650)
               : 0.55 + pulse * 0.4;
-          node.setAttribute("opacity", opacity.toFixed(2));
+          node.setAttribute(
+            "opacity",
+            (opacity * (p.kind === "meteor" && i % 3 ? 0.18 : 1)).toFixed(2),
+          );
           if (p.phase === "flight") {
             const tail = bezier(
               p.start,
               targets[p.side],
               (i % 2 ? 1 : -1) * (0.12 + (i % 4) * 0.05),
-              Math.max(0, p.progress - 0.065),
+              Math.max(0, p.progress - (p.kind === "meteor" ? 0.19 : 0.065)),
             );
             trail.setAttribute(
               "d",
               `M${tail.x} ${tail.y} L${p.position.x} ${p.position.y}`,
             );
-            trail.setAttribute("opacity", String(0.12 + open * 0.3));
+            trail.setAttribute(
+              "opacity",
+              String((p.kind === "meteor" ? 0.4 : 0.12) + open * 0.3),
+            );
+            trail.setAttribute(
+              "stroke-width",
+              p.kind === "meteor" ? "2.2" : "1",
+            );
           } else trail.setAttribute("opacity", "0");
         }
         layer.dataset.flights = String(
@@ -127,6 +140,11 @@ export default forwardRef<MoonFirefliesHandle>(function MoonFireflies(_, ref) {
             transform={`translate(${source.x} ${source.y})`}
             opacity=".3"
           >
+            <path
+              className="moon-firefly-wings"
+              d="M-2 0Q-10-8-7-2L-2 2M2 0Q10-8 7-2L2 2"
+              fill="#d9ffbc"
+            />
             <path
               className="moon-firefly-glow"
               d="M-3-3H3V3H-3Z"

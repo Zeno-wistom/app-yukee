@@ -431,7 +431,8 @@ export class CameraVision {
       const loop = (now: number) => {
         if (!this.running) return;
         try {
-          this.tickFace(model, now);
+          // Body games do not consume face landmarks. Keep the shared stream, run one model.
+          if (!this.poseActive) this.tickFace(model, now);
         } catch (error) {
           // 人脸模型故障不能终止整条 RAF，从而连带冻结 G02 身体推理。
           this.faceInferError = error instanceof Error ? error.message : String(error);

@@ -31,7 +31,7 @@ async function withPage(run: (page: Page) => Promise<void>) {
 }
 
 async function enterWinglight(page: Page) {
-  await page.goto("http://127.0.0.1:5173/");
+  await page.goto("http://127.0.0.1:5176/");
   await page.getByRole("button", { name: "开始体验" }).click();
   await expect(page.locator("main")).toHaveClass(/arrived/);
   await page
@@ -67,9 +67,13 @@ async function openDemo(page: Page) {
 }
 
 /** 演示模式下一次完整「展开 → 保持 → 回位」 */
-async function spreadOnce(page: Page) {
+async function spreadOnce(page: Page, kind?: string) {
   await page.keyboard.down("Space");
   await page.waitForTimeout(1300);
+  if (kind)
+    await page
+      .getByTestId("winglight")
+      .screenshot({ path: `docs/screenshots/g02-v4-${kind}.png` });
   await page.keyboard.up("Space");
   await page.waitForTimeout(1400);
 }
@@ -96,7 +100,18 @@ test("G02：从挂灯入口完成校准 → 五次接光 → 返回工作态", a
     );
 
     for (let rep = 1; rep <= 5; rep++) {
-      await spreadOnce(page);
+      const kind = [
+        "starlight",
+        "fireflies",
+        "meteor",
+        "starlight",
+        "fireflies",
+      ][rep - 1];
+      await expect(page.getByTestId("moon-fireflies")).toHaveAttribute(
+        "data-collection-kind",
+        kind,
+      );
+      await spreadOnce(page, rep <= 3 ? kind : undefined);
       await expect(page.getByTestId("winglight")).toHaveAttribute(
         "data-reps",
         String(rep),

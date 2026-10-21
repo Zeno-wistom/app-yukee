@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   bezier,
+  moonCollectionKind,
   FIREFLY_SOURCES,
   MoonFireflyField,
   type LightTargets,
@@ -100,4 +101,23 @@ describe("环境星光显示系统", () => {
         ),
       ).toBeLessThan(9);
   });
+});
+
+it("five cycles use three visual kinds without producing their own scores", () => {
+  expect([0, 1, 2, 3, 4].map(moonCollectionKind)).toEqual([
+    "starlight",
+    "fireflies",
+    "meteor",
+    "starlight",
+    "fireflies",
+  ]);
+  for (let reps = 0; reps < 5; reps++) {
+    const f = new MoonFireflyField();
+    advance(f, 9000, 1, true, reps);
+    expect(f.reps).toBe(reps);
+    expect(f.particles.some((p) => p.kind === moonCollectionKind(reps))).toBe(
+      true,
+    );
+    expect(f.particles.every((p) => p.phase !== "store")).toBe(true);
+  }
 });

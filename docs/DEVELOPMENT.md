@@ -194,3 +194,8 @@
 ## G03 融合版 v3（hark/g03-fusion-v3）
 
 以 Hark v2 为基线，采用用户提供的晴日城堡原画作为底图，加上程序化动态反馈：阳光目标、彩虹进度、像素化 Yukee；并引入 Codex v2 的迟滞、短丢帧冻结、分位判稳、视频比例骨架与 DPR 画布。详见 [G03 融合版 v3](G03-fusion-v3.md)。
+
+
+## 2026-10-21 · Hark v3 后续性能与玩法
+
+详见 [验收记录](G03-v4-performance-gameplay.md)。本轮独立分支 `codex/g03-v4-performance-gameplay`，预览5176；正式版本尚未切换。

@@ -66,3 +66,8 @@ npm run test:e2e
 - 无法取景时保留「键盘演示 · 非人体识别」：按住 ← / → 侧倾，松开回中。演示结果不视为真人识别验证。
 
 v3 融合说明见 [G03 融合版 v3](docs/G03-fusion-v3.md)；v2 改动、阈值与未验证风险见 [G03 星海冲浪 v2 报告](docs/G03-star-sea-v2.md)；上一版记录见 [G03 验收报告](docs/G03-lean-surf-2026-10-20.md)。
+
+
+## G03 v4：性能与轻量收集
+
+详见 [验收记录](docs/G03-v4-performance-gameplay.md)。本轮独立分支 `codex/g03-v4-performance-gameplay`，预览5176；正式版本尚未切换。

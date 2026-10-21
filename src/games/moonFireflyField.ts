@@ -1,3 +1,14 @@
+export type CollectionKind = "starlight" | "fireflies" | "meteor";
+const COLLECTIONS: CollectionKind[] = [
+  "starlight",
+  "fireflies",
+  "meteor",
+  "starlight",
+  "fireflies",
+];
+export function moonCollectionKind(reps: number): CollectionKind {
+  return COLLECTIONS[Math.min(4, Math.max(0, reps))];
+}
 export type Point = { x: number; y: number };
 export type LightTargets = {
   left: Point;
@@ -40,6 +51,7 @@ const SOURCES: Point[] = [
 
 export const FIREFLY_SOURCES = SOURCES;
 export type Firefly = {
+  kind: CollectionKind;
   source: Point;
   position: Point;
   start: Point;
@@ -91,6 +103,7 @@ export class MoonFireflyField {
   reps = 0;
   rewardAge = 2000;
   particles: Firefly[] = SOURCES.map((source, i) => ({
+    kind: "starlight",
     source,
     position: { ...source },
     start: { ...source },
@@ -130,10 +143,17 @@ export class MoonFireflyField {
       const target = targets[p.side];
       if (p.phase === "ambient") {
         p.ambientAge += elapsed;
-        p.position = {
-          x: p.source.x + Math.sin(this.time / (2200 + i * 80) + i) * 7,
-          y: p.source.y + Math.cos(this.time / (1900 + i * 65) + i) * 5,
-        };
+        p.kind = moonCollectionKind(reps);
+        const sky = p.kind !== "fireflies";
+        const sx = p.kind === "meteor" ? 560 + ((i * 47) % 340) : p.source.x;
+        const sy = sky ? 35 + ((i * 23) % 125) : p.source.y;
+        const follow = 1 - Math.exp(-elapsed / 300);
+        p.position.x +=
+          (sx + Math.sin(this.time / (2200 + i * 80) + i) * 7 - p.position.x) *
+          follow;
+        p.position.y +=
+          (sy + Math.cos(this.time / (1900 + i * 65) + i) * 5 - p.position.y) *
+          follow;
         if (open > 0.14 && this.activeTime >= p.nextAt) {
           p.phase = "flight";
           p.start = { ...p.position };
@@ -144,7 +164,7 @@ export class MoonFireflyField {
           1,
           p.progress +
             (elapsed * (0.35 + open * 0.85 + (finished ? 0.4 : 0))) /
-              (2000 + (i % 6) * 260),
+              ((p.kind === "meteor" ? 1400 : 2000) + (i % 6) * 260),
         );
         p.position = bezier(
           p.start,

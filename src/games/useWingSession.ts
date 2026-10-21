@@ -96,7 +96,10 @@ export function useWingSession(options: {
 
   // 摄像头关键点订阅：只有游戏/校准挂载期间才打开身体模型
   useEffect(() => {
-    if (mode !== "camera") return;
+    if (mode !== "camera") {
+      cameraVision.stop(); // Explicit keyboard demo has no camera consumer.
+      return;
+    }
     const off = cameraVision.onPose((frame) => {
       frameRef.current = frame;
     });

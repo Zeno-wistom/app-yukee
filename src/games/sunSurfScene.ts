@@ -1,3 +1,4 @@
+import { surfJump } from "./sunSurfMotion";
 /**
  * G03「星海冲浪 · 晴日河湾」场景（Canvas 2D）。
  *
@@ -86,7 +87,12 @@ export interface SunLayout {
   rainbow: { x: number; y: number; r: number; band: number };
 }
 
-export function layoutFor(W: number, H: number, preview = false, par = 0): SunLayout {
+export function layoutFor(
+  W: number,
+  H: number,
+  preview = false,
+  par = 0,
+): SunLayout {
   if (preview) {
     // 卡片 6.3:1：取底图中下部（瀑布、河道、城堡墙基）横幅；Yukee 偏左，右侧 30% 给标题。
     const k = H / 300;
@@ -114,7 +120,10 @@ export function layoutFor(W: number, H: number, preview = false, par = 0): SunLa
   const scale = Math.max(W / IMG_W, H / IMG_H) * 1.05;
   const ox = (W - IMG_W * scale) / 2 - par * 0.04;
   const oy = (H - IMG_H * scale) / 2;
-  const map = (nx: number, ny: number) => ({ x: ox + nx * IMG_W * scale, y: oy + ny * IMG_H * scale });
+  const map = (nx: number, ny: number) => ({
+    x: ox + nx * IMG_W * scale,
+    y: oy + ny * IMG_H * scale,
+  });
   const sun = map(0.365, 0.03);
   const rc = map(0.43, 0.7);
   return {
@@ -136,53 +145,145 @@ export function layoutFor(W: number, H: number, preview = false, par = 0): SunLa
   };
 }
 
-function glow(ctx: CanvasRenderingContext2D, x: number, y: number, r: number, color: string, alpha: number) {
+type Layer = HTMLCanvasElement | OffscreenCanvas;
+function makeLayer(w: number, h: number): Layer | null {
+  if (typeof OffscreenCanvas !== "undefined") return new OffscreenCanvas(w, h);
+  if (typeof document === "undefined") return null;
+  return Object.assign(document.createElement("canvas"), {
+    width: w,
+    height: h,
+  });
+}
+const glowTextures = new WeakMap<
+  CanvasRenderingContext2D,
+  Map<string, Layer>
+>();
+function glow(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  r: number,
+  color: string,
+  alpha: number,
+) {
   if (alpha <= 0.002 || r <= 0) return;
-  const g = ctx.createRadialGradient(x, y, 0, x, y, r);
-  g.addColorStop(0, color);
-  g.addColorStop(1, "rgba(0,0,0,0)");
+  let cache = glowTextures.get(ctx);
+  if (!cache) {
+    cache = new Map();
+    glowTextures.set(ctx, cache);
+  }
+  let texture = cache.get(color);
+  if (!texture) {
+    const layer = makeLayer(256, 256);
+    if (!layer) return;
+    const c = layer.getContext("2d") as CanvasRenderingContext2D;
+    const g = c.createRadialGradient(128, 128, 0, 128, 128, 128);
+    g.addColorStop(0, color);
+    g.addColorStop(1, "rgba(0,0,0,0)");
+    c.fillStyle = g;
+    c.fillRect(0, 0, 256, 256);
+    texture = layer;
+    cache.set(color, layer);
+  }
   ctx.globalAlpha = Math.min(1, alpha);
-  ctx.fillStyle = g;
-  ctx.fillRect(x - r, y - r, r * 2, r * 2);
+  ctx.drawImage(texture, x - r, y - r, r * 2, r * 2);
   ctx.globalAlpha = 1;
 }
 
-function drawBackground(ctx: CanvasRenderingContext2D, L: SunLayout, s: SunSurfState, img: CanvasImageSource | null) {
+function drawBackground(
+  ctx: CanvasRenderingContext2D,
+  L: SunLayout,
+  s: SunSurfState,
+  assets: SunSurfAssets,
+) {
   const { W, H } = L;
-  if (img) {
-    ctx.imageSmoothingEnabled = false;
-    ctx.drawImage(img, L.ox, L.oy, IMG_W * L.scale, IMG_H * L.scale);
-    ctx.imageSmoothingEnabled = true;
-  } else {
-    const g = ctx.createLinearGradient(0, 0, 0, H);
-    g.addColorStop(0, "#3aa0ff");
-    g.addColorStop(0.6, "#9fd8ff");
-    g.addColorStop(1, "#2f86c9");
-    ctx.fillStyle = g;
+  const base = layoutFor(W, H, !!s.preview);
+  const pad = Math.ceil(base.laneDX * 0.05) + 2;
+  let cache = assets.background;
+  if (
+    !cache ||
+    cache.W !== W ||
+    cache.H !== H ||
+    cache.img !== assets.img ||
+    cache.preview !== !!s.preview
+  ) {
+    const layer = makeLayer(W + pad * 2, H);
+    if (layer) {
+      const c = layer.getContext("2d") as CanvasRenderingContext2D;
+      c.imageSmoothingEnabled = false;
+      if (assets.img)
+        c.drawImage(
+          assets.img,
+          base.ox + pad,
+          base.oy,
+          IMG_W * base.scale,
+          IMG_H * base.scale,
+        );
+      else {
+        c.fillStyle = "#3aa0ff";
+        c.fillRect(0, 0, layer.width, H);
+      }
+      c.fillStyle = "rgba(16,40,70,0.04)";
+      c.fillRect(0, 0, layer.width, H);
+      const v = c.createRadialGradient(
+        W / 2 + pad,
+        H * 0.55,
+        Math.min(W, H) * 0.35,
+        W / 2 + pad,
+        H * 0.55,
+        Math.max(W, H) * 0.75,
+      );
+      v.addColorStop(0, "rgba(10,30,55,0)");
+      v.addColorStop(1, "rgba(10,30,55,0.32)");
+      c.fillStyle = v;
+      c.fillRect(0, 0, layer.width, H);
+      cache = assets.background = {
+        W,
+        H,
+        img: assets.img,
+        preview: !!s.preview,
+        layer,
+        pad,
+      };
+      assets.backgroundBuilds = (assets.backgroundBuilds ?? 0) + 1;
+    }
+  }
+  if (cache) ctx.drawImage(cache.layer, L.ox - base.ox - cache.pad, 0);
+  // Complete brightness used to change in a single frame. Fade the same brightness over 700ms.
+  const shade = s.complete ? 1 - ease((s.t - s.completeT) / 0.7) : 1;
+  if (shade > 0) {
+    ctx.fillStyle = `rgba(16,40,70,${0.094 * shade})`;
     ctx.fillRect(0, 0, W, H);
   }
-  // 轻度压暗 + 暗角：保留晴日氛围，同时让目标与角色是画面里对比最强的东西
-  ctx.fillStyle = s.complete ? "rgba(16,40,70,0.04)" : "rgba(16,40,70,0.13)";
-  ctx.fillRect(0, 0, W, H);
-  const v = ctx.createRadialGradient(W / 2, H * 0.55, Math.min(W, H) * 0.35, W / 2, H * 0.55, Math.max(W, H) * 0.75);
-  v.addColorStop(0, "rgba(10,30,55,0)");
-  v.addColorStop(1, "rgba(10,30,55,0.32)");
-  ctx.fillStyle = v;
-  ctx.fillRect(0, 0, W, H);
 }
 
-function drawSunlight(ctx: CanvasRenderingContext2D, L: SunLayout, s: SunSurfState) {
-  const prog = s.complete ? 1 : s.reps / TARGET_REPS;
+function lightProgress(s: SunSurfState) {
+  return s.reps ? s.reps - 1 + ease((s.t - s.catchT) / 1.2) : 0;
+}
+function drawSunlight(
+  ctx: CanvasRenderingContext2D,
+  L: SunLayout,
+  s: SunSurfState,
+) {
+  const prog = lightProgress(s) / TARGET_REPS;
   const { sun, k } = L;
   // 旋转光芒：进度越高越亮越长
   ctx.save();
   ctx.globalCompositeOperation = "lighter";
   const n = 9;
   for (let i = 0; i < n; i++) {
-    const a = Math.PI * 0.12 + (i / (n - 1)) * Math.PI * 0.76 + Math.sin(s.t * 0.25 + i) * 0.03;
+    const a =
+      Math.PI * 0.12 +
+      (i / (n - 1)) * Math.PI * 0.76 +
+      Math.sin(s.t * 0.25 + i) * 0.03;
     const len = (260 + 300 * prog) * k;
     const w = 0.035 + 0.01 * Math.sin(s.t * 0.7 + i * 1.3);
-    const g = ctx.createLinearGradient(sun.x, sun.y, sun.x + Math.cos(a) * len, sun.y + Math.sin(a) * len);
+    const g = ctx.createLinearGradient(
+      sun.x,
+      sun.y,
+      sun.x + Math.cos(a) * len,
+      sun.y + Math.sin(a) * len,
+    );
     g.addColorStop(0, `rgba(255,246,200,${0.07 + 0.16 * prog})`);
     g.addColorStop(1, "rgba(255,246,200,0)");
     ctx.fillStyle = g;
@@ -194,12 +295,26 @@ function drawSunlight(ctx: CanvasRenderingContext2D, L: SunLayout, s: SunSurfSta
     ctx.fill();
   }
   ctx.restore();
-  glow(ctx, sun.x, sun.y, (110 + 90 * prog) * k, "rgba(255,248,214,0.95)", 0.55 + 0.35 * prog);
+  glow(
+    ctx,
+    sun.x,
+    sun.y,
+    (110 + 90 * prog) * k,
+    "rgba(255,248,214,0.95)",
+    0.55 + 0.35 * prog,
+  );
 }
 
-function drawWater(ctx: CanvasRenderingContext2D, L: SunLayout, s: SunSurfState) {
+function drawWater(
+  ctx: CanvasRenderingContext2D,
+  L: SunLayout,
+  s: SunSurfState,
+) {
   if (s.preview) return;
-  const map = (nx: number, ny: number) => ({ x: L.ox + nx * IMG_W * L.scale, y: L.oy + ny * IMG_H * L.scale });
+  const map = (nx: number, ny: number) => ({
+    x: L.ox + nx * IMG_W * L.scale,
+    y: L.oy + ny * IMG_H * L.scale,
+  });
   // 瀑布流光：落下的白色像素短线
   const falls = [
     [0.248, 0.335, 0.77, 1.0],
@@ -233,8 +348,94 @@ function drawWater(ctx: CanvasRenderingContext2D, L: SunLayout, s: SunSurfState)
   ctx.globalAlpha = 1;
 }
 
+/** Extend existing river/rainbow feedback in three chapters; no extra game rules. */
+function drawChapterLight(
+  ctx: CanvasRenderingContext2D,
+  L: SunLayout,
+  s: SunSurfState,
+) {
+  if (s.preview || s.reps < 2) return;
+  const map = (x: number, y: number) => ({
+    x: L.ox + x * IMG_W * L.scale,
+    y: L.oy + y * IMG_H * L.scale,
+  });
+  const progress = lightProgress(s);
+  const river = clamp((progress - 1) / 3);
+  const a = map(0.46, 0.73),
+    b = map(0.59, 0.85),
+    d = map(0.7, 0.97);
+  ctx.lineCap = "round";
+  ctx.lineWidth = 5 * L.k;
+  ctx.strokeStyle = `rgba(205,255,234,${river * 0.28})`;
+  ctx.beginPath();
+  ctx.moveTo(a.x, a.y);
+  ctx.quadraticCurveTo(b.x, b.y, d.x, d.y);
+  ctx.stroke();
+  for (let i = 0; i < 6; i++) {
+    const t = (s.t * 0.12 + i / 6) % 1,
+      u = 1 - t;
+    const x = u * u * a.x + 2 * u * t * b.x + t * t * d.x,
+      y = u * u * a.y + 2 * u * t * b.y + t * t * d.y;
+    glow(
+      ctx,
+      x,
+      y,
+      12 * L.k,
+      "rgba(210,255,238,0.9)",
+      river * 0.35 * Math.sin(t * Math.PI),
+    );
+  }
+  ctx.lineCap = "butt";
+  const castle = clamp((progress - 3) / 3);
+  if (castle <= 0) return;
+  const gate = map(0.79, 0.51),
+    from = {
+      x: L.rainbow.x + L.rainbow.r * 0.8,
+      y: L.rainbow.y - L.rainbow.r * 0.3,
+    };
+  glow(ctx, gate.x, gate.y, 76 * L.k, "rgba(255,230,153,0.9)", castle * 0.38);
+  // Four slow wisps carry collected sunlight from the existing rainbow toward the castle.
+  for (let i = 0; i < 4; i++) {
+    const t = (s.t * 0.16 + i / 4) % 1,
+      u = 1 - t;
+    const x = from.x + (gate.x - from.x) * t,
+      y = u * u * from.y + 2 * u * t * (gate.y - 65 * L.k) + t * t * gate.y;
+    glow(
+      ctx,
+      x,
+      y,
+      10 * L.k,
+      "rgba(255,248,214,0.95)",
+      castle * 0.7 * Math.sin(t * Math.PI),
+    );
+  }
+  if (s.complete) {
+    const age = s.t - s.completeT;
+    if (age > 1.2 && age < 3.2) {
+      const p = (age - 1.2) / 2;
+      ctx.strokeStyle = `rgba(255,240,184,${Math.sin(p * Math.PI) * 0.55})`;
+      ctx.lineWidth = 2 * L.k;
+      ctx.beginPath();
+      ctx.ellipse(
+        gate.x,
+        gate.y,
+        (20 + p * 95) * L.k,
+        (12 + p * 50) * L.k,
+        0,
+        0,
+        Math.PI * 2,
+      );
+      ctx.stroke();
+    }
+  }
+}
+
 /** 彩虹：已接住的色带完整显示，正在落位的一道沿弧线扫出 */
-function drawRainbow(ctx: CanvasRenderingContext2D, L: SunLayout, s: SunSurfState) {
+function drawRainbow(
+  ctx: CanvasRenderingContext2D,
+  L: SunLayout,
+  s: SunSurfState,
+) {
   const { rainbow: rb } = L;
   const painting = s.reps > 0 && s.t - s.catchT < 1.25 ? s.reps - 1 : -1;
   const done = s.complete && painting < 0;
@@ -264,7 +465,15 @@ function drawRainbow(ctx: CanvasRenderingContext2D, L: SunLayout, s: SunSurfStat
     ctx.stroke();
     ctx.globalAlpha = 1;
   }
-  if (done) glow(ctx, rb.x, rb.y - rb.r * 0.6, rb.r * 0.9, "rgba(255,255,240,0.5)", 0.25);
+  if (done)
+    glow(
+      ctx,
+      rb.x,
+      rb.y - rb.r * 0.6,
+      rb.r * 0.9,
+      "rgba(255,255,240,0.5)",
+      0.25,
+    );
 }
 
 export function targetPose(L: SunLayout, s: SunSurfState) {
@@ -277,16 +486,28 @@ export function targetPose(L: SunLayout, s: SunSurfState) {
     return { x: wx, y: wy, r: 12 * L.k, flight: 0, waiting: true };
   }
   const f = ease((s.t - s.spawnT) / 1.0);
-  const c = { x: home.x - s.target * L.targetDX * 0.1, y: Math.min(start.y, home.y) - 30 * L.k };
+  const c = {
+    x: home.x - s.target * L.targetDX * 0.1,
+    y: Math.min(start.y, home.y) - 30 * L.k,
+  };
   const a = 1 - f;
   const x = a * a * start.x + 2 * a * f * c.x + f * f * home.x;
   const y = a * a * start.y + 2 * a * f * c.y + f * f * home.y;
-  const bob = f >= 1 ? Math.sin(s.t * 2.4) * 5 * L.k : 0;
+  const bob =
+    f >= 1 ? Math.sin(Math.max(0, s.t - s.spawnT - 1) * 2.4) * 5 * L.k : 0;
   return { x, y: y + bob, r: (9 + 11 * f) * L.k, flight: f, waiting: false };
 }
 
 /** 阳光光团：深色衬底 + 深青外轮廓 + 白金光核 + 旋转光芒，亮背景上也一眼可辨 */
-function drawSunOrb(ctx: CanvasRenderingContext2D, x: number, y: number, r: number, t: number, power: number, k: number) {
+function drawSunOrb(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  r: number,
+  t: number,
+  power: number,
+  k: number,
+) {
   // 衬底：把亮背景压下去
   const bp = ctx.createRadialGradient(x, y, r * 0.5, x, y, r * 3.1);
   bp.addColorStop(0, "rgba(6,34,58,0.55)");
@@ -295,7 +516,14 @@ function drawSunOrb(ctx: CanvasRenderingContext2D, x: number, y: number, r: numb
   ctx.beginPath();
   ctx.arc(x, y, r * 3.1, 0, Math.PI * 2);
   ctx.fill();
-  glow(ctx, x, y, r * (2.6 + 1.6 * power), "rgba(255,226,120,0.95)", 0.55 + 0.4 * power);
+  glow(
+    ctx,
+    x,
+    y,
+    r * (2.6 + 1.6 * power),
+    "rgba(255,226,120,0.95)",
+    0.55 + 0.4 * power,
+  );
   // 旋转光芒（深色描边 + 金色填充）
   const n = 8;
   const rot = t * (0.8 + 1.6 * power);
@@ -317,7 +545,14 @@ function drawSunOrb(ctx: CanvasRenderingContext2D, x: number, y: number, r: numb
   // 光核
   ctx.beginPath();
   ctx.arc(x, y, r, 0, Math.PI * 2);
-  const core = ctx.createRadialGradient(x - r * 0.3, y - r * 0.3, r * 0.1, x, y, r);
+  const core = ctx.createRadialGradient(
+    x - r * 0.3,
+    y - r * 0.3,
+    r * 0.1,
+    x,
+    y,
+    r,
+  );
   core.addColorStop(0, "#ffffff");
   core.addColorStop(0.45, "#fff3b0");
   core.addColorStop(1, "#ffb627");
@@ -333,7 +568,13 @@ function drawSunOrb(ctx: CanvasRenderingContext2D, x: number, y: number, r: numb
   ctx.stroke();
 }
 
-function drawTarget(ctx: CanvasRenderingContext2D, L: SunLayout, s: SunSurfState, yx: number, yy: number) {
+function drawTarget(
+  ctx: CanvasRenderingContext2D,
+  L: SunLayout,
+  s: SunSurfState,
+  yx: number,
+  yy: number,
+) {
   if (s.complete) return;
   const { k } = L;
   const st = targetPose(L, s);
@@ -366,12 +607,28 @@ function drawTarget(ctx: CanvasRenderingContext2D, L: SunLayout, s: SunSurfState
   ctx.strokeStyle = "#fff4c2";
   ctx.lineWidth = 2.5 * k;
   ctx.beginPath();
-  ctx.ellipse(st.x, ringY, (34 + 14 * ap) * k, (8 + 3 * ap) * k, 0, 0, Math.PI * 2);
+  ctx.ellipse(
+    st.x,
+    ringY,
+    (34 + 14 * ap) * k,
+    (8 + 3 * ap) * k,
+    0,
+    0,
+    Math.PI * 2,
+  );
   ctx.stroke();
   ctx.strokeStyle = "rgba(11,59,77,0.6)";
   ctx.lineWidth = 1.2 * k;
   ctx.beginPath();
-  ctx.ellipse(st.x, ringY, (38 + 14 * ap) * k, (10 + 3 * ap) * k, 0, 0, Math.PI * 2);
+  ctx.ellipse(
+    st.x,
+    ringY,
+    (38 + 14 * ap) * k,
+    (10 + 3 * ap) * k,
+    0,
+    0,
+    Math.PI * 2,
+  );
   ctx.stroke();
   ctx.globalAlpha = 1;
   // 光带：从 Yukee 天线连到光团，越近越粗越亮
@@ -382,7 +639,12 @@ function drawTarget(ctx: CanvasRenderingContext2D, L: SunLayout, s: SunSurfState
     const path = () => {
       ctx.beginPath();
       ctx.moveTo(yx, yy);
-      ctx.quadraticCurveTo((yx + st.x) / 2, Math.min(yy, st.y) - 50 * k, st.x, st.y);
+      ctx.quadraticCurveTo(
+        (yx + st.x) / 2,
+        Math.min(yy, st.y) - 50 * k,
+        st.x,
+        st.y,
+      );
     };
     path();
     ctx.stroke();
@@ -407,7 +669,8 @@ function drawTarget(ctx: CanvasRenderingContext2D, L: SunLayout, s: SunSurfState
     ctx.globalAlpha = 1;
     ctx.lineCap = "butt";
   }
-  const r = st.r * (1 + 0.28 * ap + (s.arrived ? 0.08 * Math.sin(s.t * 20) : 0));
+  const r =
+    st.r * (1 + 0.28 * ap + (s.arrived ? 0.08 * Math.sin(s.t * 20) : 0));
   drawSunOrb(ctx, st.x, st.y, r, s.t, ap, k);
   if (st.flight >= 1) {
     // 进度环：接近时填到一半，进入接光区后保持填满
@@ -450,7 +713,13 @@ function drawTarget(ctx: CanvasRenderingContext2D, L: SunLayout, s: SunSurfState
   }
 }
 
-function drawCatchFx(ctx: CanvasRenderingContext2D, L: SunLayout, s: SunSurfState, yx: number, yy: number) {
+function drawCatchFx(
+  ctx: CanvasRenderingContext2D,
+  L: SunLayout,
+  s: SunSurfState,
+  yx: number,
+  yy: number,
+) {
   const dt = s.t - s.catchT;
   if (s.reps === 0 || dt < 0 || dt > 1.4) return;
   const { k } = L;
@@ -469,7 +738,12 @@ function drawCatchFx(ctx: CanvasRenderingContext2D, L: SunLayout, s: SunSurfStat
       ctx.globalAlpha = 1 - p;
       ctx.fillStyle = i % 2 ? "#fff1a8" : "#ffffff";
       const sz = 5 * k * (1 - p * 0.5);
-      ctx.fillRect(from.x + Math.cos(a) * d - sz / 2, from.y + Math.sin(a) * d - sz / 2, sz, sz);
+      ctx.fillRect(
+        from.x + Math.cos(a) * d - sz / 2,
+        from.y + Math.sin(a) * d - sz / 2,
+        sz,
+        sz,
+      );
     }
     ctx.globalAlpha = 1;
   }
@@ -514,7 +788,11 @@ function drawCatchFx(ctx: CanvasRenderingContext2D, L: SunLayout, s: SunSurfStat
   }
 }
 
-function drawCompleteFx(ctx: CanvasRenderingContext2D, L: SunLayout, s: SunSurfState) {
+function drawCompleteFx(
+  ctx: CanvasRenderingContext2D,
+  L: SunLayout,
+  s: SunSurfState,
+) {
   if (!s.complete) return;
   const dt = s.t - s.completeT;
   if (dt < 1.2) return;
@@ -533,16 +811,20 @@ function drawCompleteFx(ctx: CanvasRenderingContext2D, L: SunLayout, s: SunSurfS
 }
 
 /** Yukee（像素化）。offscreen 由调用方缓存。 */
-function drawYukee(ctx: CanvasRenderingContext2D, L: SunLayout, s: SunSurfState, off: { c: HTMLCanvasElement | OffscreenCanvas | null }) {
+function drawYukee(
+  ctx: CanvasRenderingContext2D,
+  L: SunLayout,
+  s: SunSurfState,
+  off: {
+    c: HTMLCanvasElement | OffscreenCanvas | null;
+    at?: number;
+    pose?: string;
+  },
+) {
   const { k } = L;
   const happyDt = s.t - s.catchT;
   const happy = (s.reps > 0 && happyDt >= 0 && happyDt < 0.9) || s.complete;
-  const jump =
-    s.reps > 0 && happyDt >= 0 && happyDt < 0.55
-      ? Math.sin((happyDt / 0.55) * Math.PI) * 22 * k
-      : s.complete
-        ? Math.abs(Math.sin(s.t * 3.2)) * 12 * k
-        : 0;
+  const jump = s.reps ? surfJump(s.t, s.catchT, s.complete, s.completeT, k) : 0;
   const bob = Math.sin(s.t * 1.8) * 3.5 * k;
   // 完成后在河湾中央稍稍上浮庆祝，给结算面板让位
   const away = s.complete ? ease((s.t - s.completeT) / 1.4) : 0;
@@ -551,14 +833,29 @@ function drawYukee(ctx: CanvasRenderingContext2D, L: SunLayout, s: SunSurfState,
   const lean = s.u;
   const S = 1.3; // 角色放大
   // 水面：板下光、尾迹、浪花（平滑绘制，在主画布上）
-  glow(ctx, x, y + 8 * k, 110 * k, "rgba(255,255,255,0.7)", 0.25 + 0.2 * Math.abs(lean));
+  glow(
+    ctx,
+    x,
+    y + 8 * k,
+    110 * k,
+    "rgba(255,255,255,0.7)",
+    0.25 + 0.2 * Math.abs(lean),
+  );
   for (let i = 0; i < 8; i++) {
     const d = ((s.t * 70 + i * 20) % 160) * k;
     ctx.globalAlpha = (1 - d / (160 * k)) * 0.75;
     ctx.strokeStyle = "#ffffff";
     ctx.lineWidth = 2 * k;
     ctx.beginPath();
-    ctx.ellipse(x - lean * d * 0.35, y + 12 * k + d * 0.4, 70 * k + d * 0.5, 6 * k + d * 0.05, 0, 0.1 * Math.PI, 0.9 * Math.PI);
+    ctx.ellipse(
+      x - lean * d * 0.35,
+      y + 12 * k + d * 0.4,
+      70 * k + d * 0.5,
+      6 * k + d * 0.05,
+      0,
+      0.1 * Math.PI,
+      0.9 * Math.PI,
+    );
     ctx.stroke();
   }
   ctx.globalAlpha = 1;
@@ -566,7 +863,8 @@ function drawYukee(ctx: CanvasRenderingContext2D, L: SunLayout, s: SunSurfState,
   for (let i = 0; i < sprayN; i++) {
     const ph = (s.t * 2.4 + i * 0.137) % 1;
     const sx = x - Math.sign(lean) * (85 + ph * 80) * k;
-    const sy = y + 6 * k - Math.sin(ph * Math.PI) * 40 * k * (0.6 + (i % 3) * 0.25);
+    const sy =
+      y + 6 * k - Math.sin(ph * Math.PI) * 40 * k * (0.6 + (i % 3) * 0.25);
     ctx.globalAlpha = (1 - ph) * 0.9;
     ctx.fillStyle = "#ffffff";
     const sz = (3 + (i % 2) * 2) * k;
@@ -574,148 +872,206 @@ function drawYukee(ctx: CanvasRenderingContext2D, L: SunLayout, s: SunSurfState,
   }
   ctx.globalAlpha = 1;
   // 吸光后的暖光
-  if (happy) glow(ctx, x, y - 60 * k * S - jump, 90 * k, "rgba(255,226,120,0.9)", s.complete ? 0.35 : 0.55 * (1 - happyDt / 0.9));
+  if (happy)
+    glow(
+      ctx,
+      x,
+      y - 60 * k * S - jump,
+      90 * k,
+      "rgba(255,226,120,0.9)",
+      s.complete ? 0.35 : 0.55 * (1 - happyDt / 0.9),
+    );
 
   // 角色绘制到低分辨率离屏画布，再无平滑放大 → 与像素世界同一语言
   const px = Math.max(2, Math.round(2.6 * k));
   const box = Math.ceil((260 * k * S) / px);
-  if (typeof document === "undefined" && typeof OffscreenCanvas === "undefined") return;
+  if (typeof document === "undefined" && typeof OffscreenCanvas === "undefined")
+    return;
   if (!off.c || off.c.width !== box) {
-    off.c = typeof OffscreenCanvas !== "undefined" ? new OffscreenCanvas(box, box) : Object.assign(document.createElement("canvas"), { width: box, height: box });
+    off.c =
+      typeof OffscreenCanvas !== "undefined"
+        ? new OffscreenCanvas(box, box)
+        : Object.assign(document.createElement("canvas"), {
+            width: box,
+            height: box,
+          });
     off.c.width = box;
     off.c.height = box;
+    off.at = undefined;
   }
-  const o = off.c.getContext("2d") as CanvasRenderingContext2D;
-  o.setTransform(1, 0, 0, 1, 0, 0);
-  o.clearRect(0, 0, box, box);
-  const q = (k * S) / px; // 离屏中每「基准像素」大小
-  o.translate(box / 2, box * 0.78 - jump / px);
-  // 冲浪板
-  o.save();
-  o.rotate(lean * 0.16);
-  o.fillStyle = "#0b3b4d";
-  o.beginPath();
-  o.ellipse(0, 0, 80 * q, 14 * q, 0, 0, Math.PI * 2);
-  o.fill();
-  o.fillStyle = "#7ff0d0";
-  o.beginPath();
-  o.ellipse(0, -1 * q, 76 * q, 10.5 * q, 0, 0, Math.PI * 2);
-  o.fill();
-  o.fillStyle = "#ffd25a";
-  o.fillRect(-56 * q, -2 * q, 112 * q, 3.5 * q);
-  o.fillStyle = "#e6fff7";
-  o.fillRect(-48 * q, -7 * q, 50 * q, 2.5 * q);
-  o.restore();
-  // 身体
-  o.rotate(lean * 0.3);
-  const bw = 46 * q,
-    bh = 78 * q;
-  o.fillStyle = "#0c241e";
-  o.beginPath();
-  o.ellipse(-16 * q, -6 * q, 11 * q, 6 * q, 0, 0, Math.PI * 2);
-  o.ellipse(16 * q, -6 * q, 11 * q, 6 * q, 0, 0, Math.PI * 2);
-  o.fill();
-  // 手臂：平衡 / 开心举起
-  o.strokeStyle = "#06120e";
-  o.lineWidth = 9 * q;
-  o.lineCap = "round";
-  const armPath = (sd: number) => {
-    const balance = -lean * sd * 12 * q;
-    o.beginPath();
-    o.moveTo(sd * bw * 0.85, -bh * 0.5);
-    o.quadraticCurveTo(sd * (bw + 16 * q), -bh * 0.5 + 4 * q + balance, sd * (bw + 24 * q), -bh * 0.5 + (happy ? -32 * q : 10 * q) + balance);
-  };
-  for (const sd of [-1, 1]) {
-    armPath(sd);
-    o.stroke();
-  }
-  o.strokeStyle = "#2a6150";
-  o.lineWidth = 5 * q;
-  for (const sd of [-1, 1]) {
-    armPath(sd);
-    o.stroke();
-  }
-  o.lineCap = "butt";
-  // 胶滴主体
-  const blob = () => {
-    o.beginPath();
-    o.moveTo(0, -bh - 8 * q);
-    o.bezierCurveTo(bw * 0.85, -bh - 8 * q, bw * 1.08, -bh * 0.55, bw, -bh * 0.22);
-    o.bezierCurveTo(bw * 0.95, -2 * q, bw * 0.4, 0, 0, 0);
-    o.bezierCurveTo(-bw * 0.4, 0, -bw * 0.95, -2 * q, -bw, -bh * 0.22);
-    o.bezierCurveTo(-bw * 1.08, -bh * 0.55, -bw * 0.85, -bh - 8 * q, 0, -bh - 8 * q);
-    o.closePath();
-  };
-  blob();
-  o.fillStyle = "#06120e";
-  o.lineWidth = 7 * q;
-  o.strokeStyle = "#06120e";
-  o.stroke();
-  const body = o.createLinearGradient(-bw, -bh, bw, 0);
-  body.addColorStop(0, "#3b7a63");
-  body.addColorStop(0.45, "#1e4a3d");
-  body.addColorStop(1, "#133129");
-  o.fillStyle = body;
-  blob();
-  o.fill();
-  o.fillStyle = "rgba(199,255,231,0.28)";
-  o.beginPath();
-  o.ellipse(-bw * 0.45, -bh * 0.8, bw * 0.26, bh * 0.09, -0.5, 0, Math.PI * 2);
-  o.fill();
-  // 面屏
-  o.fillStyle = "#081a16";
-  o.beginPath();
-  o.roundRect(-bw * 0.72, -bh * 0.74, bw * 1.44, bh * 0.4, 14 * q);
-  o.fill();
-  // 眼睛
-  const lookX = (s.complete ? 0 : s.target * 4 + lean * 5) * q;
-  const blink = s.t % 3.7 < 0.12 && !happy;
-  const eyeY = -bh * 0.54;
-  const eyeW = 10 * q * (1 + 0.15 * s.approach),
-    eyeH = 18 * q * (1 + 0.2 * s.approach);
-  o.fillStyle = s.tracking === "lost" ? "#4f8a70" : "#8de9bc";
-  for (const sd of [-1, 1]) {
-    const ex = sd * 15 * q + lookX;
-    if (happy) {
-      o.strokeStyle = "#b8ffe0";
-      o.lineWidth = 5 * q;
-      o.beginPath();
-      o.arc(ex, eyeY + 5 * q, 7 * q, Math.PI * 1.1, Math.PI * 1.9);
-      o.stroke();
-    } else if (blink || s.tracking === "lost") {
-      o.fillRect(ex - eyeW / 2, eyeY - 2 * q, eyeW, 4 * q);
-    } else {
-      o.beginPath();
-      o.roundRect(ex - eyeW / 2, eyeY - eyeH / 2, eyeW, eyeH, eyeW / 2);
-      o.fill();
-    }
-  }
-  if (happy) {
-    o.fillStyle = "rgba(255,150,140,0.75)";
-    o.fillRect(-32 * q, -bh * 0.42, 9 * q, 4 * q);
-    o.fillRect(23 * q, -bh * 0.42, 9 * q, 4 * q);
-  }
-  // 天线：反向惯性
+  const poseKey = `${happy}/${s.tracking}/${s.target}/${k.toFixed(4)}`;
+  const redraw =
+    off.at === undefined ||
+    s.t < off.at ||
+    s.t - off.at >= 1 / 60 ||
+    off.pose !== poseKey;
+  const q = (k * S) / px;
   const swing = -lean * 0.5 + Math.sin(s.t * 3) * 0.08;
   const ax = Math.sin(swing) * 24 * q,
-    ay = -bh - 8 * q - Math.cos(swing) * 24 * q;
-  o.strokeStyle = "#06120e";
-  o.lineWidth = 4 * q;
-  o.beginPath();
-  o.moveTo(0, -bh - 7 * q);
-  o.lineTo(ax, ay);
-  o.stroke();
-  o.fillStyle = "#06120e";
-  o.beginPath();
-  o.arc(ax, ay, 7.5 * q, 0, Math.PI * 2);
-  o.fill();
-  o.fillStyle = "#ffd25a";
-  o.beginPath();
-  o.arc(ax, ay, 5.5 * q, 0, Math.PI * 2);
-  o.fill();
-
+    ay = -78 * q - 8 * q - Math.cos(swing) * 24 * q;
+  if (redraw) {
+    off.at = s.t;
+    off.pose = poseKey;
+    const o = off.c.getContext("2d") as CanvasRenderingContext2D;
+    o.setTransform(1, 0, 0, 1, 0, 0);
+    o.clearRect(0, 0, box, box);
+    o.translate(box / 2, box * 0.78);
+    // 冲浪板
+    o.save();
+    o.rotate(lean * 0.16);
+    o.fillStyle = "#0b3b4d";
+    o.beginPath();
+    o.ellipse(0, 0, 80 * q, 14 * q, 0, 0, Math.PI * 2);
+    o.fill();
+    o.fillStyle = "#7ff0d0";
+    o.beginPath();
+    o.ellipse(0, -1 * q, 76 * q, 10.5 * q, 0, 0, Math.PI * 2);
+    o.fill();
+    o.fillStyle = "#ffd25a";
+    o.fillRect(-56 * q, -2 * q, 112 * q, 3.5 * q);
+    o.fillStyle = "#e6fff7";
+    o.fillRect(-48 * q, -7 * q, 50 * q, 2.5 * q);
+    o.restore();
+    // 身体
+    o.rotate(lean * 0.3);
+    const bw = 46 * q,
+      bh = 78 * q;
+    o.fillStyle = "#0c241e";
+    o.beginPath();
+    o.ellipse(-16 * q, -6 * q, 11 * q, 6 * q, 0, 0, Math.PI * 2);
+    o.ellipse(16 * q, -6 * q, 11 * q, 6 * q, 0, 0, Math.PI * 2);
+    o.fill();
+    // 手臂：平衡 / 开心举起
+    o.strokeStyle = "#06120e";
+    o.lineWidth = 9 * q;
+    o.lineCap = "round";
+    const armPath = (sd: number) => {
+      const balance = -lean * sd * 12 * q;
+      o.beginPath();
+      o.moveTo(sd * bw * 0.85, -bh * 0.5);
+      o.quadraticCurveTo(
+        sd * (bw + 16 * q),
+        -bh * 0.5 + 4 * q + balance,
+        sd * (bw + 24 * q),
+        -bh * 0.5 + (happy ? -32 * q : 10 * q) + balance,
+      );
+    };
+    for (const sd of [-1, 1]) {
+      armPath(sd);
+      o.stroke();
+    }
+    o.strokeStyle = "#2a6150";
+    o.lineWidth = 5 * q;
+    for (const sd of [-1, 1]) {
+      armPath(sd);
+      o.stroke();
+    }
+    o.lineCap = "butt";
+    // 胶滴主体
+    const blob = () => {
+      o.beginPath();
+      o.moveTo(0, -bh - 8 * q);
+      o.bezierCurveTo(
+        bw * 0.85,
+        -bh - 8 * q,
+        bw * 1.08,
+        -bh * 0.55,
+        bw,
+        -bh * 0.22,
+      );
+      o.bezierCurveTo(bw * 0.95, -2 * q, bw * 0.4, 0, 0, 0);
+      o.bezierCurveTo(-bw * 0.4, 0, -bw * 0.95, -2 * q, -bw, -bh * 0.22);
+      o.bezierCurveTo(
+        -bw * 1.08,
+        -bh * 0.55,
+        -bw * 0.85,
+        -bh - 8 * q,
+        0,
+        -bh - 8 * q,
+      );
+      o.closePath();
+    };
+    blob();
+    o.fillStyle = "#06120e";
+    o.lineWidth = 7 * q;
+    o.strokeStyle = "#06120e";
+    o.stroke();
+    const body = o.createLinearGradient(-bw, -bh, bw, 0);
+    body.addColorStop(0, "#3b7a63");
+    body.addColorStop(0.45, "#1e4a3d");
+    body.addColorStop(1, "#133129");
+    o.fillStyle = body;
+    blob();
+    o.fill();
+    o.fillStyle = "rgba(199,255,231,0.28)";
+    o.beginPath();
+    o.ellipse(
+      -bw * 0.45,
+      -bh * 0.8,
+      bw * 0.26,
+      bh * 0.09,
+      -0.5,
+      0,
+      Math.PI * 2,
+    );
+    o.fill();
+    // 面屏
+    o.fillStyle = "#081a16";
+    o.beginPath();
+    o.roundRect(-bw * 0.72, -bh * 0.74, bw * 1.44, bh * 0.4, 14 * q);
+    o.fill();
+    // 眼睛
+    const lookX = (s.complete ? 0 : s.target * 4 + lean * 5) * q;
+    const blink = s.t % 3.7 < 0.12 && !happy;
+    const eyeY = -bh * 0.54;
+    const eyeW = 10 * q * (1 + 0.15 * s.approach),
+      eyeH = 18 * q * (1 + 0.2 * s.approach);
+    o.fillStyle = s.tracking === "lost" ? "#4f8a70" : "#8de9bc";
+    for (const sd of [-1, 1]) {
+      const ex = sd * 15 * q + lookX;
+      if (happy) {
+        o.strokeStyle = "#b8ffe0";
+        o.lineWidth = 5 * q;
+        o.beginPath();
+        o.arc(ex, eyeY + 5 * q, 7 * q, Math.PI * 1.1, Math.PI * 1.9);
+        o.stroke();
+      } else if (blink || s.tracking === "lost") {
+        o.fillRect(ex - eyeW / 2, eyeY - 2 * q, eyeW, 4 * q);
+      } else {
+        o.beginPath();
+        o.roundRect(ex - eyeW / 2, eyeY - eyeH / 2, eyeW, eyeH, eyeW / 2);
+        o.fill();
+      }
+    }
+    if (happy) {
+      o.fillStyle = "rgba(255,150,140,0.75)";
+      o.fillRect(-32 * q, -bh * 0.42, 9 * q, 4 * q);
+      o.fillRect(23 * q, -bh * 0.42, 9 * q, 4 * q);
+    }
+    // 天线：反向惯性
+    o.strokeStyle = "#06120e";
+    o.lineWidth = 4 * q;
+    o.beginPath();
+    o.moveTo(0, -bh - 7 * q);
+    o.lineTo(ax, ay);
+    o.stroke();
+    o.fillStyle = "#06120e";
+    o.beginPath();
+    o.arc(ax, ay, 7.5 * q, 0, Math.PI * 2);
+    o.fill();
+    o.fillStyle = "#ffd25a";
+    o.beginPath();
+    o.arc(ax, ay, 5.5 * q, 0, Math.PI * 2);
+    o.fill();
+  }
   ctx.imageSmoothingEnabled = false;
-  ctx.drawImage(off.c as CanvasImageSource, x - (box * px) / 2, y - box * px * 0.78, box * px, box * px);
+  ctx.drawImage(
+    off.c as CanvasImageSource,
+    x - (box * px) / 2,
+    y - jump - box * px * 0.78,
+    box * px,
+    box * px,
+  );
   ctx.imageSmoothingEnabled = true;
   // 天线灯光晕（平滑，随接近变亮）
   const cos = Math.cos(lean * 0.3),
@@ -724,7 +1080,14 @@ function drawYukee(ctx: CanvasRenderingContext2D, L: SunLayout, s: SunSurfState,
     ly = ay * px;
   const gx = x + lx * cos - ly * sin,
     gy = y - jump + lx * sin + ly * cos;
-  glow(ctx, gx, gy, (16 + 26 * s.approach + (happy ? 18 : 0)) * k, "rgba(255,220,110,0.95)", 0.45 + 0.5 * s.approach);
+  glow(
+    ctx,
+    gx,
+    gy,
+    (16 + 26 * s.approach + (happy ? 18 : 0)) * k,
+    "rgba(255,220,110,0.95)",
+    0.45 + 0.5 * s.approach,
+  );
   return { ax: gx, ay: gy };
 }
 
@@ -743,19 +1106,37 @@ export function antennaPoint(L: SunLayout, s: SunSurfState) {
 
 export interface SunSurfAssets {
   img: CanvasImageSource | null;
-  off: { c: HTMLCanvasElement | OffscreenCanvas | null };
+  off: {
+    c: HTMLCanvasElement | OffscreenCanvas | null;
+    at?: number;
+    pose?: string;
+  };
+  background?: {
+    W: number;
+    H: number;
+    img: CanvasImageSource | null;
+    preview: boolean;
+    layer: Layer;
+    pad: number;
+  };
+  backgroundBuilds?: number;
 }
 
-export function drawSunSurf(ctx: CanvasRenderingContext2D, s: SunSurfState, assets: SunSurfAssets) {
+export function drawSunSurf(
+  ctx: CanvasRenderingContext2D,
+  s: SunSurfState,
+  assets: SunSurfAssets,
+) {
   const W = ctx.canvas.width,
     H = ctx.canvas.height;
   const base = layoutFor(W, H, !!s.preview);
   const par = s.x - base.cx;
   const L = s.preview ? base : layoutFor(W, H, false, par);
   ctx.clearRect(0, 0, W, H);
-  drawBackground(ctx, L, s, assets.img);
+  drawBackground(ctx, L, s, assets);
   if (!s.preview) drawSunlight(ctx, L, s);
   drawWater(ctx, L, s);
+  drawChapterLight(ctx, L, s);
   drawRainbow(ctx, L, s);
   const ant = antennaPoint(L, s);
   drawTarget(ctx, L, s, ant.x, ant.y);

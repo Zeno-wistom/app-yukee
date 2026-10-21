@@ -593,9 +593,28 @@ function Desk(props: Props) {
     </>
   );
 }
+function BodyGameRenderBudget({active,pulseAt}:{active:boolean;pulseAt:number}) {
+  const invalidate=useThree(s=>s.invalidate);
+  useEffect(()=>{
+    if(!active)return;
+    invalidate();
+    let last=performance.now();
+    // The desk is static between actions. Keep event light pulses at 30Hz,
+    // but idle eye glances need only 10Hz; game Canvas and DOM avatars are independent.
+    const timer=window.setInterval(()=>{
+      const now=performance.now();
+      const interval=now-pulseAt<900 ? 1000/30 : 100;
+      if(now-last>=interval-1){last=now;invalidate();}
+    },1000/30);
+    return ()=>window.clearInterval(timer);
+  },[active,pulseAt,invalidate]);
+  return null;
+}
 export default function DeskScene(props: Props) {
+  const bodyGame=props.phase==="leanSurf" || props.phase==="leanCalibration" || props.phase==="winglight" || props.phase==="wingCalibration";
   return (
     <Canvas
+      frameloop={bodyGame ? "demand" : "always"}
       shadows="basic"
       dpr={[1, 1.5]}
       camera={{
@@ -657,6 +676,7 @@ export default function DeskScene(props: Props) {
         <meshStandardMaterial color="#d9d9cc" roughness={1} />
       </mesh>
       <CameraRig {...props} />
+      <BodyGameRenderBudget active={bodyGame} pulseAt={props.pulse?.at ?? -Infinity} />
     </Canvas>
   );
 }

@@ -75,3 +75,14 @@ describe('摄像头/Pose 生命周期边界', () => {
     expect(c.isRunning).toBe(false);
   });
 });
+
+it('body subscribers use the shared stream without parallel face inference; G01 face resumes afterward',async()=>{
+ const media=stream();environment(vi.fn().mockResolvedValue(media));
+ const c=new CameraVision();(c as any).ensureModel=async()=>({});(c as any).ensurePoseModel=async()=>({});
+ const face=vi.spyOn(c as any,'tickFace').mockImplementation(()=>{});
+ vi.spyOn(c as any,'tickPose').mockImplementation(()=>{});
+ const off=c.onPose(vi.fn());await c.start();
+ const tick=(requestAnimationFrame as any).mock.calls[0][0];tick(100);
+ expect(face).not.toHaveBeenCalled();expect(media.track.stop).not.toHaveBeenCalled();
+ off();tick(116);expect(face).toHaveBeenCalledOnce();c.stop();
+});
