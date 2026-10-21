@@ -273,10 +273,11 @@ export default function ProductApp() {
       kind === "jump" ||
       kind === "duck" ||
       kind === "left" ||
-      kind === "right"
+      kind === "right" ||
+      kind === "land"
     )
       lampYukee.current?.event("success");
-    else if (kind === "stumble") {
+    else if (kind === "stumble" || kind === "fall") {
       const now = performance.now();
       const h = hurtStreak.current;
       h.streak = now - h.at < 2500 ? h.streak + 1 : 0;

@@ -1,4 +1,4 @@
-/* G05「浅蹲跳一跳」：极简浅灰 · 柔和粉彩。尺寸统一用 --portal-cqw，随显示器门户缩放。 */
+/* G05「浅蹲跳一跳」：云海浮岛像素世界。尺寸统一用 --portal-cqw，随显示器门户缩放。末尾为像素风 HUD 覆盖与调试面板。 */
 .squat-jump,
 .squat-calibration {
   position: relative;
@@ -322,4 +322,192 @@
 .squat-cal-actions small {
   font-size: calc(0.75 * var(--portal-cqw));
   color: #97a2ad;
+}
+
+/* ———— 像素世界 HUD（覆盖上面的极简样式） ———— */
+.squat-jump {
+  background: #9cc3ef;
+  color: #2f3550;
+  --px: max(2px, calc(0.16 * var(--portal-cqw)));
+  --ink: #2f3550;
+  --cream: #fffaf0;
+}
+.squat-jump .squat-canvas {
+  image-rendering: pixelated;
+}
+.squat-jump .squat-title b,
+.squat-jump .squat-score b,
+.squat-jump .squat-guide b {
+  color: #fff;
+  text-shadow:
+    var(--px) 0 0 var(--ink),
+    calc(-1 * var(--px)) 0 0 var(--ink),
+    0 var(--px) 0 var(--ink),
+    0 calc(-1 * var(--px)) 0 var(--ink),
+    var(--px) var(--px) 0 var(--ink),
+    calc(-1 * var(--px)) var(--px) 0 var(--ink),
+    var(--px) calc(-1 * var(--px)) 0 var(--ink),
+    calc(-1 * var(--px)) calc(-1 * var(--px)) 0 var(--ink),
+    0 calc(2 * var(--px)) 0 #2f355066;
+  letter-spacing: 0.06em;
+}
+.squat-jump .squat-score b {
+  font-weight: 800;
+}
+.squat-jump .squat-title small,
+.squat-jump .squat-score small {
+  color: #ffffff;
+  text-shadow: 0 1px 0 var(--ink), 0 0 6px #2f355088;
+}
+.squat-jump .squat-count,
+.squat-jump .squat-right button,
+.squat-jump .squat-toast,
+.squat-jump .squat-result,
+.squat-jump .squat-actions button {
+  border-radius: 0;
+  border: var(--px) solid var(--ink);
+  background: var(--cream);
+  color: var(--ink);
+  box-shadow: var(--px) var(--px) 0 #2f355055;
+}
+.squat-jump .squat-count {
+  color: #2a8a73;
+  font-weight: 800;
+}
+.squat-jump .squat-right button {
+  border-radius: 0;
+}
+.squat-jump .squat-bar {
+  border-radius: 0;
+  height: calc(0.9 * var(--portal-cqw));
+  border: var(--px) solid var(--ink);
+  background: #fffaf0cc;
+  box-shadow: var(--px) var(--px) 0 #2f355055;
+}
+.squat-jump .squat-bar i {
+  background: repeating-linear-gradient(90deg, #8de9bc 0 calc(0.8 * var(--portal-cqw)), #6fd8b0 calc(0.8 * var(--portal-cqw)) calc(1 * var(--portal-cqw)));
+  transition: none;
+}
+.squat-jump .squat-bar i.full {
+  background: #fff3a8;
+  animation: squat-full 0.25s steps(2) infinite;
+}
+@keyframes squat-full {
+  50% {
+    background: #ffffff;
+  }
+}
+.squat-jump .squat-u {
+  border-radius: 0;
+  border: var(--px) solid var(--ink);
+  background: #fffaf0cc;
+}
+.squat-jump .squat-u i {
+  border-radius: 0;
+}
+.squat-jump .squat-result {
+  animation: squat-pop 0.32s steps(4);
+}
+.squat-jump .squat-result small {
+  color: #7a6f9a;
+}
+.squat-jump .squat-result h2 {
+  font-weight: 800;
+  color: var(--ink);
+}
+.squat-jump .squat-result p b {
+  color: #2a8a73;
+}
+.squat-jump .squat-actions button.primary {
+  background: #8de9bc;
+  color: var(--ink);
+}
+.squat-calibration {
+  background: linear-gradient(180deg, #a9cdf3 0%, #dbe8f8 55%, #f1e9f8 100%);
+}
+
+/* ———— 真人调试面板（D 键 / ?g05debug=1） ———— */
+.squat-debug {
+  position: absolute;
+  right: 1.2%;
+  top: 14%;
+  z-index: 20;
+  width: calc(22 * var(--portal-cqw));
+  max-height: 80%;
+  overflow: auto;
+  padding: calc(0.6 * var(--portal-cqw)) calc(0.8 * var(--portal-cqw));
+  background: #0f1724e6;
+  color: #dfe8f2;
+  font: 500 calc(0.72 * var(--portal-cqw)) / 1.45 ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  border: 1px solid #4cc3b1;
+  pointer-events: auto;
+}
+.squat-debug header,
+.squat-debug footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.6em;
+}
+.squat-debug header b {
+  color: #8de9bc;
+}
+.squat-debug small {
+  color: #8c9bab;
+}
+.squat-debug dl {
+  margin: 0.5em 0;
+}
+.squat-debug dl div {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.8em;
+  border-bottom: 1px dashed #ffffff14;
+}
+.squat-debug dt {
+  color: #9fb0c2;
+}
+.squat-debug dd {
+  margin: 0;
+  text-align: right;
+}
+.squat-debug .ok dd {
+  color: #8de9bc;
+}
+.squat-debug .warn dd {
+  color: #ffd27a;
+}
+.squat-debug .bad dd {
+  color: #ff8f8f;
+}
+.squat-debug button {
+  border: 1px solid #4cc3b1 !important;
+  background: transparent !important;
+  color: #8de9bc !important;
+  border-radius: 0 !important;
+  padding: 0.15em 0.6em !important;
+  font: inherit !important;
+  cursor: pointer;
+}
+.squat-debug-meter {
+  position: relative;
+  height: 1.2em;
+  margin: 0.5em 0 1.3em;
+  background: #ffffff14;
+}
+.squat-debug-meter i {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: #4cc3b1;
+}
+.squat-debug-meter span {
+  position: absolute;
+  top: 0;
+  bottom: -1.3em;
+  border-left: 1px solid #ffd27a;
+  padding-left: 2px;
+  color: #ffd27a;
+  font-size: 0.85em;
+  line-height: 2.6em;
+  white-space: nowrap;
 }

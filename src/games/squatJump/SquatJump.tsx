@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { cameraVision } from "../../vision/CameraVision";
-import { measureSquat, SquatSession, type SquatProfile, type SquatUpdate } from "../../vision/squatPose";
+import { measureSquatDiag, SquatSession, squatDebugLog, SQUAT_CONFIG, type SquatMissReason, type SquatProfile, type SquatUpdate } from "../../vision/squatPose";
+import { audioEngine } from "../../audio/engine";
+import { f2, f3, SquatDebugPanel, useSquatDebugToggle, type DebugRow } from "./SquatDebug";
 import type { PoseFrame } from "../../vision/wingPose";
 import type { GameResult } from "../../state/machine";
 import type { GameEventKind } from "../YukeeRun";
@@ -27,6 +29,8 @@ interface Hud {
   gapCharge: number;
   effectiveMs: number;
   combo: number;
+  /** 调试 */
+  dbg: { phase: string; ok: boolean; zero: number; peakU: number; failMs: number; armed: boolean; miss: SquatMissReason; visL: number; visR: number; fps: number; releasedBy: string; lastCharge: number };
 }
 
 const FAIL_TEXT: Partial<Record<LandingKind, string>> = {
@@ -85,7 +89,9 @@ export default function SquatJump({
     gapCharge: 0,
     effectiveMs: 0,
     combo: 0,
+    dbg: { phase: "ready", ok: true, zero: 0, peakU: 0, failMs: 0, armed: false, miss: "", visL: 0, visR: 0, fps: 0, releasedBy: "", lastCharge: 0 },
   });
+  const debug = useSquatDebugToggle();
 
   useEffect(() => {
     if (mode !== "camera") return;
@@ -133,6 +139,18 @@ export default function SquatJump({
       perfects = 0,
       effectiveMs = 0;
     let lastSq: SquatUpdate | null = null;
+    let miss: SquatMissReason = "",
+      visL = 0,
+      visR = 0,
+      lastPoseAt = -1,
+      lastReleasedBy = "",
+      lastCharge = 0;
+    const poseFrames: number[] = [];
+    let chargeSound = false;
+    const stopChargeSound = () => {
+      if (chargeSound) audioEngine.chargeStop();
+      chargeSound = false;
+    };
     const visible = () => run.platforms.slice(Math.max(0, run.cur - 1));
     scene.reset(visible(), run.current, run.target);
     const restart = () => {
@@ -143,6 +161,7 @@ export default function SquatJump({
       perfects = 0;
       effectiveMs = 0;
       session.reset();
+      stopChargeSound();
       space.current = { down: false, released: false };
     };
     restartRef.current = restart;
@@ -168,6 +187,10 @@ export default function SquatJump({
 
     const doJump = () => {
       const target = run.target;
+      stopChargeSound();
+      lastCharge = charge;
+      audioEngine.launchPower = Math.min(1, charge / JUMP_CONFIG.maxChargeSec);
+      audioEngine.sfx("g05Launch");
       const l = run.jump(charge);
       el.dataset.lastCharge = charge.toFixed(3);
       el.dataset.lastDist = l.dist.toFixed(3);
@@ -175,11 +198,16 @@ export default function SquatJump({
       cb.current.onGameEvent("jump");
       scene.startJump(l, target.axis, () => {
         if (isSuccess(l.kind)) {
+          const bonus = run.current.bonus;
           if (l.kind === "perfect") {
             perfects++;
             scene.addFx({ kind: "ripple", x: l.x, z: l.z });
+            audioEngine.sfx("g05Perfect");
+          } else audioEngine.sfx("g05Land");
+          if (bonus) {
+            scene.addFx({ kind: "bonus", x: run.current.x, z: run.current.z });
+            audioEngine.sfx("g05Bonus");
           }
-          const bonus = run.current.bonus;
           scene.addFx({
             kind: "text",
             x: l.x,
@@ -187,7 +215,7 @@ export default function SquatJump({
             text: l.kind === "perfect" ? `完美 +${l.gained}` : `+${l.gained}`,
             strong: l.kind === "perfect" || bonus,
           });
-          cb.current.onGameEvent(target.axis === "x" ? "right" : "left");
+          cb.current.onGameEvent("land");
           if (!run.over) scene.advance(visible(), run.current, run.target);
           if (run.cleared) {
             state = "over";
@@ -197,8 +225,11 @@ export default function SquatJump({
         } else if (isFail(l.kind)) {
           state = "over";
           overAt.current = performance.now();
-          cb.current.onGameEvent("stumble");
-        } else state = "ready"; // 留在原台：不得分也不失败，可以再蓄力
+          cb.current.onGameEvent("fall");
+        } else {
+          state = "ready"; // 留在原台：不得分也不失败，可以再蓄力
+          audioEngine.sfx("g05Land");
+        }
         session.reset();
         charge = 0;
       });
@@ -227,12 +258,37 @@ export default function SquatJump({
         space.current.released = false;
       } else if (!isPaused && state !== "flying" && state !== "over") {
         const p = pose.current;
-        const s = p && now - p.at < 250 ? measureSquat(p) : null;
-        lastSq = session.update(dtMs, s);
+        const m = p && now - p.at < 350 ? measureSquatDiag(p) : { sample: null, reason: (p ? "stale" : "noFrame") as SquatMissReason, visL: 0, visR: 0 };
+        miss = m.reason;
+        visL = m.visL;
+        visR = m.visR;
+        lastSq = session.update(dtMs, m.sample);
         pressing = lastSq.charging;
         release = lastSq.release;
         cancel = lastSq.cancel;
         tracking = lastSq.tracking;
+        // 确认蹲位前的等待也算进蓄力（体感上「一蹲下就开始蓄」）
+        if (lastSq.enteredDownSec > 0 && state === "ready") charge = Math.min(JUMP_CONFIG.maxChargeSec, lastSq.enteredDownSec);
+        if (lastSq.release) lastReleasedBy = lastSq.releasedBy;
+        if (p && p.at > lastPoseAt) {
+          lastPoseAt = p.at;
+          poseFrames.push(now);
+          while (poseFrames.length && now - poseFrames[0] > 1000) poseFrames.shift();
+          squatDebugLog.push({
+            t: Math.round(p.at),
+            src: "game",
+            u: +lastSq.u.toFixed(3),
+            phase: lastSq.phase,
+            ok: lastSq.ok,
+            failed: lastSq.failed,
+            zero: +lastSq.zero.toFixed(4),
+            peakU: +lastSq.peakU.toFixed(3),
+            charge: +charge.toFixed(3),
+            rel: lastSq.release ? lastSq.releasedBy : "",
+            cancel: lastSq.cancel,
+            miss,
+          });
+        }
       }
       if (isPaused) {
         if (state === "charging") {
@@ -240,13 +296,20 @@ export default function SquatJump({
           charge = 0;
         }
         session.reset();
+        stopChargeSound();
       } else {
         if (state !== "over" && tracking === "ok") effectiveMs += dtMs;
         if (cancel && state === "charging") {
           state = "ready";
           charge = 0;
+          stopChargeSound();
         }
         if (state === "ready" && pressing) state = "charging";
+        if (state === "charging" && pressing && !chargeSound) {
+          audioEngine.chargeStart();
+          chargeSound = true;
+        }
+        if (chargeSound && !pressing) stopChargeSound();
         if (state === "charging") {
           // 摄像头回升途中 pressing=false：蓄力冻结，等站回确认再释放
           if (pressing) charge = Math.min(JUMP_CONFIG.maxChargeSec, charge + dt);
@@ -258,6 +321,7 @@ export default function SquatJump({
             }
           }
         }
+        if (chargeSound) audioEngine.chargeLevel(charge / JUMP_CONFIG.maxChargeSec);
         scene.charge = state === "charging" ? charge / JUMP_CONFIG.maxChargeSec : 0;
         scene.step(dt);
       }
@@ -289,6 +353,20 @@ export default function SquatJump({
           gapCharge: gap > 0 ? distanceToCharge(gap) : 0,
           effectiveMs,
           combo: run.combo,
+          dbg: {
+            phase: lastSq?.phase ?? "ready",
+            ok: lastSq?.ok ?? true,
+            zero: lastSq?.zero ?? 0,
+            peakU: lastSq?.peakU ?? 0,
+            failMs: lastSq?.failMs ?? 0,
+            armed: lastSq?.armed ?? false,
+            miss,
+            visL,
+            visR,
+            fps: poseFrames.length,
+            releasedBy: lastReleasedBy,
+            lastCharge,
+          },
         });
       }
       raf = requestAnimationFrame(tick);
@@ -297,6 +375,7 @@ export default function SquatJump({
     return () => {
       cancelAnimationFrame(raf);
       ro.disconnect();
+      stopChargeSound();
     };
   }, [profile, mode, seed]);
 
@@ -327,7 +406,7 @@ export default function SquatJump({
           : hud.tracking === "lost"
             ? "看不到双肩，站回标记处"
             : hud.state === "charging"
-              ? hud.u < 0.5
+              ? hud.u < SQUAT_CONFIG.downU
                 ? "站直，就会起跳"
                 : "保持浅蹲蓄力，站直起跳"
               : hud.failed && hud.u > 0.4
@@ -392,6 +471,38 @@ export default function SquatJump({
         <div className="squat-toast" data-testid="squat-lost">
           看不到双肩，已暂停输入。站回标记处、双肩入镜，站直约 1 秒后继续。
         </div>
+      )}
+      {debug && mode === "camera" && (
+        <SquatDebugPanel
+          title="G05 动作调试"
+          meter={{
+            value: hud.u,
+            max: 1.4,
+            marks: [
+              { at: SQUAT_CONFIG.releaseU, label: "站" },
+              { at: SQUAT_CONFIG.holdU, label: "保" },
+              { at: SQUAT_CONFIG.downU, label: "蹲" },
+              { at: 1, label: "A" },
+            ],
+          }}
+          rows={
+            [
+              ["姿态帧", `${hud.dbg.fps} fps`, hud.dbg.fps >= 8 ? "ok" : hud.dbg.fps >= 4 ? "warn" : "bad"],
+              ["肩点", hud.dbg.miss || "ok", hud.dbg.miss ? "bad" : "ok"],
+              ["可见度 L/R", `${f2(hud.dbg.visL)} / ${f2(hud.dbg.visR)}`],
+              ["u（本人幅度比例）", f3(hud.u)],
+              ["阶段", `${hud.dbg.phase}${hud.dbg.armed ? " · 已上膛" : ""}`],
+              ["控制器", hud.state],
+              ["检查", hud.dbg.ok ? "通过" : `未通过：${hud.failed}（${Math.round(hud.dbg.failMs)}ms）`, hud.dbg.ok ? "ok" : "bad"],
+              ["基线修正", `${f3(hud.dbg.zero)} W0`],
+              ["本轮峰值 u", f2(hud.dbg.peakU)],
+              ["蓄力", `${hud.charge.toFixed(2)} s（上次 ${hud.dbg.lastCharge.toFixed(2)} s）`],
+              ["需要蓄力", `${hud.needCharge.toFixed(2)} s`],
+              ["上次释放", hud.dbg.releasedBy || "–"],
+              ["幅度 A", `${f3(profile.amp)} W0 · W0 ${Math.round(profile.w0)}px`],
+            ] as DebugRow[]
+          }
+        />
       )}
       {hud.state === "over" && (
         <div className="squat-result" data-testid={hud.cleared ? "squat-clear" : "squat-fail"}>

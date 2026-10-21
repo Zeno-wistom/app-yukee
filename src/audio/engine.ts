@@ -12,7 +12,17 @@
  * 任何公开方法都不会抛异常：自动化 / 无音频设备环境下静默降级。
  */
 
-export type SfxKind = "jump" | "hit" | "reward" | "complete";
+export type SfxKind =
+  | "jump"
+  | "hit"
+  | "reward"
+  | "complete"
+  // G05 浅蹲跳一跳（同一引擎、同一 sfxGain，只是新增几段合成音色）
+  | "g05Launch"
+  | "g05Land"
+  | "g05Perfect"
+  | "g05Bonus"
+  | "g05Fail";
 
 const BGM_URL = "/audio/yukee-run-bgm.mp3";
 /** BGM 相对响度（master 之前） */
@@ -410,6 +420,123 @@ class AudioEngine {
     this.tone({ freq: 2093, at: 1.02, dur: 0.18, gain: 0.1, attack: 0.005 });
   }
 
+  // ---------------------------------------------------------------
+  // G05：蓄力音（持续音，随蓄力升调）+ 起跳 / 落地 / 完美 / 奖励 / 失败
+  // ---------------------------------------------------------------
+  private charge: { osc: OscillatorNode; sub: OscillatorNode; lfo: OscillatorNode; g: GainNode } | null = null;
+
+  /** 开始蓄力：柔和的方波+三角双振荡，带轻微颤音，音量很低 */
+  chargeStart() {
+    try {
+      if (!this.ctx || !this.sfxGain || this.charge) return;
+      if (this.ctx.state === "suspended") void this.ctx.resume().catch(() => {});
+      const ctx = this.ctx,
+        t0 = ctx.currentTime;
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0.0001, t0);
+      g.gain.exponentialRampToValueAtTime(0.11, t0 + 0.06);
+      const lp = ctx.createBiquadFilter();
+      lp.type = "lowpass";
+      lp.frequency.value = 2200;
+      const osc = ctx.createOscillator();
+      osc.type = "square";
+      osc.frequency.setValueAtTime(196, t0);
+      const sub = ctx.createOscillator();
+      sub.type = "triangle";
+      sub.frequency.setValueAtTime(392, t0);
+      const lfo = ctx.createOscillator();
+      lfo.frequency.value = 7;
+      const lfoGain = ctx.createGain();
+      lfoGain.gain.value = 6;
+      lfo.connect(lfoGain);
+      lfoGain.connect(osc.frequency);
+      const subGain = ctx.createGain();
+      subGain.gain.value = 0.5;
+      osc.connect(lp);
+      sub.connect(subGain);
+      subGain.connect(lp);
+      lp.connect(g);
+      g.connect(this.sfxGain);
+      osc.start(t0);
+      sub.start(t0);
+      lfo.start(t0);
+      this.charge = { osc, sub, lfo, g };
+    } catch {
+      /* 静默 */
+    }
+  }
+
+  /** 蓄力 0..1：音高从 G3 升到约 G5，满蓄力时颤音更快 */
+  chargeLevel(level: number) {
+    try {
+      if (!this.ctx || !this.charge) return;
+      const t = this.ctx.currentTime;
+      const l = Math.max(0, Math.min(1, level));
+      const f = 196 * Math.pow(2, l * 2);
+      this.charge.osc.frequency.setTargetAtTime(f, t, 0.03);
+      this.charge.sub.frequency.setTargetAtTime(f * 2, t, 0.03);
+      this.charge.lfo.frequency.setTargetAtTime(l >= 0.99 ? 14 : 7, t, 0.05);
+    } catch {
+      /* 静默 */
+    }
+  }
+
+  chargeStop() {
+    try {
+      if (!this.ctx || !this.charge) return;
+      const t = this.ctx.currentTime;
+      const c = this.charge;
+      this.charge = null;
+      c.g.gain.cancelScheduledValues(t);
+      c.g.gain.setValueAtTime(Math.max(0.0001, c.g.gain.value), t);
+      c.g.gain.exponentialRampToValueAtTime(0.0001, t + 0.06);
+      for (const o of [c.osc, c.sub, c.lfo]) o.stop(t + 0.08);
+    } catch {
+      /* 静默 */
+    }
+  }
+
+  /** 起跳：弹簧「啵」+ 上滑，力度随蓄力 */
+  private sfxG05Launch(power = 0.5) {
+    this.noise(0, 0.04, 0.18, 2600, 0.9);
+    this.tone({ freq: 300 + power * 120, freqEnd: 900 + power * 500, at: 0, dur: 0.16, type: "square", gain: 0.22, attack: 0.002 });
+    this.tone({ freq: 600, freqEnd: 1500 + power * 400, at: 0.01, dur: 0.12, type: "triangle", gain: 0.3, attack: 0.002 });
+  }
+
+  /** 落地：石台上的短促「哒」 */
+  private sfxG05Land() {
+    this.tone({ freq: 180, freqEnd: 90, at: 0, dur: 0.12, gain: 0.9, attack: 0.002 });
+    this.noise(0, 0.05, 0.3, 1400, 1.2);
+    this.tone({ freq: 523.25, at: 0.02, dur: 0.09, type: "square", gain: 0.08, attack: 0.002 });
+  }
+
+  /** 中心命中：落地 + 两音上行晶体 chime */
+  private sfxG05Perfect() {
+    this.sfxG05Land();
+    [1046.5, 1568, 2093].forEach((f, i) => {
+      this.tone({ freq: f, at: 0.05 + i * 0.06, dur: 0.22, type: "triangle", gain: 0.3, attack: 0.003 });
+      this.tone({ freq: f * 2, at: 0.05 + i * 0.06, dur: 0.1, gain: 0.08, attack: 0.003 });
+    });
+  }
+
+  /** 奖励台：一串像素风琶音 */
+  private sfxG05Bonus() {
+    [783.99, 987.77, 1174.66, 1567.98, 1975.53].forEach((f, i) =>
+      this.tone({ freq: f, at: 0.08 + i * 0.05, dur: 0.12, type: "square", gain: 0.12, attack: 0.002 }),
+    );
+  }
+
+  /** 掉落：下滑 + 远处的软落地，不惩罚感 */
+  private sfxG05Fail() {
+    this.tone({ freq: 660, freqEnd: 140, at: 0, dur: 0.55, type: "triangle", gain: 0.34, attack: 0.01 });
+    this.tone({ freq: 330, freqEnd: 82, at: 0.05, dur: 0.6, type: "square", gain: 0.08, attack: 0.01 });
+    this.tone({ freq: 120, freqEnd: 60, at: 0.62, dur: 0.22, gain: 0.5, attack: 0.004 });
+    this.noise(0.62, 0.12, 0.16, 500, 0.8);
+  }
+
+  /** G05 起跳音力度（0..1），sfx("g05Launch") 前设置 */
+  launchPower = 0.5;
+
   sfx(kind: SfxKind) {
     try {
       if (!this.ctx || !this.sfxGain) return;
@@ -430,6 +557,21 @@ class AudioEngine {
           break;
         case "complete":
           this.sfxComplete();
+          break;
+        case "g05Launch":
+          this.sfxG05Launch(this.launchPower);
+          break;
+        case "g05Land":
+          this.sfxG05Land();
+          break;
+        case "g05Perfect":
+          this.sfxG05Perfect();
+          break;
+        case "g05Bonus":
+          this.sfxG05Bonus();
+          break;
+        case "g05Fail":
+          this.sfxG05Fail();
           break;
       }
     } catch {

@@ -11,6 +11,7 @@ const ctx = c.getContext("2d", { alpha: false });
 const run = new JumpRun(9), scene = new JumpScene();
 const vis = () => run.platforms.slice(Math.max(0, run.cur - 1));
 scene.reset(vis(), run.current, run.target);
+await scene.ready();
 const times = []; let pending = false;
 for (let i = 0; i < 420; i++) {
   if (!scene.busy && !pending && !run.over) {

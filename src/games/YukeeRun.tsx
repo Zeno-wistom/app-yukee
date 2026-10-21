@@ -29,7 +29,9 @@ import {
 import { hasReachedCompletion, shouldPauseForTracking } from "./gameFlow";
 
 export type GameEventKind =
-  "jump" | "duck" | "left" | "right" | "stumble" | "complete" | "finale";
+  "jump" | "duck" | "left" | "right" | "stumble" | "complete" | "finale"
+  // G05：自带音效，只驱动挂灯与信号条
+  | "land" | "fall";
 
 const W = 480;
 const H = 170;

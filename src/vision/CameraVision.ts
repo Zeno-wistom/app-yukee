@@ -212,7 +212,15 @@ export class CameraVision {
             minTrackingConfidence: 0.5,
           });
         let model: PoseLandmarker;
+        // 调试 / 自动化：localStorage yukee.poseDelegate=CPU 强制 CPU（无 GPU 环境、或排查 GPU 推理问题）
+        let forceCpu = false;
         try {
+          forceCpu = localStorage.getItem("yukee.poseDelegate") === "CPU";
+        } catch {
+          /* 忽略 */
+        }
+        try {
+          if (forceCpu) throw new Error("cpu forced");
           model = await create("GPU");
         } catch {
           model = await create("CPU");

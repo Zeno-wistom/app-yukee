@@ -1,4 +1,4 @@
-<!doctype html><html><body style="margin:0;background:#eef1f4">
+<!doctype html><html><body style="margin:0;background:#9cc3ef">
 <!-- 开发用：G05 选卡预览渲染（真实游戏渲染器 + 固定种子）。/scripts/squat-jump-preview.html?w=1290&h=205&seed=7 -->
 <canvas id="c"></canvas>
 <script type="module">
@@ -16,6 +16,8 @@ const cur = run.platforms[+(q.get("cur") || 2)];
 scene.reset(run.platforms, cur, run.platforms[+(q.get("cur") || 2) + 1]);
 if (q.get("S")) scene.view = { S: +q.get("S") * s, ox: +(q.get("ox") || 0.5), oy: +(q.get("oy") || 0.5) };
 scene.charge = +(q.get("charge") || 0);
+scene.staticBackground = true;
+await scene.ready();
 scene.step(0.016);
 scene.draw(c.getContext("2d"));
 window.done = true;
