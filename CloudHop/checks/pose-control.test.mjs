@@ -1,0 +1,24 @@
+import assert from 'node:assert/strict';
+import { PoseControl, anglesFromMatrix } from '../data/tracker/pose-control.mjs';
+let now = 1000;
+const c = new PoseControl();
+function feed(yaw,pitch,frames=70) { for(let i=0;i<frames;i++) c.feed(yaw,pitch,now+=40); }
+feed(0,0); assert.equal(c.stage,'left');
+feed(-17,0); assert.equal(c.stage,'center');
+feed(0,0); assert.equal(c.stage,'up');
+feed(0,16); assert.equal(c.stage,'finish');
+feed(0,0); assert.equal(c.stage,'ready');
+feed(-20,0); assert.equal(c.direction,-1);
+feed(20,0); assert.equal(c.direction,1);
+feed(0,0); assert.equal(c.direction,0);
+feed(0,17); assert.equal(c.jumpId,1);
+feed(0,17,120); assert.equal(c.jumpId,1,'holding up must not repeat');
+feed(0,0); feed(0,17); assert.equal(c.jumpId,2);
+c.lose(); feed(0,17); assert.equal(c.jumpId,2,'reacquiring a raised head must not jump');
+feed(0,-20); assert.equal(c.jumpId,2,'looking down must not jump');
+feed(0,17); assert.equal(c.jumpId,3);
+c.reset(); assert.equal(c.packet().calibrated,false);
+assert.equal(c.direction,0); assert.equal(c.jumpId,3,'recalibration preserves monotonic event ID');
+assert.equal(anglesFromMatrix(null),null);
+assert.deepEqual(anglesFromMatrix({data:[1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1]}),{yaw:0,pitch:-0});
+console.log('PASS: calibration, left/right, neutral, jump latch, reacquisition, down and reset');

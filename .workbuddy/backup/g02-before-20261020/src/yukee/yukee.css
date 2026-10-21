@@ -1,0 +1,288 @@
+/*
+ * Yukee 角色样式。
+ * 动作机制源自 LaoA-GrokBot（bounce/tilt/scan/pulse），
+ * 幅度已按挂灯小屏收敛：小、柔和、有弹性。
+ * 70% 微动作 / 20% 状态动作 / 10% 强反馈。
+ */
+
+.yukee-root {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+}
+
+.yukee-root.yukee-size-home {
+  width: var(--yukee-size-home, 100%);
+  height: var(--yukee-size-home, 100%);
+}
+.yukee-root.yukee-size-select {
+  width: var(--yukee-size-select, 84%);
+  height: var(--yukee-size-select, 84%);
+}
+.yukee-root.yukee-size-reminder {
+  width: var(--yukee-size-reminder, 102%);
+  height: var(--yukee-size-reminder, 102%);
+}
+.yukee-root.yukee-size-completion {
+  width: var(--yukee-size-completion, 146%);
+  height: var(--yukee-size-completion, 146%);
+}
+
+.yukee-motion-mode-celebrate .yukee-motion {
+  animation: none !important;
+}
+
+.yukee-body-x,
+.yukee-motion,
+.yukee-breath {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+  will-change: transform;
+}
+
+.yukee-body-x {
+  transform-origin: 50% 78%;
+}
+
+.yukee-svg {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+/* 深黑玻璃上的发光角色：身体暗色半透明，双眼按状态色发光 */
+.yukee-blob {
+  fill: color-mix(in srgb, var(--yukee-color, #b8f0dc) 7%, #060f0d);
+  stroke: color-mix(in srgb, var(--yukee-color, #b8f0dc) 38%, transparent);
+  stroke-width: 2.5;
+}
+
+.yukee-eye {
+  fill: var(--yukee-color, #b8f0dc);
+  filter: drop-shadow(0 0 7px var(--yukee-color, #b8f0dc));
+  transition: fill 0.45s ease;
+}
+
+/* ---- 持续状态伴随动作（收敛版，循环且克制） ---- */
+
+/* LaoA 原版 bounce: -34px → Yukee: -5px */
+.yukee-motion-bounce {
+  animation: yukee-bounce 2.4s ease-in-out infinite;
+}
+@keyframes yukee-bounce {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  42% {
+    transform: translateY(-5px) scale(0.985, 1.015);
+  }
+  66% {
+    transform: translateY(1px) scale(1.012, 0.99);
+  }
+}
+
+/* celebrate 允许稍明显（10% 强反馈） */
+.yukee-state-celebrate .yukee-motion-bounce {
+  animation: none;
+}
+@keyframes yukee-bounce-big {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  40% {
+    transform: translateY(-10px) scale(0.96, 1.05);
+  }
+  65% {
+    transform: translateY(2px) scale(1.05, 0.94);
+  }
+}
+
+/* LaoA 原版 tilt: -19deg → Yukee: ±3.5deg */
+.yukee-motion-tilt {
+  animation: yukee-tilt 3.6s ease-in-out infinite;
+}
+@keyframes yukee-tilt {
+  0%,
+  100% {
+    transform: rotate(0deg);
+  }
+  35% {
+    transform: rotate(-3.5deg) translate(-1.5px, 1px);
+  }
+  70% {
+    transform: rotate(2deg);
+  }
+}
+
+/* anxious 的脉冲：像轻轻的呼吸加快，不是警报 */
+.yukee-motion-pulse {
+  animation: yukee-pulse 1.5s ease-in-out infinite;
+}
+@keyframes yukee-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  35% {
+    transform: scale(1.022, 0.982);
+  }
+  65% {
+    transform: scale(0.988, 1.014);
+  }
+}
+
+/* LaoA 原版 scan: ±24px → Yukee: ±3px（focused 时的目光扫动） */
+.yukee-motion-scan {
+  animation: yukee-scan 3.2s ease-in-out infinite;
+}
+@keyframes yukee-scan {
+  0%,
+  100% {
+    transform: translate(0, 0);
+  }
+  30% {
+    transform: translate(-3px, 0.5px);
+  }
+  70% {
+    transform: translate(3px, -0.5px);
+  }
+}
+
+/* 瞬时事件：成功时的一次小幅弹跳（300~500ms） */
+.yukee-event-bounce {
+  animation: yukee-event-hop 0.46s ease;
+}
+@keyframes yukee-event-hop {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  40% {
+    transform: translateY(-8px) rotate(-2.5deg) scale(0.96, 1.05);
+  }
+  65% {
+    transform: translateY(2px) rotate(2deg) scale(1.04, 0.95);
+  }
+}
+
+.reward-yukee .yukee-event-bounce {
+  animation-name: yukee-reward-hop;
+  animation-duration: 0.54s;
+}
+@keyframes yukee-reward-hop {
+  0%,
+  100% {
+    transform: translateY(0) rotate(0) scale(1);
+  }
+  38% {
+    transform: translateY(-14px) rotate(-3deg) scale(0.94, 1.08);
+  }
+  66% {
+    transform: translateY(3px) rotate(2.5deg) scale(1.07, 0.92);
+  }
+}
+
+/* ---- 融球分身转场：本体不离开挂灯，仅能量分身进入主屏 ----
+ * 性能约定：起点 metaball 只更新两条 SVG path 的 d 属性（仅挂灯内 ~1.2s）；
+ * 下沉 / 下落 / 结晶全部是 transform/opacity。
+ * 不使用任何 blur / mask / mix-blend-mode / 动画 filter（拖帧根因）。
+ * 遮挡约定：两个裁剪仓（.yukee-cast-clip）与设备矩形等大、overflow hidden，
+ * 分身越出设备边界的部分被物理裁掉，形成「进入硬件」的空间逻辑。 */
+
+.yukee-cast-clip {
+  position: fixed;
+  pointer-events: none;
+  z-index: 30;
+  opacity: 0;
+  visibility: hidden;
+  /* 硬件遮挡核心：所有动画元素越出设备矩形即被物理裁掉 */
+  overflow: hidden;
+}
+.yukee-cast-clip.lamp {
+  border-radius: 15px; /* 与 .lamp-portal 一致 */
+}
+.yukee-cast-clip.monitor {
+  border-radius: 4px; /* 与 .monitor-portal 一致 */
+}
+
+.yukee-cast-goo {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden; /* 融球越出挂灯边界即被裁掉 */
+}
+.yukee-cast-goo-halo {
+  fill: #8de9bc;
+  opacity: 0.26;
+}
+.yukee-cast-goo-core {
+  fill: url(#yukee-goo-grad);
+}
+
+.yukee-cast-orb,
+.yukee-cast-lobe,
+.yukee-cast-ripple,
+.yukee-cast-pixel {
+  position: absolute;
+  left: 0;
+  top: 0;
+  will-change: transform, opacity;
+}
+.yukee-cast-lobe {
+  width: 14px;
+  height: 18px;
+  margin: -9px 0 0 -7px;
+  border-radius: 48% 52% 45% 55%;
+  background: linear-gradient(160deg, #edfff7, #8de9bc);
+  box-shadow: 0 0 11px #8de9bc99;
+}
+.yukee-cast-orb {
+  width: 18px;
+  height: 18px;
+  margin: -9px 0 0 -9px;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle at 38% 34%,
+    #ffffff 0%,
+    #dffff0 30%,
+    #8de9bc 62%,
+    #4ea88900 82%
+  );
+  /* 静态阴影不参与动画，由合成器一次光栅化 */
+  box-shadow:
+    0 0 10px #b8f0dcaa,
+    0 0 22px #8de9bc4d;
+}
+.yukee-cast-pixel {
+  width: 6px;
+  height: 6px;
+  margin: -3px 0 0 -3px;
+  background: #c7ffe7;
+  box-shadow: 0 0 8px #8de9bc;
+}
+.yukee-cast-ripple {
+  width: 92px;
+  height: 92px;
+  margin: -46px 0 0 -46px;
+  border-radius: 50%;
+  border: 1px solid #b8f0dccc;
+  box-shadow:
+    inset 0 0 24px #8de9bc28,
+    0 0 26px #8de9bc28;
+  opacity: 0;
+}
+
+/* 减少动态偏好：关闭循环动作，保留最基本的眨眼（引擎内） */
+@media (prefers-reduced-motion: reduce) {
+  .yukee-motion {
+    animation: none;
+  }
+}

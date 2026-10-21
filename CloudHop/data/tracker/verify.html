@@ -1,0 +1,13 @@
+<!doctype html><html lang="zh-CN"><meta charset="utf-8"><title>Cloud Hop 模型检查</title>
+<body style="font:18px/1.8 sans-serif;background:#edf3e6;padding:40px;color:#34554b"><h1>本地识别模型检查</h1><p>使用空白画面验证模型加载，不开启摄像头。</p><button id="run">检查模型</button><pre id="result">等待检查</pre><script type="module">
+import {FaceLandmarker,FilesetResolver} from './vendor/vision_bundle.mjs';
+document.getElementById('run').onclick=async()=>{
+ const out=document.getElementById('result');out.textContent='正在加载…';
+ try {
+  const vision=await FilesetResolver.forVisionTasks('./vendor/wasm');
+  const model=await FaceLandmarker.createFromOptions(vision,{baseOptions:{modelAssetPath:'./vendor/face_landmarker.task',delegate:'CPU'},runningMode:'IMAGE',numFaces:1,outputFacialTransformationMatrixes:true});
+  const canvas=document.createElement('canvas');canvas.width=640;canvas.height=480;const context=canvas.getContext('2d');context.fillStyle='#c9dfd9';context.fillRect(0,0,640,480);
+  const result=model.detect(canvas);model.close();out.textContent='PASS：本地 WASM、模型加载与推理成功。空白画面人脸数：'+result.faceLandmarks.length;
+ }catch(e){out.textContent='FAIL：'+e.stack;}
+};
+</script></body></html>

@@ -1,0 +1,13 @@
+<!doctype html>
+<html lang="zh-CN">
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>云端拾光 · 摄像头连接</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#e9f1e6;color:#34554b;font:15px/1.7 'Microsoft YaHei',sans-serif}main{max-width:900px;margin:40px auto;padding:28px}small{letter-spacing:3px;color:#718c7c}h1{font-size:32px;margin:8px 0}p{color:#6a8074}.layout{display:grid;grid-template-columns:1.1fr 1fr;gap:24px;margin-top:24px}.card{background:#fffbee;padding:24px;border-radius:16px}video{width:100%;aspect-ratio:4/3;object-fit:cover;background:#d6e6df;border-radius:8px;transform:scaleX(-1)}button{border:0;border-radius:8px;padding:12px 17px;font:inherit;cursor:pointer;background:#507e67;color:#fffbee;margin:4px 6px 4px 0}button:disabled{opacity:.5;cursor:wait}.secondary{background:#e3eadb;color:#34554b}h2{font-size:18px;margin:8px 0}#status{min-height:60px}label{display:block;margin:16px 0}input[type=range]{width:100%;accent-color:#507e67}#action{background:#e3ecd9;padding:12px;border-radius:8px;text-align:center;font-size:20px}#detail{font-size:13px}#error{color:#a34f3b;white-space:pre-wrap}footer{font-size:13px;margin-top:20px;color:#718579}@media(max-width:650px){main{margin:0;padding:20px}.layout{grid-template-columns:1fr}}
+</style>
+<main><small>CLOUD HOP / 云端拾光</small><h1>让动作成为方向。</h1><p>开启摄像头，跟随下面的提示校准。完成后切回 Processing 游戏窗口。</p>
+<div class="layout"><section class="card"><video id="video" autoplay playsinline muted></video><p id="detail">镜像预览 · 摄像头未开启</p><button id="start">开启摄像头</button><button id="stop" class="secondary" disabled>关闭摄像头</button></section>
+<section class="card"><small>HEAD CONTROL</small><h2 id="heading">准备连接</h2><p id="status">坐在镜头前，让完整面部出现在画面里。</p><div id="action">等待开始</div><label>左右转头幅度 <span id="turnValue">12°</span><input id="turn" type="range" min="8" max="24" value="12"></label><label>抬头跳跃幅度 <span id="jumpValue">10°</span><input id="jump" type="range" min="7" max="20" value="10"></label><button id="reset" class="secondary">重新校准</button><p id="error" role="alert"></p></section></div>
+<footer>校准顺序：正脸 → 向自己的左侧转头 → 正脸 → 抬头 → 正脸。<br>请保持此页面打开，推荐与游戏并排显示。识别在本机完成，摄像头画面不会上传。低头不触发额外动作。</footer></main>
+<script type="module" src="./tracker.mjs"></script>
+</html>

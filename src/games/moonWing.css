@@ -1,0 +1,376 @@
+/* G02 专属月夜皮肤；不影响校准、G01 或主站提醒。 */
+.wing-game.wing-game {
+  color: #dceeff;
+  padding: 0 2.4% 2%;
+  gap: calc(0.8 * var(--portal-cqw));
+}
+.wing-game .wing-stage {
+  background: #0b428b;
+  border-radius: calc(0.7 * var(--portal-cqw));
+  box-shadow:
+    0 0 0 1px #6198c866,
+    0 8px 30px #04152e66;
+}
+.wing-game .wing-hud-top {
+  color: #d2e5f4;
+  font-size: calc(1.12 * var(--portal-cqw));
+  letter-spacing: 0.1em;
+}
+.wing-game .wing-title small {
+  color: #b3c7db;
+  font-size: calc(1 * var(--portal-cqw));
+}
+.wing-game .wing-pips {
+  gap: calc(0.5 * var(--portal-cqw));
+}
+.wing-game .wing-pips i {
+  width: calc(1.12 * var(--portal-cqw));
+  height: calc(1.12 * var(--portal-cqw));
+  border-radius: 0;
+  background: #456282;
+  box-shadow: none;
+  clip-path: polygon(
+    40% 0,
+    60% 0,
+    60% 30%,
+    100% 40%,
+    100% 60%,
+    60% 70%,
+    60% 100%,
+    40% 100%,
+    40% 70%,
+    0 60%,
+    0 40%,
+    40% 30%
+  );
+}
+.wing-game .wing-pips i.lit {
+  background: #ffe7a5;
+  filter: drop-shadow(0 0 3px #ffe7a5);
+}
+.wing-game .wing-pips b,
+.wing-game .wing-time {
+  color: #e6f3ff;
+  font-size: calc(1.12 * var(--portal-cqw));
+}
+.wing-game .wing-cam {
+  color: #b2e6e4;
+  background: #14354d;
+  box-shadow: none;
+  font-size: calc(0.9 * var(--portal-cqw));
+}
+.wing-game .wing-meta button {
+  background: #24445e;
+  width: calc(2.6 * var(--portal-cqw));
+  height: calc(2.6 * var(--portal-cqw));
+}
+.wing-game .wing-instruction {
+  background: #102c58ed;
+  border-radius: 4px;
+  color: #fff3c6;
+  box-shadow:
+    0 0 0 1px #9cc9e577,
+    0 3px 12px #08244966;
+  font-size: calc(1.45 * var(--portal-cqw));
+}
+.wing-game .wing-guide {
+  top: 4%;
+}
+.wing-game .wing-hold {
+  background: #103465b8;
+}
+.wing-game .wing-hold em {
+  background: #ffdfa0;
+}
+.moon-world {
+  overflow: hidden;
+}
+.moon-world .wing-svg {
+  image-rendering: pixelated;
+}
+.moon-fireflies {
+  pointer-events: none;
+}
+.moon-firefly-glow {
+  filter: blur(1.3px);
+}
+.moon-fireflies [data-flight-phase="flight"] .moon-firefly-glow {
+  opacity: 0.35;
+}
+/* 超宽卡片用原图完整构图，背景延展只营造氛围，避免 cover 裁掉月亮或桥。 */
+.lamp-card[data-card-id="winglight"] .lamp-card-preview {
+  overflow: hidden;
+  background: #124b8c;
+}
+.lamp-card[data-card-id="winglight"] .lamp-card-preview::before {
+  content: "";
+  position: absolute;
+  inset: -4px;
+  background: var(--moon-preview) center / cover;
+  filter: blur(4px);
+  opacity: 0.32;
+}
+.lamp-card[data-card-id="winglight"] .lamp-card-preview img {
+  position: relative;
+  object-fit: contain;
+  background: transparent;
+}
+.moon-progress-delivery {
+  position: absolute;
+  z-index: 5;
+  width: calc(1.1 * var(--portal-cqw));
+  height: calc(1.1 * var(--portal-cqw));
+  background: #fff0b4;
+  clip-path: polygon(
+    40% 0,
+    60% 0,
+    60% 35%,
+    100% 40%,
+    100% 60%,
+    60% 65%,
+    60% 100%,
+    40% 100%,
+    40% 65%,
+    0 60%,
+    0 40%,
+    40% 35%
+  );
+  pointer-events: none;
+  animation: moon-progress-delivery 1.35s ease-in-out both;
+}
+@keyframes moon-progress-delivery {
+  0% {
+    left: 39%;
+    top: 88%;
+    opacity: 0;
+    transform: scale(0.7);
+  }
+  12% {
+    opacity: 1;
+  }
+  50% {
+    left: 44%;
+    top: 32%;
+    opacity: 1;
+    transform: scale(1.15);
+  }
+  90% {
+    left: 50%;
+    top: 3%;
+    opacity: 1;
+    transform: scale(0.7);
+  }
+  100% {
+    left: 50%;
+    top: 3%;
+    opacity: 0;
+    transform: scale(0.4);
+  }
+}
+.wing-game .moon-hull-core.is-rewarded {
+  animation: moon-lamp-reward 1.3s ease-out;
+}
+@keyframes moon-lamp-reward {
+  0%,
+  100% {
+    filter: drop-shadow(0 0 2px #ffe7a5);
+  }
+  35% {
+    filter: drop-shadow(0 0 7px #ffe7a5);
+    fill: #fff2c4;
+  }
+}
+.moon-world .moon-rope {
+  fill: none;
+  stroke: #dfd5af;
+  stroke-width: 1;
+  opacity: 0.8;
+}
+.moon-world .wing-sail {
+  shape-rendering: crispEdges;
+}
+.moon-world .moon-cloth-light {
+  opacity: calc(0.12 + var(--wing-open, 0) * 0.65);
+}
+.moon-voyage {
+  transition: transform 1.8s ease-in-out;
+}
+.moon-bob {
+  animation: moon-bob 6s ease-in-out infinite;
+  transform-origin: 320px 270px;
+}
+@keyframes moon-bob {
+  0%,
+  100% {
+    transform: translateY(0) rotate(-0.35deg);
+  }
+  50% {
+    transform: translateY(-2px) rotate(0.35deg);
+  }
+}
+.moon-water {
+  animation: moon-water 8s ease-in-out infinite alternate;
+}
+@keyframes moon-water {
+  to {
+    transform: translateX(5px);
+    opacity: 0.4;
+  }
+}
+.moon-reflection {
+  animation: moon-reflect 5s ease-in-out infinite alternate;
+}
+@keyframes moon-reflect {
+  to {
+    opacity: 0.12;
+    transform: translateX(4px);
+  }
+}
+.moon-star {
+  animation: moon-twinkle 7s ease-in-out infinite;
+}
+@keyframes moon-twinkle {
+  0%,
+  100% {
+    opacity: 0.15;
+  }
+  50% {
+    opacity: 0.8;
+  }
+}
+.moon-meteor {
+  animation: moon-meteor 23s linear infinite;
+  opacity: 0;
+}
+@keyframes moon-meteor {
+  0%,
+  90%,
+  100% {
+    opacity: 0;
+    transform: translate(0, 0);
+  }
+  92% {
+    opacity: 0.6;
+  }
+  96% {
+    opacity: 0;
+    transform: translate(-80px, 30px);
+  }
+}
+.moon-core {
+  opacity: calc(0.4 + var(--wing-open, 0) * 0.6);
+}
+.moon-hull-core {
+  filter: drop-shadow(0 0 2px #ffe7a5);
+}
+.moon-charged {
+  opacity: 0;
+}
+.wing-game[data-charged="1"] .moon-charged {
+  opacity: 0.85;
+  animation: moon-charge 2.4s ease-in-out infinite;
+}
+.wing-game[data-charged="1"] .moon-core {
+  filter: drop-shadow(0 0 4px #ffe4a3);
+}
+@keyframes moon-charge {
+  50% {
+    opacity: 0.35;
+  }
+}
+.moon-ripple ellipse {
+  transform-origin: 320px 284px;
+  animation: moon-ripple 2s ease-out both;
+}
+@keyframes moon-ripple {
+  0% {
+    opacity: 0.65;
+    transform: scale(0.4);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.5, 2);
+  }
+}
+.moon-gather path {
+  animation: moon-gather 1.2s ease-out both;
+}
+@keyframes moon-gather {
+  0% {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  30% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(55px);
+  }
+}
+.moon-light-road {
+  opacity: 0;
+  transition: opacity 2s ease;
+}
+.moon-world.is-finished .moon-light-road {
+  opacity: 1;
+}
+.moon-world.is-finished .moon-voyage {
+  animation: moon-depart 8s ease-out forwards;
+}
+@keyframes moon-depart {
+  to {
+    transform: translate(105px, -5px);
+  }
+}
+.moon-world.is-finished .moon-core {
+  filter: drop-shadow(0 0 5px #ffdf8b);
+}
+.wing-game .moon-world.is-finished .wing-sail-left {
+  transform: scaleX(calc(0.2 + 0.8 * var(--wing-left, 0)));
+}
+.wing-game .moon-world.is-finished .wing-sail-right {
+  transform: scaleX(calc(0.2 + 0.8 * var(--wing-right, 0)));
+}
+.moon-world.is-finished .moon-eyes {
+  animation: moon-cheer 1.6s ease-in-out 3;
+  transform-origin: 320px 186px;
+}
+@keyframes moon-cheer {
+  50% {
+    transform: translateY(-2px);
+  }
+}
+.wing-game .wing-complete {
+  inset: 25% 3% 8% auto;
+  width: 35%;
+  padding: 2%;
+  background: #0a2541e8;
+  border: 1px solid #8dbdda66;
+  border-radius: 6px;
+  backdrop-filter: blur(2px);
+  animation-delay: 0.85s;
+}
+.wing-game .wing-complete h2 {
+  font-size: calc(2.3 * var(--portal-cqw));
+}
+.wing-game .wing-complete-quote {
+  font-size: calc(1 * var(--portal-cqw));
+}
+.wing-game.is-paused .moon-voyage {
+  transition: none;
+}
+.wing-game[data-paused="body"] .moon-bob,
+.wing-game[data-paused="recovering"] .moon-bob,
+.wing-game[data-paused="body"] .moon-attract,
+.wing-game[data-paused="recovering"] .moon-attract {
+  animation-play-state: paused;
+}
+@media (prefers-reduced-motion: reduce) {
+  .wing-game .moon-progress-delivery { animation: none; opacity: 0; }
+  .moon-world *,
+  .wing-game .moon-voyage {
+    animation: none !important;
+    transition: none !important;
+  }
+}
