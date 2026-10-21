@@ -1,145 +1,224 @@
 import type { PoseFrame } from "./wingPose";
 
+/**
+ * G03「星海冲浪」躯干侧倾识别（纯逻辑，无 DOM / 无摄像头依赖）。
+ *
+ * v2 设计目标：普通人第一次就能玩通，而不是精确测量。
+ * - 只需要双肩入镜；双髋可见时额外使用「肩中点 → 髋中点」躯干角，两路信号融合。
+ * - 肩线倾斜（roll）来自 11/12 号肩点，头部、鼻子、人脸完全不参与；
+ *   整体平移不改变肩线角和躯干角，因此平移、甩头都不会触发。
+ * - 校准只记录 1 秒自然坐姿（中立基线），左右幅度用保守默认值，并在游戏中只向上自适应。
+ * - 动作循环：朝目标侧轻微侧倾 → 短保持 220ms 接住星星 → 越过中线才可以接下一颗。
+ *   无需长时间保持、无需每次等待巡航，也不会在人体静止时计分。
+ *
+ * 符号约定：正值 = 用户向自己的右侧倾斜（屏幕右侧，镜像观感）。
+ */
+
 export interface LeanProfile {
-  a0: number;
-  aL: number;
-  aR: number;
+  /** 中立躯干角（弧度）；校准时看不到髋部则为 null，游戏中髋部出现会在中立时补记。 */
+  a0: number | null;
+  /** 中立肩线角（弧度） */
+  s0: number;
+  /** 躯干角满量程（弧度）：|Δ| = range 时 u = 1 */
+  range: number;
+  /** 肩线角满量程（弧度） */
+  sRange: number;
 }
 export type LeanMode = "camera" | "demo";
+
+/** 单帧可用的姿态特征。torso 需要双髋；shoulder 只需要双肩。 */
+export interface LeanSample {
+  torso: number | null;
+  shoulder: number;
+}
+
 export const DEFAULT_LEAN_CONFIG = {
-  minVisibility: 0.65,
+  /** 肩/髋关键点可见度下限（原 0.65，桌前坐姿髋部常被遮挡，放宽并改为可选）。 */
+  minVisibility: 0.5,
+  /** 原始摄像头帧未镜像（MediaPipe 输入为原始画面）。 */
   mirror: true,
-  smoothTauMs: 100,
-  targetThreshold: 0.65,
-  centerThreshold: 0.2,
-  targetHoldMs: 600,
-  centerHoldMs: 400,
-  lossGraceMs: 300,
-  stableMs: 1000,
-  readyMs: 3000,
+  /** 默认满量程：约 6°。触发阈值 0.42 → 约 2.5°，属于轻微侧倾。 */
+  defaultRange: 0.105,
+  defaultShoulderRange: 0.1,
+  /** 自适应只放大不缩小，避免小幅动作者越玩越难；上限约 9.5°。 */
+  maxRange: 0.165,
+  smoothTauMs: 110,
+  /** 进入接星区阈值（原 0.65） */
+  catchThreshold: 0.42,
+  /** 接星需要的连续保持（原 600ms） */
+  catchHoldMs: 220,
+  /** 迟滞（取自 Codex v2 思路）：进入需 0.42，保持中允许回落到 0.34 不中断 */
+  catchRetain: 0.34,
+  /** 保持中短暂跌出保留线 / 短暂无效帧的冻结窗口：不加时、不清零 */
+  holdGraceMs: 140,
+  /** 接住后必须越过该线（靠近中间或到另一侧）才开放下一颗（替代原 400ms 回中保持） */
+  releaseThreshold: 0.22,
+  /** 显示死区：抖动不推动角色 */
+  deadZone: 0.06,
+  /** 短暂遮挡冻结窗口；超过后提示「看不到你」（原 300ms） */
+  lossGraceMs: 600,
+  /** 恢复识别后稳定多久继续（原 1s 回中 + 3s 倒计时） */
+  resumeMs: 450,
+  /** 单帧角度跳变超过该值视为误检帧，丢弃 */
+  jumpRejectRad: 0.35,
+  /** 中立基线漂移跟随时间常数，只在靠近中间时生效 */
+  driftTauMs: 7000,
   softLimitMs: 45000,
-  cruiseMs: 4200,
+  targetReps: 6,
 };
 export type LeanConfig = typeof DEFAULT_LEAN_CONFIG;
-export const DEMO_LEAN_PROFILE: LeanProfile = { a0: 0, aL: -0.2, aR: 0.2 };
+export const DEMO_LEAN_PROFILE: LeanProfile = {
+  a0: 0,
+  s0: 0,
+  range: DEFAULT_LEAN_CONFIG.defaultRange,
+  sRange: DEFAULT_LEAN_CONFIG.defaultShoulderRange,
+};
 
-/** Pose 原始坐标只在此处做一次镜像校正；鼻子和脸部数据不参与。 */
+const visible = (
+  p: { x: number; y: number; visibility?: number } | undefined,
+  min: number,
+) =>
+  !!p &&
+  Number.isFinite(p.x) &&
+  Number.isFinite(p.y) &&
+  Number.isFinite(p.visibility) &&
+  p.visibility! >= min &&
+  p.x > 0 &&
+  p.x < 1 &&
+  p.y > 0 &&
+  p.y < 1;
+
+/** 关键点 → 特征。鼻子、眼、耳（0–10 号）不参与。 */
 export function measureLean(
   frame: PoseFrame | null,
-  config = DEFAULT_LEAN_CONFIG,
-): number | null {
+  config: LeanConfig = DEFAULT_LEAN_CONFIG,
+): LeanSample | null {
   if (!frame || frame.videoWidth <= 0 || frame.videoHeight <= 0) return null;
-  const points = [11, 12, 23, 24].map((i) => frame.landmarks[i]);
-  if (
-    points.some(
-      (p) =>
-        !p ||
-        !Number.isFinite(p.x) ||
-        !Number.isFinite(p.y) ||
-        !Number.isFinite(p.visibility) ||
-        p.visibility! < config.minVisibility ||
-        p.x <= 0 ||
-        p.x >= 1 ||
-        p.y <= 0 ||
-        p.y >= 1,
-    )
-  )
+  const W = frame.videoWidth,
+    H = frame.videoHeight;
+  const ls = frame.landmarks[11],
+    rs = frame.landmarks[12];
+  if (!visible(ls, config.minVisibility) || !visible(rs, config.minVisibility))
     return null;
-  const [ls, rs, lh, rh] = points;
-  const sx = ((ls.x + rs.x) / 2) * frame.videoWidth;
-  const sy = ((ls.y + rs.y) / 2) * frame.videoHeight;
-  const hx = ((lh.x + rh.x) / 2) * frame.videoWidth;
-  const hy = ((lh.y + rh.y) / 2) * frame.videoHeight;
-  if (hy - sy < 20 || Math.abs(ls.x - rs.x) * frame.videoWidth < 20)
-    return null;
-  return Math.atan2((sx - hx) * (config.mirror ? -1 : 1), hy - sy);
-}
-export function leanAmount(a: number, p: LeanProfile) {
-  const d = a - p.a0;
-  return Math.max(
-    -1,
-    Math.min(1, d / Math.max(0.01, d < 0 ? p.a0 - p.aL : p.aR - p.a0)),
-  );
+  const dx = Math.abs(ls.x - rs.x) * W;
+  // 肩宽太小：人离得过远或侧身，信号不可信。
+  if (dx < Math.max(24, W * 0.06)) return null;
+  // 右肩（12）比左肩（11）低 = 向用户右侧倾。与画面是否镜像无关。
+  const shoulder = Math.atan2((rs.y - ls.y) * H, dx);
+  let torso: number | null = null;
+  const lh = frame.landmarks[23],
+    rh = frame.landmarks[24];
+  if (visible(lh, config.minVisibility) && visible(rh, config.minVisibility)) {
+    const sx = ((ls.x + rs.x) / 2) * W,
+      sy = ((ls.y + rs.y) / 2) * H;
+    const hx = ((lh.x + rh.x) / 2) * W,
+      hy = ((lh.y + rh.y) / 2) * H;
+    if (hy - sy > Math.max(20, dx * 0.45))
+      torso = Math.atan2((sx - hx) * (config.mirror ? -1 : 1), hy - sy);
+  }
+  return { torso, shoulder };
 }
 
-export type LeanCalibrationStage =
-  "visible" | "neutral" | "left" | "right" | "ready";
+const clamp = (v: number, lo: number, hi: number) =>
+  Math.max(lo, Math.min(hi, v));
+
+/** 用个人基线归一化，两路可用时加权融合（躯干为主，肩线为辅）。 */
+export function leanAmount(s: LeanSample, p: LeanProfile) {
+  const us = (s.shoulder - p.s0) / Math.max(0.02, p.sRange);
+  if (s.torso === null || p.a0 === null) return clamp(us, -1, 1);
+  const ut = (s.torso - p.a0) / Math.max(0.02, p.range);
+  return clamp(0.62 * ut + 0.38 * us, -1, 1);
+}
+
+const quantile = (v: number[], q: number) => {
+  const a = [...v].sort((x, y) => x - y);
+  return a[Math.floor((a.length - 1) * q)];
+};
+export type LeanCalibrationStage = "visible" | "neutral" | "ready";
 const median = (v: number[]) => {
   const a = [...v].sort((x, y) => x - y);
   return a[Math.floor(a.length / 2)];
 };
-/** 连续新帧窗口采样，重复/迟到帧不累计；丢失或不稳定重新采当前阶段。 */
+/**
+ * 一步校准：看到双肩后自然坐好约 1 秒即可。
+ * 只要求「大致稳定」（容差约 3.4°），呼吸、轻微晃动不会反复重来。
+ */
 export class LeanCalibrator {
   stage: LeanCalibrationStage = "visible";
   profile: LeanProfile | null = null;
   progress = 0;
-  private samples: { a: number; at: number }[] = [];
+  hipsSeen = false;
+  private samples: { s: LeanSample; at: number }[] = [];
   private lastAt = -Infinity;
-  private a0 = 0;
-  private aL = 0;
-  update(a: number | null, at: number) {
+  constructor(
+    private config: LeanConfig = DEFAULT_LEAN_CONFIG,
+    private neutralMs = 1000,
+  ) {}
+  update(s: LeanSample | null, at: number) {
     if (at <= this.lastAt) return;
     const gap = at - this.lastAt;
     this.lastAt = at;
-    if (a === null || gap > 250) {
-      this.samples = [];
-      this.progress = 0;
-      if (a === null) return;
-    }
     if (this.stage === "ready") return;
-    const directionOK =
-      this.stage === "left"
-        ? a < this.a0 - 0.06
-        : this.stage === "right"
-          ? a > this.a0 + 0.06
-          : true;
-    if (!directionOK) {
+    if (s === null || gap > 350) {
       this.samples = [];
       this.progress = 0;
-      return;
+      if (s === null) {
+        this.stage = "visible";
+        return;
+      }
     }
-    this.samples.push({ a, at });
-    const values = this.samples.map((s) => s.a);
-    if (Math.max(...values) - Math.min(...values) > 0.035) {
-      this.samples = [{ a, at }];
+    this.stage = "neutral";
+    this.samples.push({ s, at });
+    const sh = this.samples.map((x) => x.s.shoulder);
+    // 用 10%–90% 分位范围判稳（取自 Codex v2）：单帧离群点不会让进度归零，持续摇晃仍不通过。
+    if (quantile(sh, 0.9) - quantile(sh, 0.1) > 0.06) {
+      // 丢掉最早的一半样本，而不是整体清空，给用户「稍微坐稳」的即时机会。
+      this.samples = this.samples.slice(Math.floor(this.samples.length / 2));
       this.progress = 0;
       return;
     }
-    const duration =
-      this.stage === "neutral" ? 2000 : this.stage === "visible" ? 1000 : 800;
-    this.progress = Math.min(1, (at - this.samples[0].at) / duration);
-    if (this.progress < 1 || this.samples.length < 5) return;
-    const end = median(values);
-    if (this.stage === "visible") this.stage = "neutral";
-    else if (this.stage === "neutral") {
-      this.a0 = end;
-      this.stage = "left";
-    } else if (this.stage === "left") {
-      this.aL = end;
-      this.stage = "right";
-    } else {
-      this.profile = { a0: this.a0, aL: this.aL, aR: end };
-      this.stage = "ready";
-    }
-    this.samples = [];
-    this.progress = 0;
+    this.progress = Math.min(1, (at - this.samples[0].at) / this.neutralMs);
+    if (this.progress < 1 || this.samples.length < 4) return;
+    const torsos = this.samples
+      .map((x) => x.s.torso)
+      .filter((v): v is number => v !== null);
+    this.hipsSeen = torsos.length >= this.samples.length * 0.6;
+    this.profile = {
+      a0: this.hipsSeen ? median(torsos) : null,
+      s0: median(sh),
+      range: this.config.defaultRange,
+      sRange: this.config.defaultShoulderRange,
+    };
+    this.stage = "ready";
+    this.progress = 1;
   }
 }
 
 export interface LeanUpdate {
+  /** 平滑后的侧倾量 -1..1（含死区） */
   u: number;
   reps: number;
+  /** 当前星星所在侧 */
   target: -1 | 1;
+  /** 正在目标侧接星区内 */
   arrived: boolean;
+  /** 接星保持进度 0..1 */
   hold: number;
+  /** 向目标侧的接近程度 0..1，用于「快到了」的提示 */
+  approach: number;
+  /** 刚接住，需越过中线开放下一颗 */
+  returning: boolean;
   effectiveMs: number;
+  /** 最近一次接星时的 effectiveMs，用于画面吸收动画 */
+  lastCatchMs: number;
   tracking: "ok" | "unstable" | "lost";
   recovering: boolean;
-  countdown: number;
   complete: boolean;
   overSoftLimit: boolean;
-  cruising: boolean;
+  /** 本帧信号来源，便于 HUD 告知「肩+髋」或「仅肩膀」 */
+  source: "torso" | "shoulder" | "none";
 }
+
 /** 仅管理动作循环；产品级阶段、退出和结果统一由 machine.ts 修改。 */
 export class LeanSession {
   current: LeanUpdate = {
@@ -148,121 +227,153 @@ export class LeanSession {
     target: -1,
     arrived: false,
     hold: 0,
+    approach: 0,
+    returning: false,
     effectiveMs: 0,
+    lastCatchMs: -1e9,
     tracking: "ok",
     recovering: false,
-    countdown: 0,
     complete: false,
     overSoftLimit: false,
-    cruising: true,
+    source: "none",
   };
+  private profile: LeanProfile;
   private filtered: number | null = null;
   private holdMs = 0;
+  private graceMs = 0;
   private lostMs = 0;
-  private stableMs = 0;
-  private readyMs = 0;
-  private cruiseMs: number;
-  private armed = false;
-  private previousAngle: number | null = null;
+  private resumeMs = 0;
+  private last: LeanSample | null = null;
   constructor(
-    private profile: LeanProfile,
-    private config = DEFAULT_LEAN_CONFIG,
+    profile: LeanProfile,
+    private config: LeanConfig = DEFAULT_LEAN_CONFIG,
   ) {
-    this.cruiseMs = config.cruiseMs;
+    this.profile = { ...profile };
+  }
+  /** 当前（含自适应）个人参数，仅供调试与测试读取 */
+  get liveProfile(): Readonly<LeanProfile> {
+    return this.profile;
   }
   pause() {
-    this.current.recovering = true;
-    this.current.arrived = false;
-    this.current.hold = 0;
-    this.holdMs = 0;
-    this.stableMs = 0;
-    this.readyMs = 0;
-    this.armed = false;
-    this.filtered = null;
-    this.previousAngle = null;
-  }
-  update(dtMs: number, a: number | null): LeanUpdate {
-    const dt = Math.max(0, Math.min(120, dtMs));
     const v = this.current;
+    v.recovering = true;
+    v.arrived = false;
+    v.hold = 0;
+    this.holdMs = 0;
+    this.resumeMs = 0;
+    this.filtered = null;
+    this.last = null;
+  }
+  private adapt(s: LeanSample, u: number, dt: number) {
+    const p = this.profile,
+      c = this.config;
+    // 髋部在游戏中才出现：在中立附近补记躯干基线。
+    if (s.torso !== null && p.a0 === null && Math.abs(u) < 0.15) p.a0 = s.torso;
+    // 幅度只向上自适应：动作明显更大的人，阈值随之变得更「需要动」一点，但最多约 9.5°。
+    const ds = Math.abs(s.shoulder - p.s0);
+    if (ds * 0.78 > p.sRange) p.sRange = Math.min(c.maxRange, ds * 0.78);
+    if (s.torso !== null && p.a0 !== null) {
+      const dt0 = Math.abs(s.torso - p.a0);
+      if (dt0 * 0.78 > p.range) p.range = Math.min(c.maxRange, dt0 * 0.78);
+    }
+    // 靠近中间时，基线缓慢跟随坐姿漂移；漂移只会把 u 拉向 0，不可能凭空触发接星。
+    if (Math.abs(u) < 0.2) {
+      const k = 1 - Math.exp(-dt / c.driftTauMs);
+      p.s0 += (s.shoulder - p.s0) * k;
+      if (s.torso !== null && p.a0 !== null) p.a0 += (s.torso - p.a0) * k;
+    }
+  }
+  update(dtMs: number, s: LeanSample | null): LeanUpdate {
+    const dt = Math.max(0, Math.min(120, dtMs));
+    const v = this.current,
+      c = this.config;
     if (v.complete) return { ...v };
-    if (a === null || !Number.isFinite(a)) {
+    // 误检帧：单帧角度剧烈跳变（例如瞬间识别到别人或手臂遮挡）按无效帧处理。
+    if (
+      s &&
+      this.last &&
+      Math.abs(s.shoulder - this.last.shoulder) > c.jumpRejectRad
+    ) {
+      this.last = s;
+      s = null;
+    }
+    if (s === null || !Number.isFinite(s.shoulder)) {
       this.lostMs += dt;
-      this.stableMs = 0;
-      this.readyMs = 0;
-      this.previousAngle = null;
-      // 无效帧不能拼接成连续保持，已到达的短暂冻结可继续等待回中。
-      this.holdMs = 0;
-      v.hold = 0;
-      if (this.lostMs > this.config.lossGraceMs && !v.recovering) this.pause();
-      v.tracking = this.lostMs > this.config.lossGraceMs ? "lost" : "unstable";
-      return { ...v };
-    }
-    this.lostMs = 0;
-    const rawU = leanAmount(a, this.profile);
-    if (v.recovering) {
-      const stable =
-        Math.abs(rawU) <= this.config.centerThreshold &&
-        (this.previousAngle === null ||
-          Math.abs(a - this.previousAngle) <= 0.025);
-      this.previousAngle = a;
-      if (!stable) {
-        this.stableMs = 0;
-        this.readyMs = 0;
-      } else if (this.stableMs < this.config.stableMs) this.stableMs += dt;
-      else this.readyMs += dt;
-      v.tracking = "unstable";
-      v.countdown =
-        this.stableMs >= this.config.stableMs
-          ? Math.max(1, Math.ceil((this.config.readyMs - this.readyMs) / 1000))
-          : 0;
-      if (this.readyMs >= this.config.readyMs) {
-        v.recovering = false;
-        v.countdown = 0;
-        this.filtered = null;
-      }
-      return { ...v };
-    }
-    v.tracking = "ok";
-    this.filtered =
-      this.filtered === null
-        ? a
-        : this.filtered +
-          (a - this.filtered) * (1 - Math.exp(-dt / this.config.smoothTauMs));
-    v.u = leanAmount(this.filtered, this.profile);
-    v.effectiveMs += dt;
-    v.overSoftLimit = v.effectiveMs >= this.config.softLimitMs;
-    if (this.cruiseMs > 0) this.cruiseMs = Math.max(0, this.cruiseMs - dt);
-    v.cruising = this.cruiseMs > 0;
-    if (!this.armed) {
-      this.holdMs =
-        Math.abs(v.u) <= this.config.centerThreshold ? this.holdMs + dt : 0;
-      if (this.holdMs >= this.config.centerHoldMs) {
-        this.armed = true;
-        this.holdMs = 0;
-      }
-    } else if (!v.cruising) {
-      const valid = v.arrived
-        ? Math.abs(v.u) <= this.config.centerThreshold
-        : v.u * v.target >= this.config.targetThreshold;
-      this.holdMs = valid ? this.holdMs + dt : 0;
-      const need = v.arrived
-        ? this.config.centerHoldMs
-        : this.config.targetHoldMs;
-      v.hold = Math.min(1, this.holdMs / need);
-      if (this.holdMs >= need) {
+      this.resumeMs = 0;
+      // 极短无效帧（≤ holdGraceMs）只冻结保持进度：不加时、不计分；超过才清零。
+      // （取自 Codex v2：一帧丢失不应让已经做对的动作作废。）
+      if (this.lostMs > c.holdGraceMs) {
         this.holdMs = 0;
         v.hold = 0;
-        if (!v.arrived) v.arrived = true;
-        else {
-          v.reps++;
-          v.arrived = false;
-          v.target = v.target === -1 ? 1 : -1;
-          v.complete = v.reps === 6;
-          v.overSoftLimit = !v.complete && v.overSoftLimit;
-          this.cruiseMs = this.config.cruiseMs;
-          this.armed = true;
-        }
+        v.arrived = false;
       }
+      v.source = "none";
+      if (this.lostMs > c.lossGraceMs && !v.recovering) this.pause();
+      v.tracking = this.lostMs > c.lossGraceMs ? "lost" : "unstable";
+      return { ...v };
+    }
+    this.last = s;
+    this.lostMs = 0;
+    v.source = s.torso !== null && this.profile.a0 !== null ? "torso" : "shoulder";
+    if (v.recovering) {
+      this.resumeMs += dt;
+      v.tracking = "unstable";
+      if (this.resumeMs < c.resumeMs) return { ...v };
+      v.recovering = false;
+      this.filtered = null;
+    }
+    v.tracking = "ok";
+    const raw = leanAmount(s, this.profile);
+    this.filtered =
+      this.filtered === null
+        ? raw
+        : this.filtered +
+          (raw - this.filtered) * (1 - Math.exp(-dt / c.smoothTauMs));
+    this.adapt(s, this.filtered, dt);
+    const f = this.filtered;
+    v.u = Math.abs(f) < c.deadZone ? 0 : f;
+    v.effectiveMs += dt;
+    v.overSoftLimit = v.effectiveMs >= c.softLimitMs;
+    const toward = f * v.target;
+    if (v.returning) {
+      // 接住后：越过中线（或已经倾向下一颗所在侧）才开放下一颗。
+      if (toward >= -c.releaseThreshold) v.returning = false;
+      v.approach = 0;
+      v.arrived = false;
+      v.hold = 0;
+      this.holdMs = 0;
+      return { ...v };
+    }
+    v.approach = clamp(toward / c.catchThreshold, 0, 1);
+    if (!v.arrived) {
+      v.arrived = toward >= c.catchThreshold;
+      this.graceMs = 0;
+      this.holdMs = v.arrived ? this.holdMs + dt : 0;
+    } else if (toward >= c.catchRetain) {
+      // 已进入：在保留线以上继续累计
+      this.graceMs = 0;
+      this.holdMs += dt;
+      v.approach = 1;
+    } else {
+      // 跌出保留线：短暂冻结，超时才放弃这次接光
+      this.graceMs += dt;
+      if (this.graceMs > c.holdGraceMs) {
+        v.arrived = false;
+        this.holdMs = 0;
+        this.graceMs = 0;
+      }
+    }
+    v.hold = Math.min(1, this.holdMs / c.catchHoldMs);
+    if (this.holdMs >= c.catchHoldMs) {
+      this.holdMs = 0;
+      v.hold = 0;
+      v.arrived = false;
+      v.reps++;
+      v.lastCatchMs = v.effectiveMs;
+      v.complete = v.reps >= c.targetReps;
+      v.overSoftLimit = !v.complete && v.overSoftLimit;
+      v.target = v.target === -1 ? 1 : -1;
+      v.returning = !v.complete;
     }
     return { ...v };
   }

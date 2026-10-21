@@ -97,24 +97,6 @@
 .moon-fireflies [data-flight-phase="flight"] .moon-firefly-glow {
   opacity: 0.35;
 }
-/* 超宽卡片用原图完整构图，背景延展只营造氛围，避免 cover 裁掉月亮或桥。 */
-.lamp-card[data-card-id="winglight"] .lamp-card-preview {
-  overflow: hidden;
-  background: #124b8c;
-}
-.lamp-card[data-card-id="winglight"] .lamp-card-preview::before {
-  content: "";
-  position: absolute;
-  inset: -4px;
-  background: var(--moon-preview) center / cover;
-  filter: blur(4px);
-  opacity: 0.32;
-}
-.lamp-card[data-card-id="winglight"] .lamp-card-preview img {
-  position: relative;
-  object-fit: contain;
-  background: transparent;
-}
 .moon-progress-delivery {
   position: absolute;
   z-index: 5;
