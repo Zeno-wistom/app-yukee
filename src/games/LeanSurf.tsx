@@ -12,7 +12,7 @@ import type { PoseFrame } from "../vision/wingPose";
 import type { GameResult } from "../state/machine";
 import type { GameEventKind } from "./YukeeRun";
 import LeanSurfScene from "./LeanSurfScene";
-import { RAINBOW } from "./sunSurfScene";
+import { RAINBOW, TARGET_VARIANTS } from "./sunSurfScene";
 import "./leanSurf.css";
 
 /** 键盘演示：模拟肩线约 4.3° 的轻微侧倾，仍经过同一套平滑、阈值与回中逻辑。 */
@@ -159,6 +159,7 @@ export default function LeanSurf({
       data-testid="lean-surf"
       data-mode={mode}
       data-reps={hud.reps}
+      data-variant={TARGET_VARIANTS[Math.min(hud.reps, TARGET_VARIANTS.length - 1)].id}
       data-tracking={hud.tracking}
       data-complete={hud.complete ? "1" : "0"}
       data-arrived={hud.arrived ? "1" : "0"}
@@ -182,6 +183,11 @@ export default function LeanSurf({
           <b data-testid="lean-reps">
             {hud.reps}/{reps}
           </b>
+          {!hud.complete && (
+            <em className="lean-variant" data-testid="lean-variant" key={hud.reps}>
+              {TARGET_VARIANTS[Math.min(hud.reps, TARGET_VARIANTS.length - 1)].name}
+            </em>
+          )}
         </span>
         <span>
           <time data-testid="lean-time">

@@ -593,9 +593,52 @@ function Desk(props: Props) {
     </>
   );
 }
+/** 体感游戏（G02/G03 及其校准）期间：相机静止、桌面只做背景，3D 场景降到约 24fps 渲染。 */
+const THROTTLED_PHASES: ReadonlySet<Phase> = new Set<Phase>([
+  "wingCalibration",
+  "winglight",
+  "leanCalibration",
+  "leanSurf",
+]);
+const THROTTLED_FRAME_MS = 1000 / 24;
+/**
+ * 游戏画布与 MediaPipe 推理都在主线程。v3 期间 R3F 仍以显示器刷新率重绘整张桌面
+ * （含 2048 阴影贴图与环境光照），与游戏争抢同一帧预算。这里改为按需渲染：
+ * 约 24fps 主动刷新（灯带脉冲仍连续），阴影贴图冻结在进入时的一帧。
+ */
+function GameThrottle({ active, pulse }: { active: boolean; pulse: Props["pulse"] }) {
+  const invalidate = useThree((s) => s.invalidate);
+  const gl = useThree((s) => s.gl);
+  useEffect(() => {
+    gl.shadowMap.autoUpdate = !active;
+    gl.shadowMap.needsUpdate = true;
+    invalidate();
+    if (!active) return;
+    let raf = 0,
+      last = 0;
+    const loop = (now: number) => {
+      if (now - last >= THROTTLED_FRAME_MS - 2) {
+        last = now;
+        invalidate();
+      }
+      raf = requestAnimationFrame(loop);
+    };
+    raf = requestAnimationFrame(loop);
+    return () => {
+      cancelAnimationFrame(raf);
+      gl.shadowMap.autoUpdate = true;
+    };
+  }, [active, gl, invalidate]);
+  useEffect(() => {
+    if (active) invalidate();
+  }, [pulse, active, invalidate]);
+  return null;
+}
 export default function DeskScene(props: Props) {
+  const throttled = THROTTLED_PHASES.has(props.phase);
   return (
     <Canvas
+      frameloop={throttled ? "demand" : "always"}
       shadows="basic"
       dpr={[1, 1.5]}
       camera={{
@@ -607,6 +650,7 @@ export default function DeskScene(props: Props) {
       gl={{ antialias: true }}
     >
       <color attach="background" args={["#e8e6db"]} />
+      <GameThrottle active={throttled} pulse={props.pulse} />
       <fog attach="fog" args={["#e8e6db", 18, 35]} />
       <ambientLight intensity={0.55} />
       <hemisphereLight args={["#f6f3dc", "#718778", 1.0]} />

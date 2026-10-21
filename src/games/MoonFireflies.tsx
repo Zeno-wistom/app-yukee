@@ -3,6 +3,7 @@ import {
   bezier,
   FIREFLY_SOURCES,
   MoonFireflyField,
+  type LightTargets,
   type Point,
 } from "./moonFireflyField";
 
@@ -13,7 +14,7 @@ export interface MoonFirefliesHandle {
     charged: boolean,
     reps: number,
     finished: boolean,
-  ): void;
+  ): LightTargets | null;
 }
 
 /** 全画幅 SVG 粒子层。沿用游戏现有 RAF，逐节点写坐标，不制造每帧 React 更新。 */
@@ -29,12 +30,12 @@ export default forwardRef<MoonFirefliesHandle>(function MoonFireflies(_, ref) {
       step(dt, open, charged, reps, finished) {
         const layer = root.current,
           svg = layer?.ownerSVGElement;
-        if (!layer || !svg || dt <= 0) return;
+        if (!layer || !svg || dt <= 0) return null;
         const boat = svg.querySelector<SVGGElement>("[data-moon-boat]");
         const left = svg.querySelector<SVGGElement>(".wing-sail-left");
         const right = svg.querySelector<SVGGElement>(".wing-sail-right");
         const world = svg.getCTM();
-        if (!boat || !left || !right || !world) return;
+        if (!boat || !left || !right || !world) return null;
         const inverse = world.inverse();
         const point = (group: SVGGElement, x: number, y: number): Point => {
           const matrix = group.getCTM();
@@ -99,6 +100,7 @@ export default forwardRef<MoonFirefliesHandle>(function MoonFireflies(_, ref) {
           );
           burst.current.setAttribute("opacity", String((1 - progress) * 0.7));
         }
+        return targets;
       },
     }),
     [],

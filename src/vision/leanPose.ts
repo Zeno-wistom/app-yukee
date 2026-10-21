@@ -43,6 +43,8 @@ export const DEFAULT_LEAN_CONFIG = {
   /** 自适应只放大不缩小，避免小幅动作者越玩越难；上限约 9.5°。 */
   maxRange: 0.165,
   smoothTauMs: 110,
+  /** 躯干信号出现/消失时的交叉淡化时间常数 */
+  torsoBlendTauMs: 250,
   /** 进入接星区阈值（原 0.65） */
   catchThreshold: 0.42,
   /** 接星需要的连续保持（原 600ms） */
@@ -244,11 +246,15 @@ export class LeanSession {
   private lostMs = 0;
   private resumeMs = 0;
   private last: LeanSample | null = null;
+  /** 躯干信号权重（0..1）与最近一次「融合值 − 肩线值」差：髋部时有时无时平滑过渡，避免输入阶跃 */
+  private torsoW = 0;
+  private torsoDiff = 0;
   constructor(
     profile: LeanProfile,
     private config: LeanConfig = DEFAULT_LEAN_CONFIG,
   ) {
     this.profile = { ...profile };
+    this.torsoW = profile.a0 !== null ? 1 : 0;
   }
   /** 当前（含自适应）个人参数，仅供调试与测试读取 */
   get liveProfile(): Readonly<LeanProfile> {
@@ -282,6 +288,19 @@ export class LeanSession {
       p.s0 += (s.shoulder - p.s0) * k;
       if (s.torso !== null && p.a0 !== null) p.a0 += (s.torso - p.a0) * k;
     }
+  }
+  /**
+   * 髋部可见度在阈值附近闪烁时，v3 会在「肩线」与「躯干+肩线」两套公式间逐帧切换，
+   * 输入出现阶跃，角色随之突然横跳。这里用 ~250ms 时间常数在两者之间交叉淡化。
+   */
+  private blend(s: LeanSample, dt: number) {
+    const p = this.profile;
+    const us = clamp((s.shoulder - p.s0) / Math.max(0.02, p.sRange), -1, 1);
+    const hasTorso = s.torso !== null && p.a0 !== null;
+    if (hasTorso) this.torsoDiff = leanAmount(s, p) - us;
+    const k = 1 - Math.exp(-dt / this.config.torsoBlendTauMs);
+    this.torsoW += ((hasTorso ? 1 : 0) - this.torsoW) * k;
+    return clamp(us + this.torsoW * this.torsoDiff, -1, 1);
   }
   update(dtMs: number, s: LeanSample | null): LeanUpdate {
     const dt = Math.max(0, Math.min(120, dtMs));
@@ -323,7 +342,7 @@ export class LeanSession {
       this.filtered = null;
     }
     v.tracking = "ok";
-    const raw = leanAmount(s, this.profile);
+    const raw = this.blend(s, dt);
     this.filtered =
       this.filtered === null
         ? raw
