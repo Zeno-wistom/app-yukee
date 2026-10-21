@@ -9,7 +9,6 @@
  * 全部为静态 SVG，仅外层卡片做 transform 动画，避免每帧重排。
  */
 import type { GameCard } from "./games";
-import type { CSSProperties } from "react";
 
 export interface CardPreviewProps {
   card: GameCard;
@@ -19,9 +18,7 @@ export interface CardPreviewProps {
 
 export function CardPreview({ card, dim }: CardPreviewProps) {
   return (
-    <div className="lamp-card-preview" style={{ opacity: dim,
-      ...(card.id === "winglight" ? { "--moon-preview": `url("${card.previewImage}")` } : {}),
-    } as CSSProperties} aria-hidden>
+    <div className="lamp-card-preview" style={{ opacity: dim }} aria-hidden>
       {card.preview === "yukeeRun" && (
         <YukeeRunPreview palette={card.palette} />
       )}

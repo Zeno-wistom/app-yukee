@@ -109,13 +109,13 @@ test("游戏卡片切换为连续整叠洗牌，无瞬时内容替换", async ({
     "winglight",
   );
   // 过渡完成后所有卡片仍全部挂载（永不在动画中增删节点）
-  // G02 也复用原始月夜图片；六张卡均保留常驻图片节点。
+  // G02 使用真实游戏派生的月夜预览；六张卡均保留常驻图片节点。
   await page.waitForTimeout(700);
   await expect(page.locator(".lamp-card")).toHaveCount(6);
   await expect(page.locator(".lamp-card-preview > *")).toHaveCount(6);
   await expect(page.locator(".lamp-card-preview img")).toHaveCount(6);
   await expect(page.locator("[data-card-id='winglight'] .lamp-card-preview img"))
-    .toHaveAttribute('src', /g02-moon-original/);
+    .toHaveAttribute('src', /winglight-scene\.webp/);
   await expect
     .poll(async () =>
       page

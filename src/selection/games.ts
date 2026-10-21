@@ -1,4 +1,3 @@
-import moonOriginal from "../../docs/reference/g02-moon-original.png";
 
 /**
  * 游戏目录 —— 挂灯卡片选择器的唯一数据源。
@@ -71,7 +70,7 @@ export const GAMES: readonly GameCard[] = [
     subtitle: "缓慢展开 · 保持 · 回位收光",
     available: true,
     preview: "image",
-    previewImage: moonOriginal,
+    previewImage: "/game-previews/winglight-scene.webp",
     palette: {
       sky: "#08222b",
       paper: "#c8f0e6",
@@ -82,13 +81,13 @@ export const GAMES: readonly GameCard[] = [
   },
   {
     id: "leanSurf",
-    title: "躯干重心冲浪",
-    en: "LEAN SURF",
+    title: "星海冲浪",
+    en: "STAR SURF",
     type: "躯干侧倾 · 双肩双髋入镜",
     subtitle: "左右侧倾 · 保持 · 回中集星",
     available: true,
     preview: "image",
-    previewImage: "/game-previews/lean-surf.svg",
+    previewImage: "/game-previews/lean-surf-scene.webp",
     palette: {
       sky: "#dcead8",
       paper: "#f4f8ee",

@@ -5,6 +5,7 @@ import {
   LeanSession,
   LeanCalibrator,
   DEFAULT_LEAN_CONFIG,
+  leanCenterThreshold,
 } from "./leanPose";
 import type { PoseFrame } from "./wingPose";
 
@@ -140,5 +141,96 @@ describe("G03 校准", () => {
     for (let t = 6900; t < 7200; t += 50) c.update(0.18, t);
     expect(c.profile?.aL).toBeCloseTo(-0.16);
     expect(c.profile?.aR).toBeCloseTo(0.18);
+  });
+});
+
+describe("G03 新手容错（不降低可见性或进入门槛）", () => {
+  it("短遮挡冻结已累计保持，缺失时间不能凑够600ms", () => {
+    const s = new LeanSession(profile, { ...config, smoothTauMs: 0.001 });
+    step(s, 0, 500);
+    step(s, -0.2, 400);
+    const time = s.current.effectiveMs;
+    step(s, null, 100);
+    expect(s.current.hold).toBeCloseTo(2 / 3);
+    expect(s.current.effectiveMs).toBe(time);
+    expect(step(s, -0.2, 180).arrived).toBe(false);
+    expect(step(s, -0.2, 20).arrived).toBe(true);
+  });
+  it("迟滞只保留已进入的保持，未达0.65不能从0.55起步", () => {
+    const s = new LeanSession(profile, { ...config, smoothTauMs: 0.001 });
+    step(s, 0, 500);
+    expect(step(s, -0.12, 1800).arrived).toBe(false);
+    step(s, -0.14, 200);
+    expect(step(s, -0.12, 400).arrived).toBe(true);
+    // 回中先进入0.20，再允许轻微抖到0.28，不要求僵直归零。
+    step(s, 0, 200);
+    expect(step(s, 0.06, 200).reps).toBe(1);
+  });
+  it("越界100ms不清零且不加保持；持续反向动作会重置", () => {
+    const s = new LeanSession(profile, { ...config, smoothTauMs: 0.001 });
+    step(s, 0, 500);
+    step(s, -0.2, 300);
+    step(s, 0, 100);
+    expect(step(s, -0.2, 280).arrived).toBe(false);
+    expect(step(s, -0.2, 20).arrived).toBe(true);
+    const t = new LeanSession(profile, { ...config, smoothTauMs: 0.001 });
+    step(t, 0, 500);
+    step(t, -0.2, 400);
+    step(t, 0.25, 200);
+    expect(step(t, -0.2, 400).arrived).toBe(false);
+  });
+  it("舒适小幅校准保留两侧独立幅度，噪声回中容差有上限", () => {
+    const c = new LeanCalibrator();
+    let at = 0;
+    const sample = (a: number, ms: number) => {
+      for (let n = 0; n < ms; n += 50) {
+        c.update(a + (n % 150 === 0 ? 0.006 : -0.006), at);
+        at += 50;
+      }
+    };
+    sample(0, 3400);
+    expect(c.stage).toBe("left");
+    sample(-0.075, 1000);
+    sample(0.095, 1000);
+    expect(c.stage).toBe("ready");
+    expect(c.profile!.aL).toBeCloseTo(-0.081);
+    expect(leanAmount(-0.06, c.profile!)).toBeLessThan(-0.65);
+    expect(leanCenterThreshold({ ...profile, neutralNoise: 1 })).toBe(0.3);
+  });
+  it("单帧中立离群不反复归零，连续摇摆仍不能完成", () => {
+    const c = new LeanCalibrator();
+    for (let at = 0; at <= 3200; at += 50) c.update(at === 1900 ? 0.07 : 0, at);
+    expect(c.stage).toBe("left");
+    for (let at = 3250; at < 6000; at += 50)
+      c.update(at % 100 ? -0.07 : -0.16, at);
+    expect(c.stage).toBe("left");
+  });
+  it("300ms以上缺失取消半动作；100ms以内的校准缺帧只冻结", () => {
+    const s = new LeanSession(profile, config);
+    step(s, 0, 500);
+    step(s, -0.2, 500);
+    step(s, null, 320);
+    expect(s.current.tracking).toBe("lost");
+    expect(s.current.hold).toBe(0);
+    const c = new LeanCalibrator();
+    for (let at = 0; at <= 600; at += 50) c.update(0, at);
+    c.update(null, 650);
+    c.update(null, 700);
+    for (let at = 750; at <= 1200; at += 50) c.update(0, at);
+    expect(c.stage).toBe("neutral");
+  });
+  it("不同帧率具有相同保持时长；大时间间隔不能补算一次动作", () => {
+    for (const hz of [30, 60, 144]) {
+      const s = new LeanSession(profile, { ...config, smoothTauMs: 0.001 });
+      for (let n = 0; n < hz / 2; n++) s.update(1000 / hz, 0);
+      for (let n = 0; n < Math.ceil(hz * 0.7); n++) s.update(1000 / hz, -0.2);
+      expect(s.current.arrived).toBe(true);
+      for (let n = 0; n < Math.ceil(hz * 0.5); n++) s.update(1000 / hz, 0);
+      expect(s.current.reps).toBe(1);
+    }
+    const s = new LeanSession(profile, config);
+    step(s, 0, 500);
+    s.update(8000, -0.2);
+    expect(s.current.arrived).toBe(false);
   });
 });

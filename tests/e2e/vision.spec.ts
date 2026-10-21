@@ -19,7 +19,7 @@ test("本地模型无外部网络依赖，模拟视频完成推理且停止释�
       external.push(route.request().url());
       return route.abort();
     });
-    await page.goto("http://127.0.0.1:5173/#vision");
+    await page.goto("http://127.0.0.1:5174/#vision");
     await page.getByRole("button", { name: "启用真实摄像头" }).click();
     await expect(page.getByRole("status")).toContainText("摄像头与模型已就绪", {
       timeout: 20000,

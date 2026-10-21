@@ -4,6 +4,7 @@ import {
   DEMO_LEAN_PROFILE,
   LeanCalibrator,
   leanAmount,
+  leanCenterThreshold,
   measureLean,
   type LeanMode,
   type LeanProfile,
@@ -14,8 +15,8 @@ import "./leanSurf.css";
 const copy = {
   visible: ["让双肩和双髋都入镜", "身体稳定可见约 1 秒"],
   neutral: ["保持自然中立姿态", "放松站稳约 2 秒，不必挺胸或憋气"],
-  left: ["身体慢慢向左侧倾", "在舒适范围保持一下；不用转腰或追求大角度"],
-  right: ["身体慢慢向右侧倾", "在舒适范围保持一下；只摆头不会通过校准"],
+  left: ["身体慢慢向左侧倾", "轻轻侧倾、稍停一下；按你的舒适幅度记录"],
+  right: ["身体慢慢向右侧倾", "轻轻向另一侧、稍停一下；躯干跟随，不只摆头"],
   ready: ["回到中间，准备出发", "保持自然站姿，3 秒后进入光海"],
 };
 export default function LeanCalibrationView({
@@ -55,7 +56,7 @@ export default function LeanCalibrationView({
     const tick = (now: number) => {
       const dt = Math.min(120, now - last);
       last = now;
-      const fresh = latest && now - latest.at < 200;
+      const fresh = latest && now - latest.at < 250;
       const a = fresh ? measureLean(latest) : null;
       if (pauseRef.current) {
         calibrator.update(null, now);
@@ -70,7 +71,11 @@ export default function LeanCalibrationView({
         ready =
           a !== null &&
           calibrator.profile &&
-          Math.abs(leanAmount(a, calibrator.profile)) <= 0.2
+          Math.abs(leanAmount(a, calibrator.profile)) <=
+            leanCenterThreshold(
+              calibrator.profile,
+              leanAmount(a, calibrator.profile),
+            )
             ? ready + dt
             : 0;
         if (ready >= 3000 && calibrator.profile && !done.current) {
@@ -96,8 +101,15 @@ export default function LeanCalibrationView({
     const draw = (f: PoseFrame | null) => {
       const ctx = canvas.current?.getContext("2d");
       if (!ctx) return;
-      ctx.clearRect(0, 0, 480, 270);
+      ctx.clearRect(0, 0, canvas.current!.width, canvas.current!.height);
       if (!f) return;
+      if (
+        canvas.current!.width !== f.videoWidth ||
+        canvas.current!.height !== f.videoHeight
+      ) {
+        canvas.current!.width = f.videoWidth;
+        canvas.current!.height = f.videoHeight;
+      }
       ctx.lineWidth = 3;
       for (const [i, j] of [
         [11, 12],
@@ -113,8 +125,8 @@ export default function LeanCalibrationView({
             ? "#8de9bc"
             : "#ffd98e";
         ctx.beginPath();
-        ctx.moveTo(p.x * 480, p.y * 270);
-        ctx.lineTo(q.x * 480, q.y * 270);
+        ctx.moveTo(p.x * f.videoWidth, p.y * f.videoHeight);
+        ctx.lineTo(q.x * f.videoWidth, q.y * f.videoHeight);
         ctx.stroke();
       }
     };
@@ -161,7 +173,7 @@ export default function LeanCalibrationView({
       data-testid="lean-calibration"
       data-stage={hud.stage}
     >
-      <span className="eyebrow">G03 / LEAN SURF · 个人躯干校准</span>
+      <span className="eyebrow">G03 / 星海冲浪 · 个人躯干校准</span>
       <div className="lean-calibration-body">
         <div className="lean-camera">
           <div ref={slot} />
@@ -169,7 +181,7 @@ export default function LeanCalibrationView({
           <span>双肩 + 双髋 · 本机实时处理</span>
         </div>
         <section>
-          <small>光海在等你 · 35–45 秒舒缓活动</small>
+          <small>光海在等你 · 轻轻侧倾，自然回中</small>
           <h2>{error ? "摄像头暂不可用" : copy[hud.stage][0]}</h2>
           <p>{error || copy[hud.stage][1]}</p>
           <progress value={hud.progress} max={1} />

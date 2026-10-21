@@ -102,7 +102,7 @@ export default function LeanSurf({
                 (key.current < 0
                   ? profile.a0 - profile.aL
                   : profile.aR - profile.a0)
-            : p && now - p.at < 200
+            : p && now - p.at < 250
               ? measureLean(p)
               : null;
         const value = session.current.update(dt, a);
@@ -115,7 +115,7 @@ export default function LeanSurf({
           completed = true;
           callbacks.current.onGameEvent("complete");
         }
-        if (now - flush > 100 || value.complete) {
+        if (now - flush > 100) {
           flush = now;
           setHud(value);
         }
@@ -128,7 +128,7 @@ export default function LeanSurf({
   const instruction = hud.complete
     ? "六颗星，全部点亮了"
     : hud.cruising
-      ? "慢慢前行，回中等待下一颗星"
+      ? "下一颗星正靠近 · 自然回中"
       : hud.arrived
         ? "已到达 · 慢慢回到中间"
         : `身体缓慢向${hud.target < 0 ? "左" : "右"}侧倾 · 保持一下`;
@@ -141,12 +141,13 @@ export default function LeanSurf({
       data-tracking={hud.tracking}
       data-complete={hud.complete ? "1" : "0"}
       data-arrived={hud.arrived ? "1" : "0"}
+      data-cruising={hud.cruising ? "1" : "0"}
     >
       <LeanSurfScene frame={frame} />
       <header className="lean-hud">
         <span>
-          <b>LEAN SURF</b>
-          <small>躯干重心冲浪</small>
+          <b>STAR SURF</b>
+          <small>星海冲浪</small>
         </span>
         <span className="lean-stars" aria-label={`进度 ${hud.reps}/6`}>
           {[0, 1, 2, 3, 4, 5].map((i) => (
@@ -173,6 +174,51 @@ export default function LeanSurf({
           ? "键盘演示 · 非人体识别"
           : "本机躯干识别 · 双肩 + 双髋"}
       </span>
+      {!hud.complete && (
+        <div
+          className={`lean-compass ${hud.arrived ? "is-returning" : ""}`}
+          aria-label="实时侧倾反馈"
+        >
+          <span className="lean-signal">
+            {hud.tracking === "ok"
+              ? mode === "demo"
+                ? "● 键盘已就绪"
+                : "● 身体已识别"
+              : "◌ 正在确认姿态"}
+          </span>
+          <div
+            className="lean-balance"
+            role="meter"
+            aria-label="侧倾幅度"
+            aria-valuemin={-100}
+            aria-valuemax={100}
+            aria-valuenow={Math.round(hud.u * 100)}
+          >
+            <span
+              className={`lean-zone left ${!hud.arrived && hud.target < 0 ? "active" : ""}`}
+            />
+            <span className="lean-neutral" />
+            <span
+              className={`lean-zone right ${!hud.arrived && hud.target > 0 ? "active" : ""}`}
+            />
+            <i style={{ left: `${50 + hud.u * 44}%` }} />
+          </div>
+          <span className="lean-action-state">
+            {hud.arrived
+              ? "✓ 已接住 · 回中点亮"
+              : hud.hold > 0
+                ? "很好 · 保持一下"
+                : hud.cruising
+                  ? "星光靠近中"
+                  : `← ${hud.target < 0 ? "向左轻倾" : "向右轻倾"} →`}
+          </span>
+          <progress
+            aria-label={hud.arrived ? "回中进度" : "保持进度"}
+            value={hud.hold}
+            max={1}
+          />
+        </div>
+      )}
       {!hud.complete && (
         <footer className="lean-guide">
           <b role="status">{instruction}</b>

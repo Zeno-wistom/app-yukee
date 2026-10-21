@@ -31,7 +31,7 @@ async function withPage(run: (page: Page) => Promise<void>) {
 }
 
 async function enterWinglight(page: Page) {
-  await page.goto("http://127.0.0.1:5173/");
+  await page.goto("http://127.0.0.1:5174/");
   await page.getByRole("button", { name: "开始体验" }).click();
   await expect(page.locator("main")).toHaveClass(/arrived/);
   await page

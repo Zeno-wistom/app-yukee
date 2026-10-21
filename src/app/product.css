@@ -3530,3 +3530,12 @@ a {
     animation-duration: 0.01s;
   }
 }
+
+/* G02/G03: whole-scene artwork, one consistent readable text scrim. */
+.lamp-card:is([data-card-id="winglight"], [data-card-id="leanSurf"]) .lamp-card-preview { inset: 0; overflow: hidden; }
+.lamp-card:is([data-card-id="winglight"], [data-card-id="leanSurf"]) .lamp-card-preview img { object-fit: cover; object-position: center; }
+.lamp-card:is([data-card-id="winglight"], [data-card-id="leanSurf"]) .lamp-card-side {
+  width: 38%; padding-left: 12%; box-sizing: content-box;
+  background: linear-gradient(90deg, #051c3000, #051c30b8 28%, #051c30eb 76%);
+}
+.lamp-card:is([data-card-id="winglight"], [data-card-id="leanSurf"]) .lamp-card-side span { white-space: normal; line-height: 1.7; color: #c5e0df; }

@@ -19,7 +19,7 @@ async function withPage(run: (page: Page) => Promise<void>) {
   }
 }
 async function enter(page: Page) {
-  await page.goto("http://127.0.0.1:5173/");
+  await page.goto("http://127.0.0.1:5174/");
   await page.getByRole("button", { name: "开始体验", exact: true }).click();
   await expect(page.locator("main")).toHaveClass(/arrived/);
   await page
@@ -179,15 +179,21 @@ async function injectPose(page: Page) {
         return;
       }
       const dx = (-Math.tan(s.a) * (0.4 * 480)) / 640;
+      const shift = s.shift || 0;
       const landmarks = Array.from({ length: 33 }, () => ({
         x: 0.5,
         y: 0.2,
         visibility: 1,
       }));
-      landmarks[11] = { x: 0.4 + dx, y: 0.3, visibility: 1 };
-      landmarks[12] = { x: 0.6 + dx, y: 0.3, visibility: 1 };
-      landmarks[23] = { x: 0.43, y: 0.7, visibility: 1 };
-      landmarks[24] = { x: 0.57, y: 0.7, visibility: s.hipHidden ? 0.2 : 1 };
+      landmarks[11] = { x: 0.4 + dx + shift, y: 0.3, visibility: 1 };
+      landmarks[12] = { x: 0.6 + dx + shift, y: 0.3, visibility: 1 };
+      landmarks[23] = { x: 0.43 + shift, y: 0.7, visibility: 1 };
+      landmarks[24] = {
+        x: 0.57 + shift,
+        y: 0.7,
+        visibility: s.hipHidden ? 0.2 : 1,
+      };
+      landmarks[0].x = s.noseX ?? 0.5;
       c.emitPose({
         landmarks,
         videoWidth: 640,
@@ -313,5 +319,43 @@ test("G03 45 秒未完成提供结束或继续，不出现成功", async () => {
     );
     await page.getByRole("button", { name: "结束本次", exact: true }).click();
     await expect(page.getByTestId("lamp-home")).toBeVisible();
+  });
+});
+
+// 合成输入防误触回归；本用例不构成真人验收。
+test("G03 合成 Pose：只摆头与整个人平移不集星，轻微个人侧倾可接住", async () => {
+  test.setTimeout(50000);
+  await withPage(async (page) => {
+    await cameraGame(page);
+    for (const shift of [-0.12, 0.12, -0.1, 0.1]) {
+      await page.evaluate((shift) => {
+        const s = (window as any).leanTest;
+        s.shift = shift;
+        s.noseX = shift < 0 ? 0.15 : 0.85;
+      }, shift);
+      await page.waitForTimeout(700);
+      await expect(page.getByTestId("lean-surf")).toHaveAttribute(
+        "data-arrived",
+        "0",
+      );
+      await expect(page.getByTestId("lean-surf")).toHaveAttribute(
+        "data-reps",
+        "0",
+      );
+    }
+    await page.evaluate(() => {
+      (window as any).leanTest.shift = 0;
+    });
+    // -0.11rad is 69% of the calibrated comfortable -0.16rad, sufficient with no large motion.
+    await angle(page, -0.11);
+    await expect(page.getByTestId("lean-surf")).toHaveAttribute(
+      "data-arrived",
+      "1",
+    );
+    await angle(page, 0);
+    await expect(page.getByTestId("lean-surf")).toHaveAttribute(
+      "data-reps",
+      "1",
+    );
   });
 });

@@ -205,3 +205,27 @@
   font-size: calc(3 * var(--portal-cqw));
   color: #ffd98e;
 }
+
+/* Clear action feedback stays in the sky, above the rider. */
+.lean-hud { padding: 2% 3%; }
+.lean-hud > span:first-child { align-items: flex-start; flex-direction: column; gap: .2em; }
+.lean-hud > span:first-child b { font-size: calc(1 * var(--portal-cqw)); letter-spacing: .22em; color: #8fded9; }
+.lean-hud > span:first-child small { font-size: calc(1.65 * var(--portal-cqw)); color: #e0f4ef; }
+.lean-mode { top: 15%; opacity: .8; font-size: calc(.78 * var(--portal-cqw)); }
+.lean-guide { bottom: 3%; left: 12%; right: 12%; gap: .25em; }
+.lean-guide b { font-size: calc(1.45 * var(--portal-cqw)); font-weight: 500; }
+.lean-guide small { font-size: calc(.85 * var(--portal-cqw)); }
+.lean-compass { position: absolute; top: 17%; left: 34%; width: 32%; display: grid; text-align: center; gap: calc(.3 * var(--portal-cqw)); font-size: calc(.9 * var(--portal-cqw)); color: #c4e6e1; }
+.lean-signal { font-size: calc(.75 * var(--portal-cqw)); color: #8bcfc6; }
+.lean-balance { position: relative; height: calc(1.05 * var(--portal-cqw)); border-bottom: 1px solid #c3eeee33; margin: .3em 0; }
+.lean-balance i { position: absolute; top: -10%; height: 100%; width: calc(.65 * var(--portal-cqw)); border-radius: 50%; background: #e3fff7; box-shadow: 0 0 8px #8de9bc99; transform: translateX(-50%); transition: left .1s linear; }
+.lean-zone,.lean-neutral { position: absolute; height: 100%; border-radius: 999px; }
+.lean-zone { width: 19%; opacity: .24; background: #9bdbd5; }
+.lean-zone.left { left: 1%; } .lean-zone.right { right: 1%; }
+.lean-zone.active { opacity: .8; background: #f2dba3; }
+.lean-neutral { left: 41%; width: 18%; background: #94d4c824; }
+.lean-compass.is-returning .lean-neutral { background: #9be8d3aa; }
+.lean-compass progress { height: 2px; width: 60%; margin: .25em auto 0; accent-color: #f2dba3; }
+.lean-calibration progress { transition: none; }
+.lean-game button:focus-visible,.lean-calibration button:focus-visible { outline: 2px solid #ffe3a5; outline-offset: 3px; }
+@media (prefers-reduced-motion: reduce) { .lean-stars i,.lean-balance i { transition: none; } }
