@@ -1,5 +1,3 @@
-import moonOriginal from "../../docs/reference/g02-moon-original.png";
-
 /**
  * 游戏目录 —— 挂灯卡片选择器的唯一数据源。
  *
@@ -41,6 +39,8 @@ export interface GameCard {
   preview: GamePreviewKind;
   /** 用户提供的原始预览图；全部常驻 DOM 以避免切卡时闪白。 */
   previewImage?: string;
+  /** 预览铺满整张卡片（信息栏用渐变蒙层叠在图上），图片按卡片比例专门构图。 */
+  fullBleed?: boolean;
   palette: GamePalette;
 }
 
@@ -71,7 +71,9 @@ export const GAMES: readonly GameCard[] = [
     subtitle: "缓慢展开 · 保持 · 回位收光",
     available: true,
     preview: "image",
-    previewImage: moonOriginal,
+    // 由真实 G02 场景（moon-night 背景 + 游戏内帆船/机器人图层）按卡片 6.3:1 重新构图导出
+    previewImage: "/game-previews/winglight-card.png",
+    fullBleed: true,
     palette: {
       sky: "#08222b",
       paper: "#c8f0e6",
@@ -82,13 +84,15 @@ export const GAMES: readonly GameCard[] = [
   },
   {
     id: "leanSurf",
-    title: "躯干重心冲浪",
+    title: "星海冲浪",
     en: "LEAN SURF",
-    type: "躯干侧倾 · 双肩双髋入镜",
-    subtitle: "左右侧倾 · 保持 · 回中集星",
+    type: "躯干左右轻微侧倾",
+    subtitle: "坐着就能玩 · 往星星那边轻轻歪",
     available: true,
     preview: "image",
-    previewImage: "/game-previews/lean-surf.svg",
+    // 由 G03 实际 Canvas 场景函数（drawStarSea 预览构图）按卡片 6.3:1 导出
+    previewImage: "/game-previews/star-sea-surf.png",
+    fullBleed: true,
     palette: {
       sky: "#dcead8",
       paper: "#f4f8ee",

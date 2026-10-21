@@ -2518,6 +2518,29 @@ a {
   object-position: 43% 54%;
 }
 
+/* G02 / G03：按卡片 6.3:1 专门构图的场景图铺满整卡，信息栏用渐变蒙层叠在图上。 */
+.lamp-card.is-full-bleed .lamp-card-preview {
+  inset: 0;
+}
+.lamp-card.is-full-bleed .lamp-card-preview img {
+  object-fit: cover;
+  object-position: left center;
+}
+.lamp-card.is-full-bleed .lamp-card-side {
+  width: 38%;
+  padding-left: 8%;
+  background: linear-gradient(
+    90deg,
+    #06121e00 0%,
+    #06121eb8 34%,
+    #06121ee0 100%
+  );
+}
+.lamp-card.is-full-bleed .lamp-card-side b,
+.lamp-card.is-full-bleed .lamp-card-side span {
+  text-shadow: 0 1px 4px #020a12;
+}
+
 /* 开发中徽标：右上角常驻小标签 */
 .lamp-card-badge {
   position: absolute;

@@ -115,7 +115,7 @@ test("游戏卡片切换为连续整叠洗牌，无瞬时内容替换", async ({
   await expect(page.locator(".lamp-card-preview > *")).toHaveCount(6);
   await expect(page.locator(".lamp-card-preview img")).toHaveCount(6);
   await expect(page.locator("[data-card-id='winglight'] .lamp-card-preview img"))
-    .toHaveAttribute('src', /g02-moon-original/);
+    .toHaveAttribute('src', /winglight-card/);
   await expect
     .poll(async () =>
       page

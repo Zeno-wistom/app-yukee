@@ -67,7 +67,7 @@ async function selectWing(page: Page, capturePreview = false) {
   await page.waitForTimeout(700);
   if (capturePreview) {
     const image = page.locator('[data-card-id="winglight"] .lamp-card-preview img');
-    await expect(image).toHaveAttribute('src', /g02-moon-original/);
+    await expect(image).toHaveAttribute('src', /winglight-card/);
     expect(await image.evaluate((img:HTMLImageElement)=>img.complete && img.naturalWidth>1000)).toBe(true);
     await page.screenshot({path:'docs/screenshots/g02-r2-selection.png'});
   }
