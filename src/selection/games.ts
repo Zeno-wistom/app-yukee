@@ -82,9 +82,9 @@ export const GAMES: readonly GameCard[] = [
   {
     id: "leanSurf",
     title: "星海冲浪",
-    en: "STAR SURF",
+    en: "SUNLIT SURF",
     type: "躯干侧倾 · 双肩双髋入镜",
-    subtitle: "左右侧倾 · 保持 · 回中集星",
+    subtitle: "左右侧倾 · 保持 · 回中收集阳光",
     available: true,
     preview: "image",
     previewImage: "/game-previews/lean-surf-scene.webp",

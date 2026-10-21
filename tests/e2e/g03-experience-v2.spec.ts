@@ -94,14 +94,18 @@ test("G03 实时动作提示、900ms靠近、HiDPI画布与回中计分", async 
       .click();
     const game = p.getByTestId("lean-surf");
     await expect(game).toHaveAttribute("data-cruising", "0", { timeout: 3000 });
-    const canvas = await p
-      .locator(".lean-ocean")
-      .evaluate((el) => ({
-        width: (el as HTMLCanvasElement).width,
-        css: el.getBoundingClientRect().width,
-      }));
+    const canvas = await p.locator(".lean-ocean").evaluate((el) => ({
+      width: (el as HTMLCanvasElement).width,
+      css: el.getBoundingClientRect().width,
+    }));
     expect(canvas.width / canvas.css).toBeGreaterThan(1.9);
     await expect(p.getByRole("meter", { name: "侧倾幅度" })).toBeVisible();
+    await expect(p.locator(".lean-hud")).toContainText("SUNLIT SURF");
+    await expect(p.locator(".lean-stars i").first()).toHaveText("☀");
+    await expect(p.locator(".lean-ocean")).toHaveAttribute(
+      "aria-label",
+      /阳光采集机器人/,
+    );
     await p.keyboard.down("ArrowLeft");
     await expect(game).toHaveAttribute("data-arrived", "1");
     await expect(p.locator(".lean-action-state")).toContainText("回中点亮");
@@ -109,7 +113,9 @@ test("G03 实时动作提示、900ms靠近、HiDPI画布与回中计分", async 
     await expect(game).toHaveAttribute("data-reps", "0");
     await p
       .getByTestId("lean-surf")
-      .screenshot({ path: "docs/screenshots/g03-v2-return-feedback.png" });
+      .screenshot({
+        path: "docs/screenshots/g03-sunlight-return-feedback.png",
+      });
     await p.keyboard.up("ArrowLeft");
     await expect(game).toHaveAttribute("data-reps", "1");
     await expect(game).toHaveAttribute("data-cruising", "0", { timeout: 2000 });

@@ -45,7 +45,7 @@ async function demo(page: Page) {
   await expect(page.getByTestId("lean-surf")).toBeVisible();
 }
 
-test("G03 键盘演示：六次左右交替、回中集星、截图、结果退出", async () => {
+test("G03 键盘演示：六次左右交替、回中集光、截图、结果退出", async () => {
   test.setTimeout(110000);
   await withPage(async (page) => {
     const errors: string[] = [],
@@ -323,7 +323,7 @@ test("G03 45 秒未完成提供结束或继续，不出现成功", async () => {
 });
 
 // 合成输入防误触回归；本用例不构成真人验收。
-test("G03 合成 Pose：只摆头与整个人平移不集星，轻微个人侧倾可接住", async () => {
+test("G03 合成 Pose：只摆头与整个人平移不集光，轻微个人侧倾可接住", async () => {
   test.setTimeout(50000);
   await withPage(async (page) => {
     await cameraGame(page);

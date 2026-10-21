@@ -17,7 +17,7 @@ const copy = {
   neutral: ["保持自然中立姿态", "放松站稳约 2 秒，不必挺胸或憋气"],
   left: ["身体慢慢向左侧倾", "轻轻侧倾、稍停一下；按你的舒适幅度记录"],
   right: ["身体慢慢向右侧倾", "轻轻向另一侧、稍停一下；躯干跟随，不只摆头"],
-  ready: ["回到中间，准备出发", "保持自然站姿，3 秒后进入光海"],
+  ready: ["回到中间，准备出发", "保持自然站姿，3 秒后出发收集阳光"],
 };
 export default function LeanCalibrationView({
   paused,
@@ -181,7 +181,7 @@ export default function LeanCalibrationView({
           <span>双肩 + 双髋 · 本机实时处理</span>
         </div>
         <section>
-          <small>光海在等你 · 轻轻侧倾，自然回中</small>
+          <small>阳光河谷在等你 · 轻轻侧倾，自然回中</small>
           <h2>{error ? "摄像头暂不可用" : copy[hud.stage][0]}</h2>
           <p>{error || copy[hud.stage][1]}</p>
           <progress value={hud.progress} max={1} />

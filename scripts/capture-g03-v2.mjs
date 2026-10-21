@@ -30,61 +30,6 @@ try {
   };
   await home();
   await next();
-  await page.getByRole("button", { name: "开始这个活动", exact: true }).click();
-  await page.getByRole("button", { name: /开发者演示/ }).click();
-  await page.getByTestId("winglight").waitFor();
-  await page.waitForTimeout(1200);
-  await page
-    .locator(".moon-world")
-    .screenshot({ path: "docs/screenshots/g02-v2-preview-source.png" });
-  // Recompose the existing actual SVG foreground over the existing original high-resolution landscape.
-  const foreground = await page
-    .locator(".moon-world .wing-svg")
-    .evaluate((el) => {
-      const svg = el.cloneNode(true);
-      const originals = [el, ...el.querySelectorAll("*")],
-        copies = [svg, ...svg.querySelectorAll("*")];
-      originals.forEach((node, i) => {
-        const css = getComputedStyle(node);
-        for (const key of [
-          "fill",
-          "stroke",
-          "stroke-width",
-          "fill-opacity",
-          "stroke-opacity",
-          "opacity",
-          "transform",
-          "transform-origin",
-          "stop-color",
-          "stop-opacity",
-        ]) {
-          const value = css
-            .getPropertyValue(key)
-            .replace(/url\(["']?[^#)]*#([^"')]+)["']?\)/g, "url(#$1)");
-          copies[i].style.setProperty(key, value);
-        }
-        copies[i].style.setProperty("animation", "none");
-      });
-      svg.querySelectorAll("image").forEach((e) => e.remove());
-      const boat = svg.querySelector(".moon-voyage > g");
-      boat.style.transform =
-        "translate(380px, 500px) scale(1.1) translate(-320px, -282px)";
-      svg.setAttribute("xmlns", "http://www.w3.org/2000/svg");
-      svg.setAttribute("width", "1600");
-      svg.setAttribute("height", "254");
-      svg.setAttribute("viewBox", "0 280 1600 254");
-      return new XMLSerializer().serializeToString(svg);
-    });
-  const bg = await sharp("public/art/g02/moon-night.png")
-    .resize(1600, 900)
-    .extract({ left: 0, top: 310, width: 1600, height: 254 })
-    .toBuffer();
-  await sharp(bg)
-    .composite([{ input: Buffer.from(foreground) }])
-    .webp({ quality: 92 })
-    .toFile("public/game-previews/winglight-scene.webp");
-  await home();
-  await next();
   await next();
   await page.getByRole("button", { name: "开始这个活动", exact: true }).click();
   await page
@@ -94,19 +39,30 @@ try {
   await page.waitForTimeout(1600);
   await page
     .getByTestId("lean-surf")
-    .screenshot({ path: "docs/screenshots/g03-v2-game.png" });
+    .screenshot({ path: "docs/screenshots/g03-sunlight-game.png" });
   const data = await page.evaluate(async () => {
-    const { drawSurfBackdrop, drawSurfRider, surfStar } =
+    const { drawSurfRider, surfSun } =
       await import("/src/games/leanSurfArt.ts");
     const canvas = document.createElement("canvas");
     canvas.width = 1600;
     canvas.height = 254;
     const c = canvas.getContext("2d");
-    c.save();
-    c.scale(1600 / 960, 1600 / 960);
-    c.translate(0, -180);
-    drawSurfBackdrop(c, 1.6);
-    c.restore();
+    const image = new Image();
+    image.src = "/art/g03-sunlit-castle.png";
+    await image.decode();
+    // Wide card composition: a native aspect crop, with the scout fully inside the image.
+    c.imageSmoothingEnabled = false;
+    c.drawImage(
+      image,
+      0,
+      390,
+      image.naturalWidth,
+      (image.naturalWidth * 254) / 1600,
+      0,
+      0,
+      1600,
+      254,
+    );
     c.save();
     c.translate(510, 225);
     c.scale(1.25, 1.25);
@@ -115,7 +71,7 @@ try {
     c.fillStyle = "#f4d99b";
     c.shadowColor = "#f4d99b";
     c.shadowBlur = 18;
-    surfStar(c, 225, 149, 25);
+    surfSun(c, 225, 149, 25);
     c.shadowBlur = 0;
     c.strokeStyle = "#f4d99b88";
     c.lineWidth = 2;
@@ -140,14 +96,12 @@ try {
   await page.locator(".lamp-card.is-current img").evaluate((el) => el.decode());
   await page
     .getByTestId("lamp-selection")
-    .screenshot({ path: "docs/screenshots/g03-v2-selection.png" });
+    .screenshot({ path: "docs/screenshots/g03-sunlight-selection.png" });
   await page
     .locator(".lamp-card.is-current")
-    .screenshot({ path: "docs/screenshots/g03-v2-card.png" });
+    .screenshot({ path: "docs/screenshots/g03-sunlight-card.png" });
   if (errors.length) throw new Error(errors.join("\n"));
-  console.log(
-    "Captured actual game, recomposed G02 SVG, G03 canvas and both full-bleed cards; pageerrors=0",
-  );
+  console.log("Captured sunny G03 game and full-bleed cards; pageerrors=0");
 } finally {
   await browser.close();
 }

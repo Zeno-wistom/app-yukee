@@ -126,9 +126,9 @@ export default function LeanSurf({
     return () => cancelAnimationFrame(raf);
   }, [profile, mode]);
   const instruction = hud.complete
-    ? "六颗星，全部点亮了"
+    ? "六束阳光，全部收集了"
     : hud.cruising
-      ? "下一颗星正靠近 · 自然回中"
+      ? "下一束阳光正靠近 · 自然回中"
       : hud.arrived
         ? "已到达 · 慢慢回到中间"
         : `身体缓慢向${hud.target < 0 ? "左" : "右"}侧倾 · 保持一下`;
@@ -146,13 +146,13 @@ export default function LeanSurf({
       <LeanSurfScene frame={frame} />
       <header className="lean-hud">
         <span>
-          <b>STAR SURF</b>
+          <b>SUNLIT SURF</b>
           <small>星海冲浪</small>
         </span>
         <span className="lean-stars" aria-label={`进度 ${hud.reps}/6`}>
           {[0, 1, 2, 3, 4, 5].map((i) => (
             <i key={i} className={i < hud.reps ? "lit" : ""}>
-              ★
+              ☀
             </i>
           ))}
           <b data-testid="lean-reps">{hud.reps}/6</b>
@@ -209,7 +209,7 @@ export default function LeanSurf({
               : hud.hold > 0
                 ? "很好 · 保持一下"
                 : hud.cruising
-                  ? "星光靠近中"
+                  ? "阳光靠近中"
                   : `← ${hud.target < 0 ? "向左轻倾" : "向右轻倾"} →`}
           </span>
           <progress
@@ -257,15 +257,15 @@ export default function LeanSurf({
       {softBlocked && (
         <div className="lean-modal" data-testid="lean-soft-limit">
           <b>已经有效活动 45 秒了</b>
-          <p>星星会等你。可以结束，也可以继续。</p>
+          <p>阳光会等你。可以结束，也可以继续。</p>
           <button onClick={() => setSoftAck(true)}>继续冲浪</button>
           <button onClick={onEarlyExit}>结束本次</button>
         </div>
       )}
       {hud.complete && (
         <div className="lean-modal lean-result" data-testid="lean-complete">
-          <small>LIGHT ON THE OCEAN</small>
-          <h2>把六颗星，带回来了。</h2>
+          <small>SUNSHINE IN THE VALLEY</small>
+          <h2>把六束阳光，带回来了。</h2>
           <p>
             6/6 · 左右各 3 次 · 有效时间 {(hud.effectiveMs / 1000).toFixed(1)}{" "}
             秒
