@@ -112,7 +112,7 @@ export function layoutFor(W: number, H: number, preview = false, par = 0): SunLa
   }
   const k = H / 540;
   const scale = Math.max(W / IMG_W, H / IMG_H) * 1.05;
-  const ox = (W - IMG_W * scale) / 2 - par * 0.04;
+  const ox = (W - IMG_W * scale) / 2 - Math.round(par * 0.04);
   const oy = (H - IMG_H * scale) / 2;
   const map = (nx: number, ny: number) => ({ x: ox + nx * IMG_W * scale, y: oy + ny * IMG_H * scale });
   const sun = map(0.365, 0.03);
@@ -136,63 +136,139 @@ export function layoutFor(W: number, H: number, preview = false, par = 0): SunLa
   };
 }
 
+type Surface = HTMLCanvasElement | OffscreenCanvas;
+function makeSurface(w: number, h: number): Surface {
+  w = Math.max(1, Math.ceil(w));
+  h = Math.max(1, Math.ceil(h));
+  if (typeof OffscreenCanvas !== "undefined") return new OffscreenCanvas(w, h);
+  return Object.assign(document.createElement("canvas"), { width: w, height: h });
+}
+const ctx2d = (c: Surface) => c.getContext("2d") as CanvasRenderingContext2D;
+
+/**
+ * 光晕：每种颜色只生成一次 128px 径向渐变贴图，之后按需缩放贴图。
+ * v3 每帧每个光晕都 createRadialGradient + 大面积 fillRect（每帧 8–14 次），是主要填充开销之一。
+ */
+const GLOW_SPRITES = new Map<string, Surface>();
+function glowSprite(color: string) {
+  let c = GLOW_SPRITES.get(color);
+  if (!c) {
+    c = makeSurface(128, 128);
+    const g2 = ctx2d(c);
+    const g = g2.createRadialGradient(64, 64, 0, 64, 64, 64);
+    g.addColorStop(0, color);
+    g.addColorStop(1, "rgba(0,0,0,0)");
+    g2.fillStyle = g;
+    g2.fillRect(0, 0, 128, 128);
+    GLOW_SPRITES.set(color, c);
+  }
+  return c;
+}
 function glow(ctx: CanvasRenderingContext2D, x: number, y: number, r: number, color: string, alpha: number) {
   if (alpha <= 0.002 || r <= 0) return;
-  const g = ctx.createRadialGradient(x, y, 0, x, y, r);
-  g.addColorStop(0, color);
-  g.addColorStop(1, "rgba(0,0,0,0)");
   ctx.globalAlpha = Math.min(1, alpha);
-  ctx.fillStyle = g;
-  ctx.fillRect(x - r, y - r, r * 2, r * 2);
+  ctx.drawImage(glowSprite(color), x - r, y - r, r * 2, r * 2);
   ctx.globalAlpha = 1;
 }
 
-function drawBackground(ctx: CanvasRenderingContext2D, L: SunLayout, s: SunSurfState, img: CanvasImageSource | null) {
-  const { W, H } = L;
-  if (img) {
-    ctx.imageSmoothingEnabled = false;
-    ctx.drawImage(img, L.ox, L.oy, IMG_W * L.scale, IMG_H * L.scale);
-    ctx.imageSmoothingEnabled = true;
-  } else {
-    const g = ctx.createLinearGradient(0, 0, 0, H);
-    g.addColorStop(0, "#3aa0ff");
-    g.addColorStop(0.6, "#9fd8ff");
-    g.addColorStop(1, "#2f86c9");
-    ctx.fillStyle = g;
-    ctx.fillRect(0, 0, W, H);
-  }
-  // 轻度压暗 + 暗角：保留晴日氛围，同时让目标与角色是画面里对比最强的东西
-  ctx.fillStyle = s.complete ? "rgba(16,40,70,0.04)" : "rgba(16,40,70,0.13)";
-  ctx.fillRect(0, 0, W, H);
-  const v = ctx.createRadialGradient(W / 2, H * 0.55, Math.min(W, H) * 0.35, W / 2, H * 0.55, Math.max(W, H) * 0.75);
-  v.addColorStop(0, "rgba(10,30,55,0)");
-  v.addColorStop(1, "rgba(10,30,55,0.32)");
-  ctx.fillStyle = v;
-  ctx.fillRect(0, 0, W, H);
+/** 每块画布一份的缓存（尺寸 / 底图 / 进度变化时才重建） */
+export interface SceneCache {
+  bgKey?: string;
+  bg?: Surface;
+  bgMargin?: number;
+  raysKey?: string;
+  rays?: Surface;
+  raysScale?: number;
+  rbKey?: string;
+  rb?: Surface;
+  rbOrigin?: { x: number; y: number };
 }
 
-function drawSunlight(ctx: CanvasRenderingContext2D, L: SunLayout, s: SunSurfState) {
+/**
+ * 静态层：底图 + 压暗 + 暗角一次性合成到离屏画布（左右多留视差边距），之后每帧只做一次整数坐标的贴图。
+ * v3 每帧以非整数偏移、关闭平滑缩放绘制 1672×941 原画：除了缩放开销，像素网格会随视差在
+ * 相邻像素间来回取整，整幅画面出现 1px 的「跳动」。
+ */
+function drawBackground(ctx: CanvasRenderingContext2D, L: SunLayout, s: SunSurfState, img: CanvasImageSource | null, cache: SceneCache, parPx: number) {
+  const { W, H } = L;
+  const margin = s.preview ? 0 : Math.ceil(L.laneDX * 0.05) + 2;
+  const key = `${W}x${H}:${img ? 1 : 0}:${s.preview ? 1 : 0}`;
+  if (cache.bgKey !== key || !cache.bg) {
+    const c = makeSurface(W + margin * 2, H);
+    const g2 = ctx2d(c);
+    const base = s.preview ? L : layoutFor(W, H, false, 0);
+    if (img) {
+      g2.imageSmoothingEnabled = false;
+      g2.drawImage(img, Math.round(base.ox + margin), Math.round(base.oy), Math.round(IMG_W * base.scale), Math.round(IMG_H * base.scale));
+    } else {
+      const g = g2.createLinearGradient(0, 0, 0, H);
+      g.addColorStop(0, "#3aa0ff");
+      g.addColorStop(0.6, "#9fd8ff");
+      g.addColorStop(1, "#2f86c9");
+      g2.fillStyle = g;
+      g2.fillRect(0, 0, c.width, H);
+    }
+    // 轻度压暗 + 暗角：保留晴日氛围，同时让目标与角色是画面里对比最强的东西
+    g2.fillStyle = "rgba(16,40,70,0.13)";
+    g2.fillRect(0, 0, c.width, H);
+    const v = g2.createRadialGradient(c.width / 2, H * 0.55, Math.min(W, H) * 0.35, c.width / 2, H * 0.55, Math.max(W, H) * 0.75);
+    v.addColorStop(0, "rgba(10,30,55,0)");
+    v.addColorStop(1, "rgba(10,30,55,0.32)");
+    g2.fillStyle = v;
+    g2.fillRect(0, 0, c.width, H);
+    cache.bg = c;
+    cache.bgKey = key;
+    cache.bgMargin = margin;
+  }
+  ctx.drawImage(cache.bg as CanvasImageSource, -margin - parPx, 0);
+  if (s.complete) {
+    // 完成：整个世界逐渐变亮变暖（代替 v3 的逐帧压暗切换）
+    const a = ease((s.t - s.completeT) / 1.5) * 0.09;
+    ctx.fillStyle = `rgba(255,236,190,${a})`;
+    ctx.fillRect(0, 0, W, H);
+  }
+}
+
+/** 太阳光芒：九道光扇按半分辨率预渲染一次，每帧只做整体微摆、按进度缩放和透明度。 */
+function drawSunlight(ctx: CanvasRenderingContext2D, L: SunLayout, s: SunSurfState, cache: SceneCache) {
   const prog = s.complete ? 1 : s.reps / TARGET_REPS;
   const { sun, k } = L;
-  // 旋转光芒：进度越高越亮越长
+  const maxLen = 560 * k;
+  const key = `${Math.round(maxLen)}`;
+  if (cache.raysKey !== key || !cache.rays) {
+    const sc = 0.5;
+    const R0 = maxLen * sc;
+    const c = makeSurface(R0 * 2, R0);
+    const g2 = ctx2d(c);
+    const n = 9;
+    for (let i = 0; i < n; i++) {
+      const a = Math.PI * 0.12 + (i / (n - 1)) * Math.PI * 0.76;
+      const w = 0.035 + 0.01 * Math.sin(i * 1.3);
+      const g = g2.createLinearGradient(R0, 0, R0 + Math.cos(a) * R0, Math.sin(a) * R0);
+      g.addColorStop(0, "rgba(255,246,200,1)");
+      g.addColorStop(1, "rgba(255,246,200,0)");
+      g2.fillStyle = g;
+      g2.beginPath();
+      g2.moveTo(R0, 0);
+      g2.lineTo(R0 + Math.cos(a - w) * R0, Math.sin(a - w) * R0);
+      g2.lineTo(R0 + Math.cos(a + w) * R0, Math.sin(a + w) * R0);
+      g2.closePath();
+      g2.fill();
+    }
+    cache.rays = c;
+    cache.raysKey = key;
+    cache.raysScale = 1 / sc;
+  }
+  const len = (260 + 300 * prog) / 560; // 相对最大长度
   ctx.save();
   ctx.globalCompositeOperation = "lighter";
-  const n = 9;
-  for (let i = 0; i < n; i++) {
-    const a = Math.PI * 0.12 + (i / (n - 1)) * Math.PI * 0.76 + Math.sin(s.t * 0.25 + i) * 0.03;
-    const len = (260 + 300 * prog) * k;
-    const w = 0.035 + 0.01 * Math.sin(s.t * 0.7 + i * 1.3);
-    const g = ctx.createLinearGradient(sun.x, sun.y, sun.x + Math.cos(a) * len, sun.y + Math.sin(a) * len);
-    g.addColorStop(0, `rgba(255,246,200,${0.07 + 0.16 * prog})`);
-    g.addColorStop(1, "rgba(255,246,200,0)");
-    ctx.fillStyle = g;
-    ctx.beginPath();
-    ctx.moveTo(sun.x, sun.y);
-    ctx.lineTo(sun.x + Math.cos(a - w) * len, sun.y + Math.sin(a - w) * len);
-    ctx.lineTo(sun.x + Math.cos(a + w) * len, sun.y + Math.sin(a + w) * len);
-    ctx.closePath();
-    ctx.fill();
-  }
+  ctx.globalAlpha = 0.07 + 0.16 * prog;
+  ctx.translate(sun.x, sun.y);
+  ctx.rotate(Math.sin(s.t * 0.25) * 0.025);
+  ctx.scale(len, len);
+  const c = cache.rays as Surface;
+  const sc = cache.raysScale ?? 2;
+  ctx.drawImage(c as CanvasImageSource, -(c.width * sc) / 2, 0, c.width * sc, c.height * sc);
   ctx.restore();
   glow(ctx, sun.x, sun.y, (110 + 90 * prog) * k, "rgba(255,248,214,0.95)", 0.55 + 0.35 * prog);
 }
@@ -210,12 +286,12 @@ function drawWater(ctx: CanvasRenderingContext2D, L: SunLayout, s: SunSurfState)
   for (const [x0, x1, y0, y1] of falls) {
     const a = map(x0, y0),
       b = map(x1, y1);
+    ctx.fillStyle = "#ffffff";
     for (const f of FALL) {
       const p = (f.ph + s.t * (0.8 + f.w * 0.6)) % 1;
       const x = a.x + f.x * (b.x - a.x);
       const y = a.y + p * (b.y - a.y);
       ctx.globalAlpha = 0.35 * Math.sin(p * Math.PI);
-      ctx.fillStyle = "#ffffff";
       ctx.fillRect(Math.round(x), Math.round(y), px, px * 3);
     }
   }
@@ -233,71 +309,226 @@ function drawWater(ctx: CanvasRenderingContext2D, L: SunLayout, s: SunSurfState)
   ctx.globalAlpha = 1;
 }
 
-/** 彩虹：已接住的色带完整显示，正在落位的一道沿弧线扫出 */
-function drawRainbow(ctx: CanvasRenderingContext2D, L: SunLayout, s: SunSurfState) {
+/**
+ * 彩虹：已落定的色带与下一道的虚线提示缓存到贴身离屏画布（只在接住时重建），
+ * 只有正在扫出的那一道每帧实时绘制。v3 每帧最多描 6 条抗锯齿粗弧线。
+ */
+function drawRainbow(ctx: CanvasRenderingContext2D, L: SunLayout, s: SunSurfState, cache: SceneCache) {
   const { rainbow: rb } = L;
   const painting = s.reps > 0 && s.t - s.catchT < 1.25 ? s.reps - 1 : -1;
+  const settled = painting >= 0 ? painting : s.reps;
+  const hint = !s.complete && painting < 0 ? s.reps : -1;
   const done = s.complete && painting < 0;
-  for (let i = 0; i < TARGET_REPS; i++) {
-    const r = rb.r - i * rb.band;
-    let sweep = 0;
-    if (i < s.reps && i !== painting) sweep = 1;
-    else if (i === painting) sweep = ease((s.t - s.catchT - 0.45) / 0.8);
-    if (sweep <= 0) {
-      // 尚未点亮：极淡的虚线提示「这里会出现彩虹」
-      if (i === s.reps && !s.complete) {
-        ctx.strokeStyle = "rgba(255,255,255,0.35)";
-        ctx.lineWidth = 1.5 * L.k;
-        ctx.setLineDash([3 * L.k, 7 * L.k]);
-        ctx.beginPath();
-        ctx.arc(rb.x, rb.y, r, Math.PI, Math.PI * 2);
-        ctx.stroke();
-        ctx.setLineDash([]);
-      }
-      continue;
+  const pad = rb.band * 2;
+  const key = `${Math.round(rb.x)},${Math.round(rb.y)},${Math.round(rb.r)}:${settled}:${hint}`;
+  if (cache.rbKey !== key || !cache.rb) {
+    const c = makeSurface(rb.r * 2 + pad * 2, rb.r + pad * 2);
+    const g2 = ctx2d(c);
+    const ox = rb.r + pad,
+      oy = rb.r + pad;
+    for (let i = 0; i < settled; i++) {
+      g2.strokeStyle = RAINBOW[i];
+      g2.lineWidth = rb.band + 0.5;
+      g2.beginPath();
+      g2.arc(ox, oy, rb.r - i * rb.band, Math.PI, Math.PI * 2);
+      g2.stroke();
     }
-    ctx.strokeStyle = RAINBOW[i];
-    ctx.globalAlpha = done ? 0.72 + 0.12 * Math.sin(s.t * 2 + i) : 0.62;
-    ctx.lineWidth = rb.band + 0.5;
-    ctx.beginPath();
-    ctx.arc(rb.x, rb.y, r, Math.PI, Math.PI + Math.PI * sweep);
-    ctx.stroke();
-    ctx.globalAlpha = 1;
+    if (hint >= 0 && hint < TARGET_REPS) {
+      // 尚未点亮：极淡的虚线提示「这里会出现彩虹」（整体以 0.62 绘制，故此处约 0.56）
+      g2.strokeStyle = "rgba(255,255,255,0.56)";
+      g2.lineWidth = 1.5 * L.k;
+      g2.setLineDash([3 * L.k, 7 * L.k]);
+      g2.beginPath();
+      g2.arc(ox, oy, rb.r - hint * rb.band, Math.PI, Math.PI * 2);
+      g2.stroke();
+    }
+    cache.rb = c;
+    cache.rbKey = key;
+    cache.rbOrigin = { x: ox, y: oy };
   }
+  const o = cache.rbOrigin!;
+  ctx.globalAlpha = done ? 0.72 + 0.12 * Math.sin(s.t * 2) : 0.62;
+  ctx.drawImage(cache.rb as CanvasImageSource, Math.round(rb.x - o.x), Math.round(rb.y - o.y));
+  if (painting >= 0) {
+    const sweep = ease((s.t - s.catchT - 0.45) / 0.8);
+    if (sweep > 0) {
+      ctx.globalAlpha = 0.62;
+      ctx.strokeStyle = RAINBOW[painting];
+      ctx.lineWidth = rb.band + 0.5;
+      ctx.beginPath();
+      ctx.arc(Math.round(rb.x), Math.round(rb.y), rb.r - painting * rb.band, Math.PI, Math.PI + Math.PI * sweep);
+      ctx.stroke();
+    }
+  }
+  ctx.globalAlpha = 1;
   if (done) glow(ctx, rb.x, rb.y - rb.r * 0.6, rb.r * 0.9, "rgba(255,255,240,0.5)", 0.25);
 }
 
-export function targetPose(L: SunLayout, s: SunSurfState) {
-  const home = { x: L.tx + s.target * L.targetDX, y: L.targetY };
-  const start = { x: L.sun.x + s.target * 30 * L.k, y: L.sun.y + 40 * L.k };
-  if (s.returning) {
-    // 下一颗在太阳旁等待（另一侧），回到中间后才落下
-    const wx = L.sun.x + s.target * 90 * L.k,
-      wy = Math.max(L.sun.y + 80 * L.k, 46 * L.k);
-    return { x: wx, y: wy, r: 12 * L.k, flight: 0, waiting: true };
+/**
+ * v4：六束阳光每一束换一种来访形态（纯视觉，判定完全不变）。
+ * 每种都保留同一套「深色衬底 + 深青轮廓 + 白金光核」，保证亮背景上一眼可辨。
+ */
+export const TARGET_VARIANTS = [
+  { id: "sun", name: "阳光光团" },
+  { id: "seeds", name: "蒲公英光絮" },
+  { id: "bird", name: "光羽小鸟" },
+  { id: "comet", name: "彗星光团" },
+  { id: "bubble", name: "河面光泡" },
+  { id: "grand", name: "终章 · 大太阳" },
+] as const;
+export type TargetVariant = (typeof TARGET_VARIANTS)[number]["id"];
+export const variantFor = (reps: number): TargetVariant =>
+  TARGET_VARIANTS[Math.max(0, Math.min(TARGET_VARIANTS.length - 1, reps))].id;
+
+function targetStart(L: SunLayout, side: -1 | 1, v: TargetVariant) {
+  const home = { x: L.tx + side * L.targetDX, y: L.targetY };
+  switch (v) {
+    case "bird":
+      return { x: home.x + side * L.W * 0.32, y: home.y - 70 * L.k };
+    case "comet":
+      return { x: side > 0 ? L.W + 40 * L.k : -40 * L.k, y: 30 * L.k };
+    case "bubble":
+      return { x: home.x, y: L.waterY + 10 * L.k };
+    default:
+      return { x: L.sun.x + side * 30 * L.k, y: L.sun.y + 40 * L.k };
   }
-  const f = ease((s.t - s.spawnT) / 1.0);
-  const c = { x: home.x - s.target * L.targetDX * 0.1, y: Math.min(start.y, home.y) - 30 * L.k };
+}
+
+export function targetPose(L: SunLayout, s: SunSurfState) {
+  const v = variantFor(s.reps);
+  const home = { x: L.tx + s.target * L.targetDX, y: L.targetY };
+  const start = targetStart(L, s.target, v);
+  if (s.returning) {
+    // 下一束在它的来处（另一侧）等待，回到中间后才出发
+    let wx: number, wy: number;
+    if (v === "sun" || v === "seeds" || v === "grand") {
+      wx = L.sun.x + s.target * 90 * L.k;
+      wy = Math.max(L.sun.y + 80 * L.k, 46 * L.k);
+    } else {
+      wx = Math.max(40 * L.k, Math.min(L.W - 40 * L.k, start.x));
+      wy = Math.max(46 * L.k, Math.min(L.waterY - 12 * L.k, start.y));
+    }
+    return { x: wx, y: wy, r: 12 * L.k, flight: 0, waiting: true, v };
+  }
+  const f = ease((s.t - s.spawnT) / (v === "comet" ? 0.8 : 1.0));
+  const lift = v === "bubble" ? 0 : 30 * L.k;
+  const c = { x: home.x - s.target * L.targetDX * 0.1, y: Math.min(start.y, home.y) - lift };
   const a = 1 - f;
   const x = a * a * start.x + 2 * a * f * c.x + f * f * home.x;
   const y = a * a * start.y + 2 * a * f * c.y + f * f * home.y;
-  const bob = f >= 1 ? Math.sin(s.t * 2.4) * 5 * L.k : 0;
-  return { x, y: y + bob, r: (9 + 11 * f) * L.k, flight: f, waiting: false };
+  const bob = f >= 1 ? Math.sin(s.t * (v === "bird" ? 3.4 : 2.4)) * (v === "bird" ? 7 : 5) * L.k : 0;
+  const size = v === "grand" ? 1.22 : 1;
+  return { x, y: y + bob, r: (9 + 11 * f) * L.k * size, flight: f, waiting: false, v };
+}
+
+/** 各形态在光团之外的装饰（在光团之前/之后分别调用） */
+function drawVariantBack(ctx: CanvasRenderingContext2D, v: TargetVariant, x: number, y: number, r: number, t: number, power: number, k: number, side: number) {
+  if (v === "bird") {
+    // 两侧翅膀：金色羽片 + 深色描边，拍动频率随靠近加快
+    const flap = Math.sin(t * (7 + 6 * power));
+    for (const sd of [-1, 1]) {
+      ctx.beginPath();
+      ctx.moveTo(x + sd * r * 0.6, y);
+      ctx.quadraticCurveTo(x + sd * r * 2.6, y - r * (1.6 + flap * 1.1), x + sd * r * 3.8, y - r * (0.3 + flap * 1.4));
+      ctx.quadraticCurveTo(x + sd * r * 2.3, y + r * 0.7, x + sd * r * 0.6, y + r * 0.4);
+      ctx.closePath();
+      ctx.fillStyle = "#ffe07a";
+      ctx.fill();
+      ctx.strokeStyle = "#0b3b4d";
+      ctx.lineWidth = 2 * k;
+      ctx.stroke();
+    }
+  } else if (v === "comet") {
+    // 朝来向拖出的彗尾，靠近时变亮
+    const dir = side > 0 ? 1 : -1;
+    const g = ctx.createLinearGradient(x, y, x + dir * r * 9, y - r * 4.5);
+    g.addColorStop(0, `rgba(190,246,255,${0.75 + 0.2 * power})`);
+    g.addColorStop(1, "rgba(190,246,255,0)");
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.moveTo(x, y - r * 1.1);
+    ctx.lineTo(x + dir * r * 9, y - r * 4.5 + Math.sin(t * 6) * r * 0.3);
+    ctx.lineTo(x, y + r * 1.1);
+    ctx.closePath();
+    ctx.fill();
+  }
+}
+function drawVariantFront(ctx: CanvasRenderingContext2D, v: TargetVariant, x: number, y: number, r: number, t: number, power: number, k: number) {
+  if (v === "seeds") {
+    // 六粒光絮环绕，越靠近收得越紧
+    const R = r * (2.6 - 0.7 * power);
+    for (let i = 0; i < 6; i++) {
+      const a = t * 1.2 + (i / 6) * Math.PI * 2;
+      const px = x + Math.cos(a) * R,
+        py = y + Math.sin(a) * R * 0.8;
+      ctx.strokeStyle = "rgba(11,59,77,0.7)";
+      ctx.lineWidth = 1.5 * k;
+      ctx.beginPath();
+      ctx.moveTo(px, py);
+      ctx.lineTo(px - Math.cos(a) * r * 1.1, py - Math.sin(a) * r * 1.1);
+      ctx.stroke();
+      ctx.fillStyle = "#ffffff";
+      ctx.beginPath();
+      ctx.arc(px, py, 5 * k, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = "#0b3b4d";
+      ctx.lineWidth = 1.2 * k;
+      ctx.stroke();
+    }
+  } else if (v === "bubble") {
+    // 彩色泡膜
+    ctx.fillStyle = "rgba(220,248,255,0.22)";
+    ctx.beginPath();
+    ctx.arc(x, y, r * 2.1, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.lineWidth = 4 * k;
+    for (let i = 0; i < 6; i++) {
+      ctx.strokeStyle = RAINBOW[i];
+      ctx.globalAlpha = 0.75;
+      ctx.beginPath();
+      ctx.arc(x, y, r * 2.1, t * 0.8 + (i / 6) * Math.PI * 2, t * 0.8 + ((i + 1) / 6) * Math.PI * 2);
+      ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+    ctx.strokeStyle = "#0b3b4d";
+    ctx.lineWidth = 1.5 * k;
+    ctx.beginPath();
+    ctx.arc(x, y, r * 2.1 + 2.5 * k, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.fillStyle = "rgba(255,255,255,0.85)";
+    ctx.beginPath();
+    ctx.ellipse(x - r * 1.1, y - r * 1.2, r * 0.45, r * 0.2, -0.7, 0, Math.PI * 2);
+    ctx.fill();
+  } else if (v === "grand") {
+    // 外圈十二颗彩虹光点
+    for (let i = 0; i < 12; i++) {
+      const a = -t * 0.9 + (i / 12) * Math.PI * 2;
+      const R = r * (2.0 + 0.15 * Math.sin(t * 3 + i));
+      ctx.fillStyle = RAINBOW[i % 6];
+      ctx.beginPath();
+      ctx.arc(x + Math.cos(a) * R, y + Math.sin(a) * R, 3.6 * k, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = "#0b3b4d";
+      ctx.lineWidth = 1.2 * k;
+      ctx.stroke();
+    }
+  } else if (v === "bird") {
+    // 小鸟的眼睛（简单两点），让它像个访客
+    ctx.fillStyle = "#0b3b4d";
+    ctx.fillRect(x - r * 0.35 - 1.5 * k, y - r * 0.2, 3 * k, 3 * k);
+    ctx.fillRect(x + r * 0.35 - 1.5 * k, y - r * 0.2, 3 * k, 3 * k);
+  }
 }
 
 /** 阳光光团：深色衬底 + 深青外轮廓 + 白金光核 + 旋转光芒，亮背景上也一眼可辨 */
-function drawSunOrb(ctx: CanvasRenderingContext2D, x: number, y: number, r: number, t: number, power: number, k: number) {
+function drawSunOrb(ctx: CanvasRenderingContext2D, x: number, y: number, r: number, t: number, power: number, k: number, v: TargetVariant = "sun") {
+  const rays = v === "sun" || v === "grand";
+  const cool = v === "comet" || v === "bubble";
   // 衬底：把亮背景压下去
-  const bp = ctx.createRadialGradient(x, y, r * 0.5, x, y, r * 3.1);
-  bp.addColorStop(0, "rgba(6,34,58,0.55)");
-  bp.addColorStop(1, "rgba(6,34,58,0)");
-  ctx.fillStyle = bp;
-  ctx.beginPath();
-  ctx.arc(x, y, r * 3.1, 0, Math.PI * 2);
-  ctx.fill();
+  glow(ctx, x, y, r * 3.1, "rgba(6,34,58,0.6)", 1);
   glow(ctx, x, y, r * (2.6 + 1.6 * power), "rgba(255,226,120,0.95)", 0.55 + 0.4 * power);
-  // 旋转光芒（深色描边 + 金色填充）
-  const n = 8;
+  // 旋转光芒（深色描边 + 金色填充）：只有阳光与大太阳有
+  const n = rays ? 8 : 0;
   const rot = t * (0.8 + 1.6 * power);
   for (let i = 0; i < n; i++) {
     const a = rot + (i / n) * Math.PI * 2;
@@ -319,8 +550,8 @@ function drawSunOrb(ctx: CanvasRenderingContext2D, x: number, y: number, r: numb
   ctx.arc(x, y, r, 0, Math.PI * 2);
   const core = ctx.createRadialGradient(x - r * 0.3, y - r * 0.3, r * 0.1, x, y, r);
   core.addColorStop(0, "#ffffff");
-  core.addColorStop(0.45, "#fff3b0");
-  core.addColorStop(1, "#ffb627");
+  core.addColorStop(0.45, cool ? "#e3fbff" : v === "seeds" ? "#fffdf2" : "#fff3b0");
+  core.addColorStop(1, cool ? "#6fdcf2" : v === "seeds" ? "#ffe9a6" : "#ffb627");
   ctx.fillStyle = core;
   ctx.fill();
   ctx.lineWidth = 3 * k;
@@ -339,7 +570,9 @@ function drawTarget(ctx: CanvasRenderingContext2D, L: SunLayout, s: SunSurfState
   const st = targetPose(L, s);
   if (st.waiting) {
     const pulse = 0.7 + 0.3 * Math.sin(s.t * 5);
-    drawSunOrb(ctx, st.x, st.y, st.r * pulse, s.t, 0, k);
+    drawVariantBack(ctx, st.v, st.x, st.y, st.r * pulse, s.t, 0, k, s.target);
+    drawSunOrb(ctx, st.x, st.y, st.r * pulse, s.t, 0, k, st.v);
+    drawVariantFront(ctx, st.v, st.x, st.y, st.r * pulse, s.t, 0, k);
     return;
   }
   // 飞行轨迹：从太阳落下的光尘
@@ -408,7 +641,9 @@ function drawTarget(ctx: CanvasRenderingContext2D, L: SunLayout, s: SunSurfState
     ctx.lineCap = "butt";
   }
   const r = st.r * (1 + 0.28 * ap + (s.arrived ? 0.08 * Math.sin(s.t * 20) : 0));
-  drawSunOrb(ctx, st.x, st.y, r, s.t, ap, k);
+  drawVariantBack(ctx, st.v, st.x, st.y, r, s.t, ap, k, s.target);
+  drawSunOrb(ctx, st.x, st.y, r * (st.v === "bubble" || st.v === "bird" ? 0.8 : 1), s.t, ap, k, st.v);
+  drawVariantFront(ctx, st.v, st.x, st.y, r, s.t, ap, k);
   if (st.flight >= 1) {
     // 进度环：接近时填到一半，进入接光区后保持填满
     const R2 = r * 2.3;
@@ -589,7 +824,13 @@ function drawYukee(ctx: CanvasRenderingContext2D, L: SunLayout, s: SunSurfState,
   o.setTransform(1, 0, 0, 1, 0, 0);
   o.clearRect(0, 0, box, box);
   const q = (k * S) / px; // 离屏中每「基准像素」大小
-  o.translate(box / 2, box * 0.78 - jump / px);
+  // 离屏原点取整：v3 用小数跳跃偏移，像素化后轮廓每帧在相邻像素间「抖」；
+  // 现在离屏内只用整数，小数部分在最终贴图时补偿。
+  const jy = jump / px,
+    jInt = Math.round(jy);
+  const oxo = Math.round(box / 2),
+    oyo = Math.round(box * 0.78);
+  o.translate(oxo, oyo - jInt);
   // 冲浪板
   o.save();
   o.rotate(lean * 0.16);
@@ -715,7 +956,7 @@ function drawYukee(ctx: CanvasRenderingContext2D, L: SunLayout, s: SunSurfState,
   o.fill();
 
   ctx.imageSmoothingEnabled = false;
-  ctx.drawImage(off.c as CanvasImageSource, x - (box * px) / 2, y - box * px * 0.78, box * px, box * px);
+  ctx.drawImage(off.c as CanvasImageSource, x - oxo * px, y - oyo * px - (jy - jInt) * px, box * px, box * px);
   ctx.imageSmoothingEnabled = true;
   // 天线灯光晕（平滑，随接近变亮）
   const cos = Math.cos(lean * 0.3),
@@ -744,6 +985,7 @@ export function antennaPoint(L: SunLayout, s: SunSurfState) {
 export interface SunSurfAssets {
   img: CanvasImageSource | null;
   off: { c: HTMLCanvasElement | OffscreenCanvas | null };
+  cache?: SceneCache;
 }
 
 export function drawSunSurf(ctx: CanvasRenderingContext2D, s: SunSurfState, assets: SunSurfAssets) {
@@ -752,11 +994,12 @@ export function drawSunSurf(ctx: CanvasRenderingContext2D, s: SunSurfState, asse
   const base = layoutFor(W, H, !!s.preview);
   const par = s.x - base.cx;
   const L = s.preview ? base : layoutFor(W, H, false, par);
-  ctx.clearRect(0, 0, W, H);
-  drawBackground(ctx, L, s, assets.img);
-  if (!s.preview) drawSunlight(ctx, L, s);
+  const cache = (assets.cache ??= {});
+  // 背景层完全覆盖画布，无需 clearRect
+  drawBackground(ctx, L, s, assets.img, cache, s.preview ? 0 : Math.round(par * 0.04));
+  if (!s.preview) drawSunlight(ctx, L, s, cache);
   drawWater(ctx, L, s);
-  drawRainbow(ctx, L, s);
+  drawRainbow(ctx, L, s, cache);
   const ant = antennaPoint(L, s);
   drawTarget(ctx, L, s, ant.x, ant.y);
   drawYukee(ctx, L, s, assets.off);

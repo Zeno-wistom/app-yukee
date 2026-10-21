@@ -490,3 +490,23 @@
     animation: none !important;
   }
 }
+
+/* v4：本束阳光的形态名，换形态时轻轻弹出 */
+.lean-variant {
+  margin-left: calc(0.6 * var(--portal-cqw));
+  padding: 0.1em 0.6em;
+  border-radius: 999px;
+  background: #ffd84a26;
+  border: 1px solid #ffd84a80;
+  color: #fff1b0;
+  font-style: normal;
+  font-size: 0.82em;
+  white-space: nowrap;
+  animation: lean-variant-in 0.45s ease-out;
+}
+@keyframes lean-variant-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.9);
+  }
+}

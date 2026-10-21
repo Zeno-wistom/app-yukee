@@ -3,6 +3,7 @@ import type { YukeeState } from "../yukee/yukeeTypes";
 import "./moonWing.css";
 import { MOON_BOAT_TRANSFORM } from "./moonSceneGeometry";
 import MoonFireflies, { type MoonFirefliesHandle } from "./MoonFireflies";
+import MoonVisitors, { type MoonVisitorsHandle } from "./MoonVisitors";
 
 /** 场景仅消费显示变量与已确认的计分事件，不参与摄像头、校准或动作判定。 */
 export default memo(function MoonWingScene({
@@ -10,11 +11,13 @@ export default memo(function MoonWingScene({
   mood,
   reps,
   firefliesRef,
+  visitorsRef,
 }: {
   finished: boolean;
   mood: YukeeState;
   reps: number;
   firefliesRef: RefObject<MoonFirefliesHandle | null>;
+  visitorsRef: RefObject<MoonVisitorsHandle | null>;
 }) {
   return (
     <div
@@ -309,6 +312,7 @@ export default memo(function MoonWingScene({
           </g>
         </g>
         <MoonFireflies ref={firefliesRef} />
+        <MoonVisitors ref={visitorsRef} />
       </svg>
     </div>
   );

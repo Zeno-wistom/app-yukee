@@ -189,6 +189,27 @@ describe("G03 v2 接星循环", () => {
       c.update(t === 495 ? sample({ leanDeg: 8 }) : sample(), t);
     expect(c.stage).toBe("ready");
   });
+  it("髋部可见度闪烁：输入平滑过渡，不出现逐帧阶跃", () => {
+    // 真实身体里躯干角与肩线角幅度并不一致：用不同满量程模拟这种差异
+    const q = { ...p, range: p.range * 0.55 };
+    const s = new LeanSession(q);
+    run(s, sample(), 300);
+    let prev = run(s, sample({ leanDeg: 3 }), 600).u;
+    let maxStep = 0;
+    for (let i = 0; i < 40; i++) {
+      const smp = sample({ leanDeg: 3, hips: i % 2 === 0 });
+      const v = s.update(33, smp);
+      maxStep = Math.max(maxStep, Math.abs(v.u - prev));
+      prev = v.u;
+    }
+    // 旧做法（逐帧切换公式）的阶跃量，作为对照
+    const naive = Math.abs(
+      leanAmount(sample({ leanDeg: 3 }), q) -
+        leanAmount(sample({ leanDeg: 3, hips: false }), q),
+    );
+    expect(naive).toBeGreaterThan(0.08);
+    expect(maxStep).toBeLessThan(naive / 2);
+  });
   it("完全不动 60 秒：0 分", () => {
     const s = new LeanSession(p);
     const v = run(s, sample(), 60000);

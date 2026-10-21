@@ -14,6 +14,7 @@ import { useWingSession, type WingInputMode } from "./useWingSession";
 import { computeRobotPose, robotCssVars } from "./robotRig";
 import { moonRopes } from "./moonRig";
 import type { MoonFirefliesHandle } from "./MoonFireflies";
+import { WAVES, type MoonVisitorsHandle } from "./MoonVisitors";
 
 /** 首屏静态姿态：双臂收起的待机机器人（避免首帧跳变） */
 const INITIAL_ROBOT_VARS = robotCssVars(
@@ -68,6 +69,7 @@ export default function Winglight({
   });
   const finishedRef = useRef(false);
   const firefliesRef = useRef<MoonFirefliesHandle>(null);
+  const visitorsRef = useRef<MoonVisitorsHandle>(null);
   const source: "camera" | "keyboard-demo" =
     mode === "demo" ? "keyboard-demo" : "camera";
 
@@ -109,12 +111,21 @@ export default function Winglight({
     }
     // 互动粒子仅消费显示数据；手动暂停由原 RAF 门控，身体丢失/恢复也冻结粒子时钟。
     if (update.tracking === "ok" && !update.resuming) {
-      firefliesRef.current?.step(
+      const targets = firefliesRef.current?.step(
         dt,
         u,
         update.openValid,
         update.reps,
         finishedRef.current,
+      );
+      // 每次收集换一种「光之访客」，动作不变
+      visitorsRef.current?.step(
+        dt,
+        u,
+        update.openValid,
+        update.reps,
+        finishedRef.current,
+        targets ?? null,
       );
     }
   }, []);
@@ -223,6 +234,11 @@ export default function Winglight({
             <i key={i} className={i < hud.reps ? "lit" : ""} />
           ))}
           <b data-testid="wing-reps">{hud.reps}/5</b>
+          {!finished && (
+            <span className="wing-wave" data-testid="wing-wave" key={hud.reps}>
+              {WAVES[Math.min(hud.reps, WAVES.length - 1)].name}
+            </span>
+          )}
         </div>
         <div className="wing-meta">
           <span className="wing-time" data-testid="wing-time">
@@ -262,6 +278,7 @@ export default function Winglight({
           mood={mood}
           reps={hud.reps}
           firefliesRef={firefliesRef}
+          visitorsRef={visitorsRef}
         />
 
         {!finished && (

@@ -35,6 +35,7 @@ const CALIBRATION_HOLD_MS = 1300; // 自然姿态稳定保持时长
 const CALIBRATION_TOLERANCE = 0.035; // 稳定窗口允许的归一化偏移幅度
 const HAND_INFER_INTERVAL_MS = 1000 / 7; // 手部分析略慢一档，节省 CPU
 const POSE_INFER_INTERVAL_MS = 1000 / 12; // G02 身体关键点：12Hz 足够且省电
+const FACE_INTERVAL_DURING_POSE_MS = 1000 / 5; // 身体推理期间人脸降频
 
 type ActionListener = (direction: Exclude<HeadDirection, "center">) => void;
 type StatusListener = (status: VisionStatus) => void;
@@ -289,9 +290,14 @@ export class CameraVision {
     };
   }
 
+  /** 本帧是否已执行过一次同步模型推理（用于错开人脸/身体推理） */
+  private inferredThisFrame = false;
+
   private tickPose(now: number) {
     if (!this.poseActive) return;
     if (now - this.lastPoseInfer < POSE_INFER_INTERVAL_MS) return;
+    // 同一帧里已经跑过人脸推理：身体推理顺延到下一帧，避免两次同步推理叠在同一帧造成 30–60ms 的停顿
+    if (this.inferredThisFrame) return;
     const model = this.poseModel;
     const video = this.video;
     if (!model || !video || video.readyState < 2) return;
@@ -430,6 +436,7 @@ export class CameraVision {
       }
       const loop = (now: number) => {
         if (!this.running) return;
+        this.inferredThisFrame = false;
         try {
           this.tickFace(model, now);
         } catch (error) {
@@ -464,12 +471,15 @@ export class CameraVision {
   private tickFace(model: FaceLandmarker, now: number) {
     const video = this.video;
     if (!video) return;
+    // 体感游戏期间（身体推理开启）人脸只需判断是否在座，降到约 5Hz，把主线程让给身体推理与画面
+    const faceInterval = this.poseActive ? FACE_INTERVAL_DURING_POSE_MS : INFER_INTERVAL_MS;
     if (
-      now - this.lastInfer >= INFER_INTERVAL_MS &&
+      now - this.lastInfer >= faceInterval &&
       video.readyState >= 2 &&
       video.currentTime !== this.lastVideoTime
     ) {
       this.lastInfer = now;
+      this.inferredThisFrame = true;
       this.lastVideoTime = video.currentTime;
       const begin = performance.now();
       const result = model.detectForVideo(video, now);

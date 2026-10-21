@@ -356,3 +356,22 @@
     transition: none !important;
   }
 }
+
+/* v4：每一波访客的名字，换波时轻轻弹出 */
+.wing-wave {
+  margin-left: calc(0.6 * var(--portal-cqw, 8px));
+  padding: 0.15em 0.6em;
+  border-radius: 999px;
+  background: #ffd77a26;
+  border: 1px solid #ffd77a66;
+  color: #ffe7a8;
+  font-size: 0.85em;
+  white-space: nowrap;
+  animation: wing-wave-in 0.5s ease-out;
+}
+@keyframes wing-wave-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.92);
+  }
+}
