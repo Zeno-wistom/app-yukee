@@ -20,10 +20,14 @@ export type Phase =
   | "winglight"
   | "leanCalibration"
   | "leanSurf"
+  /** G05：浅蹲跳一跳——站姿校准（站直基线 + 本人舒适浅蹲幅度） */
+  | "squatCalibration"
+  /** G05：浅蹲跳一跳游戏进行中 */
+  | "squatJump"
   | "reward";
 
 /** 可玩的关卡 id，与 selection/games.ts 的卡片 id 对应 */
-export type GameId = "yukeeRun" | "winglight" | "leanSurf";
+export type GameId = "yukeeRun" | "winglight" | "leanSurf" | "squatJump";
 
 /** 一局结束后的结果（只保存在内存，不上传、不持久化） */
 export interface GameResult {
@@ -100,6 +104,7 @@ export const sequences: Partial<Record<Phase, MotionAction[]>> = {
   wingCalibration: ["calibrated"],
   winglight: ["gameComplete"],
   leanCalibration: ["calibrated"],
+  squatCalibration: ["calibrated"],
 };
 
 /**
@@ -142,7 +147,7 @@ export type Event =
   | { type: "OPEN"; overlay: Overlay }
   | { type: "MOTION"; input: MotionInput };
 export const isGame = (phase: Phase) =>
-  phase === "yukeeRun" || phase === "winglight" || phase === "leanSurf";
+  phase === "yukeeRun" || phase === "winglight" || phase === "leanSurf" || phase === "squatJump";
 function wrapIndex(i: number, total: number) {
   if (total <= 0) return 0;
   return ((i % total) + total) % total;
@@ -325,8 +330,8 @@ export function reducer(s: State, e: Event): State {
               // 点头确认后不再停在 activityIntro 等二次点击：
               // 420ms 确认反馈由调用方完成，随后直接进入真人检测。
               // G02 需要身体关键点，走独立的肩臂校准；G01 保持原有头部校准。
-              phase: e.gameId === "leanSurf" ? "leanCalibration" : e.gameId === "winglight" ? "wingCalibration" : "calibration",
-              activeGame: e.gameId === "leanSurf" ? "leanSurf" : e.gameId === "winglight" ? "winglight" : "yukeeRun",
+              phase: e.gameId === "squatJump" ? "squatCalibration" : e.gameId === "leanSurf" ? "leanCalibration" : e.gameId === "winglight" ? "wingCalibration" : "calibration",
+              activeGame: e.gameId === "squatJump" ? "squatJump" : e.gameId === "leanSurf" ? "leanSurf" : e.gameId === "winglight" ? "winglight" : "yukeeRun",
               overlay: "none",
               step: 0,
               selectionDevNotice: null,
@@ -345,7 +350,9 @@ export function reducer(s: State, e: Event): State {
         // 摄像头在退出时释放，恢复需重新经过真实校准
         saved: {
           phase:
-            s.phase === "leanSurf" || s.phase === "leanCalibration"
+            s.phase === "squatJump" || s.phase === "squatCalibration"
+              ? "squatCalibration"
+              : s.phase === "leanSurf" || s.phase === "leanCalibration"
               ? "leanCalibration"
               : s.phase === "winglight" || s.phase === "wingCalibration"
               ? "wingCalibration"
@@ -375,7 +382,25 @@ export function reducer(s: State, e: Event): State {
       };
     case "FINISH_GAME":
       // G02 自带完成页：直接计数并回到工作态，不经过通用 reward 页
-      if (s.phase !== "winglight" && s.phase !== "leanSurf") return s;
+      if (s.phase !== "winglight" && s.phase !== "leanSurf" && s.phase !== "squatJump") return s;
+      // G05：只有真实五连跳才收尾；keyboard_demo 记录结果但不计入真实活动次数
+      if (s.phase === "squatJump") {
+        if (e.result.reps !== 5 || s.overlay !== "none" || !Number.isFinite(e.result.effectiveMs) || e.result.effectiveMs < 0) return s;
+        return {
+          ...s,
+          phase: "focus",
+          activeGame: null,
+          overlay: "none",
+          step: 0,
+          completed: s.completed + (e.result.source === "camera" ? 1 : 0),
+          lastGame: { game: "squatJump", ...e.result },
+          saved: null,
+          pending: null,
+          reminderGeneration: s.reminderGeneration + 1,
+          reminderDueAt: null,
+          snoozeUntil: null,
+        };
+      }
       if (s.phase === "leanSurf" && (e.result.reps !== 6 || s.overlay !== "none" || !Number.isFinite(e.result.effectiveMs) || e.result.effectiveMs < 0)) return s;
       return {
         ...s,
@@ -408,6 +433,8 @@ export function reducer(s: State, e: Event): State {
         return s;
       if (s.phase === "calibration" && e.input.action === "calibrated")
         return { ...s, phase: "yukeeRun", step: 0, activeGame: "yukeeRun" };
+      if (s.phase === "squatCalibration" && e.input.action === "calibrated")
+        return { ...s, phase: "squatJump", step: 0, activeGame: "squatJump" };
       if (s.phase === "leanCalibration" && e.input.action === "calibrated")
         return { ...s, phase: "leanSurf", step: 0, activeGame: "leanSurf" };
       if (s.phase === "wingCalibration" && e.input.action === "calibrated")

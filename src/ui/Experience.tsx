@@ -25,6 +25,9 @@ import WingCalibrationView from "../games/WingCalibrationView";
 import Winglight from "../games/Winglight";
 import LeanSurf from "../games/LeanSurf";
 import LeanCalibrationView from "../games/LeanCalibrationView";
+import SquatJump, { type SquatMode } from "../games/squatJump/SquatJump";
+import SquatCalibrationView from "../games/squatJump/SquatCalibrationView";
+import type { SquatProfile } from "../vision/squatPose";
 import type { LeanProfile, LeanMode } from "../vision/leanPose";
 import type { WingProfile } from "../vision/wingPose";
 import type { WingInputMode } from "../games/useWingSession";
@@ -297,6 +300,8 @@ export function LampDisplay({
                 : state.phase === "winglight" ||
                     state.phase === "wingCalibration"
                   ? "展翼接光中"
+                  : state.phase === "squatCalibration"
+                    ? "浅蹲跳一跳 · 准备"
                   : "肩颈放松时间"}
             </span>
           </>
@@ -331,6 +336,7 @@ export function MonitorDisplay({
   onWingFinish,
   onWingEarlyExit,
   leanProfile, leanMode, onLeanCalibrated,
+  squatProfile, squatMode, onSquatCalibrated,
 }: {
   state: State;
   dispatch: Dispatch<Event>;
@@ -347,6 +353,9 @@ export function MonitorDisplay({
   leanProfile: LeanProfile | null;
   leanMode: LeanMode;
   onLeanCalibrated: (p: LeanProfile, mode: LeanMode) => void;
+  squatProfile: SquatProfile | null;
+  squatMode: SquatMode;
+  onSquatCalibrated: (p: SquatProfile, mode: SquatMode) => void;
   wingProfile: WingProfile | null;
   wingMode: WingInputMode;
   onWingCalibrated: (profile: WingProfile, mode: WingInputMode) => void;
@@ -361,7 +370,7 @@ export function MonitorDisplay({
     playing =
       isGame(state.phase) ||
       state.phase === "calibration" ||
-      state.phase === "wingCalibration" || state.phase === "leanCalibration";
+      state.phase === "wingCalibration" || state.phase === "leanCalibration" || state.phase === "squatCalibration";
   return (
     <div
       className={`monitor-display ${playing ? "is-playing" : ""} ${state.phase}`}
@@ -548,6 +557,21 @@ export function MonitorDisplay({
           onPause={() => dispatch({ type: "OPEN", overlay: "pause" })}
           onQuit={() => dispatch({ type: "OPEN", overlay: "quit" })}
           onFinish={onWingFinish} onEarlyExit={onWingEarlyExit} onGameEvent={onGameEvent} />}
+        {state.phase === "squatCalibration" && (
+          <SquatCalibrationView paused={state.overlay !== "none"} onCalibrated={onSquatCalibrated} />
+        )}
+        {state.phase === "squatJump" && squatProfile && (
+          <SquatJump
+            profile={squatProfile}
+            mode={squatMode}
+            paused={state.overlay !== "none"}
+            onPause={() => dispatch({ type: "OPEN", overlay: "pause" })}
+            onQuit={() => dispatch({ type: "OPEN", overlay: "quit" })}
+            onFinish={onWingFinish}
+            onEarlyExit={onWingEarlyExit}
+            onGameEvent={onGameEvent}
+          />
+        )}
         {state.phase === "wingCalibration" && (
           <WingCalibrationView onCalibrated={onWingCalibrated} paused={state.overlay !== "none"} />
         )}

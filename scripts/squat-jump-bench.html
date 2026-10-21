@@ -1,0 +1,29 @@
+<!doctype html><html><body style="margin:0">
+<!-- 开发用：G05 场景绘制基准（真实渲染器，跳跃 + 蓄力循环，强制栅格化）。结果写入 window.result -->
+<canvas id="c"></canvas>
+<script type="module">
+import { JumpRun, distanceToCharge } from "/src/games/squatJump/jumpLogic.ts";
+import { JumpScene } from "/src/games/squatJump/squatJumpScene.ts";
+const q = new URLSearchParams(location.search);
+const c = document.getElementById("c");
+c.width = +(q.get("w") || 1920); c.height = +(q.get("h") || 940);
+const ctx = c.getContext("2d", { alpha: false });
+const run = new JumpRun(9), scene = new JumpScene();
+const vis = () => run.platforms.slice(Math.max(0, run.cur - 1));
+scene.reset(vis(), run.current, run.target);
+const times = []; let pending = false;
+for (let i = 0; i < 420; i++) {
+  if (!scene.busy && !pending && !run.over) {
+    if (i % 70 < 40) scene.charge = (i % 70) / 40;
+    else { const t = run.target, d = t.axis === "x" ? t.x - run.px : t.z - run.pz; const l = run.jump(distanceToCharge(d)); pending = true;
+      scene.startJump(l, t.axis, () => { pending = false; if (!run.over) scene.advance(vis(), run.current, run.target); scene.addFx({ kind: "ripple", x: l.x, z: l.z }); }); }
+  }
+  scene.step(1 / 60);
+  const a = performance.now(); scene.draw(ctx); ctx.getImageData(0, 0, 1, 1); const d = performance.now() - a;
+  if (i > 10) times.push(d);
+}
+times.sort((a, b) => a - b);
+const pct = p => times[Math.floor((times.length - 1) * p)].toFixed(2);
+window.result = { mean: (times.reduce((a, b) => a + b, 0) / times.length).toFixed(2), p50: pct(0.5), p95: pct(0.95), max: pct(1) };
+window.done = true;
+</script></body></html>

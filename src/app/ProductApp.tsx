@@ -1,3 +1,5 @@
+import type { SquatProfile } from "../vision/squatPose";
+import type { SquatMode } from "../games/squatJump/SquatJump";
 import {
   lazy,
   Suspense,
@@ -102,6 +104,9 @@ export default function ProductApp() {
   const [leanProfile, setLeanProfile] = useState<LeanProfile | null>(null);
   const [leanMode, setLeanMode] = useState<LeanMode>("camera");
   const [wingProfile, setWingProfile] = useState<WingProfile | null>(null);
+  /** G05 浅蹲个人档案（站立基线 + 本人舒适浅蹲幅度）；键盘演示使用合成档案 */
+  const [squatProfile, setSquatProfile] = useState<SquatProfile | null>(null);
+  const [squatMode, setSquatMode] = useState<SquatMode>("camera");
   const [wingMode, setWingMode] = useState<WingInputMode>("camera");
   const [hintDismissed, setHintDismissed] = useState(
     selection.hasSeenFirstHint,
@@ -123,6 +128,9 @@ export default function ProductApp() {
   const bus = useMemo(() => new MotionBus(), []);
   const leanCalibrated = useCallback((profile: LeanProfile, mode: LeanMode) => {
     setLeanProfile(profile); setLeanMode(mode); bus.emit("calibrated", mode === "camera" ? "camera" : "debug");
+  }, [bus]);
+  const squatCalibrated = useCallback((profile: SquatProfile, mode: SquatMode) => {
+    setSquatProfile(profile); setSquatMode(mode); bus.emit("calibrated", mode === "camera" ? "camera" : "debug");
   }, [bus]);
   const gazeCenter = useMemo(() => new GazeCenter(), []);
   // 选择页改为鼠标操作。保留底层实验配置，但不再激活任何视觉选择输入。
@@ -498,13 +506,14 @@ export default function ProductApp() {
         else if (selectionActive) dispatch({ type: "EXIT_LAMP_SELECTION" });
         else if (
           state.overlay !== "none" &&
-          (state.phase === "winglight" || state.phase === "wingCalibration" || state.phase === "leanSurf" || state.phase === "leanCalibration")
+          (state.phase === "winglight" || state.phase === "wingCalibration" || state.phase === "leanSurf" || state.phase === "leanCalibration" || state.phase === "squatJump" || state.phase === "squatCalibration")
         )
           // G02：Esc 在暂停弹窗内再次按下 = 继续
           dispatch({ type: "RESUME" });
         else if (
           state.phase === "winglight" ||
-          state.phase === "wingCalibration" || state.phase === "leanSurf" || state.phase === "leanCalibration"
+          state.phase === "wingCalibration" || state.phase === "leanSurf" || state.phase === "leanCalibration" ||
+          state.phase === "squatJump" || state.phase === "squatCalibration"
         )
           // G02：游戏中 Esc = 暂停（继续/退出由弹窗决定）
           dispatch({ type: "OPEN", overlay: "pause" });
@@ -680,7 +689,7 @@ export default function ProductApp() {
             yukeeRef={lampYukee}
             linked={
               castActive ||
-              state.phase === "yukeeRun" || state.phase === "leanSurf" ||
+              state.phase === "yukeeRun" || state.phase === "leanSurf" || state.phase === "squatJump" ||
               state.phase === "reward"
             }
             splitting={castActive}
@@ -710,6 +719,9 @@ export default function ProductApp() {
             leanProfile={leanProfile}
             leanMode={leanMode}
             onLeanCalibrated={leanCalibrated}
+            squatProfile={squatProfile}
+            squatMode={squatMode}
+            onSquatCalibrated={squatCalibrated}
             wingProfile={wingProfile}
             wingMode={wingMode}
             onWingCalibrated={wingCalibrated}
@@ -803,10 +815,11 @@ export default function ProductApp() {
                 disabled={
                   state.overlay !== "none" ||
                   !sequences[state.phase]?.includes(action as MotionAction) ||
-                  state.phase === "leanCalibration"
+                  state.phase === "leanCalibration" ||
+                  state.phase === "squatCalibration"
                 }
                 onClick={() =>
-                  action === "calibrated" && state.phase !== "wingCalibration" && state.phase !== "leanCalibration"
+                  action === "calibrated" && state.phase !== "wingCalibration" && state.phase !== "leanCalibration" && state.phase !== "squatCalibration"
                     ? beginYukeeCast()
                     : motion(action as MotionAction)
                 }

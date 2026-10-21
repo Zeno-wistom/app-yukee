@@ -17,6 +17,8 @@ export function feedback(phase: Phase): {
     return { mood: "play", color: "#92e7d0", label: "跟着我，慢慢来" };
   if (phase === "leanCalibration" || phase === "leanSurf")
     return { mood: "play", color: "#8de9bc", label: "轻轻侧倾，去接阳光" };
+  if (phase === "squatCalibration" || phase === "squatJump")
+    return { mood: "play", color: "#8de9bc", label: "浅蹲蓄力，站直起跳" };
   if (phase === "wingCalibration" || phase === "winglight")
     return { mood: "play", color: "#ffd98e", label: "展开就好，不用快" };
   return { mood: "calm", color: "#b8e7d7", label: "陪你专注" };

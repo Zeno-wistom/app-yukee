@@ -123,10 +123,12 @@ export function yukeeStateForPhase(phase: Phase): YukeeState {
     case "calibration":
     case "wingCalibration":
     case "leanCalibration":
+    case "squatCalibration":
       return "focused";
     case "yukeeRun":
     case "winglight":
     case "leanSurf":
+    case "squatJump":
       return "playful";
     case "reward":
       return "celebrate";

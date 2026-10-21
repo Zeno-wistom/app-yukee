@@ -1,0 +1,22 @@
+<!doctype html><html><body style="margin:0;background:#eef1f4">
+<!-- 开发用：G05 选卡预览渲染（真实游戏渲染器 + 固定种子）。/scripts/squat-jump-preview.html?w=1290&h=205&seed=7 -->
+<canvas id="c"></canvas>
+<script type="module">
+import { JumpRun } from "/src/games/squatJump/jumpLogic.ts";
+import { JumpScene } from "/src/games/squatJump/squatJumpScene.ts";
+const q = new URLSearchParams(location.search);
+const c = document.getElementById("c");
+const s = +(q.get("scale") || 2);
+c.width = +(q.get("w") || 1290) * s; c.height = +(q.get("h") || 205) * s;
+c.style.width = (c.width / s) + "px"; c.style.height = (c.height / s) + "px";
+const run = new JumpRun(+(q.get("seed") || 7));
+while (run.platforms.length < 7) run.platforms.push(run.gen.next(run.platforms[run.platforms.length - 1], run.platforms.length));
+const scene = new JumpScene();
+const cur = run.platforms[+(q.get("cur") || 2)];
+scene.reset(run.platforms, cur, run.platforms[+(q.get("cur") || 2) + 1]);
+if (q.get("S")) scene.view = { S: +q.get("S") * s, ox: +(q.get("ox") || 0.5), oy: +(q.get("oy") || 0.5) };
+scene.charge = +(q.get("charge") || 0);
+scene.step(0.016);
+scene.draw(c.getContext("2d"));
+window.done = true;
+</script></body></html>
