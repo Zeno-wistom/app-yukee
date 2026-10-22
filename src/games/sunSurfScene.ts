@@ -110,7 +110,7 @@ export function layoutFor(W: number, H: number, preview = false, par = 0): SunLa
       rainbow: { x: W * 0.47, y: H * 1.05, r: H * 0.95, band: 6 * k },
     };
   }
-  const k = H / 540;
+  const k = Math.min(H / 540, W / 800);
   const scale = Math.max(W / IMG_W, H / IMG_H) * 1.05;
   const ox = (W - IMG_W * scale) / 2 - par * 0.04;
   const oy = (H - IMG_H * scale) / 2;

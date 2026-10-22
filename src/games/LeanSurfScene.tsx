@@ -104,6 +104,7 @@ export default function LeanSurfScene({
     return () => {
       cancelAnimationFrame(raf);
       observer.disconnect();
+      img.onload = null;
     };
   }, [frame, running]);
   return (

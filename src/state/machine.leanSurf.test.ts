@@ -41,7 +41,7 @@ describe("G03 系统接入", () => {
       type: "FINISH_GAME",
       result: { ...result, reps: 6 },
     });
-    expect(done.completed).toBe(1);
+    expect(done.completed).toBe(0);
     expect(done.lastGame?.source).toBe("keyboard-demo");
     expect(done.lastGame?.game).toBe("leanSurf");
     expect(

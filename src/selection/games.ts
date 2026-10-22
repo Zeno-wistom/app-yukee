@@ -52,7 +52,7 @@ export interface GameCard {
  */
 export const G05_FINAL_PREVIEW_IMAGE: string | null = null;
 
-export const GAMES: readonly GameCard[] = [
+const CATALOG: readonly GameCard[] = [
   {
     id: "yukeeRun",
     title: "拾光跑者",
@@ -163,6 +163,9 @@ export const GAMES: readonly GameCard[] = [
     },
   },
 ] as const;
+
+/** 只公开有真实实现的活动；保留原目录资料用于后续开发。 */
+export const GAMES = CATALOG.filter((game) => game.available);
 
 export const getGameById = (id: string): GameCard | undefined =>
   GAMES.find((g) => g.id === id);

@@ -95,7 +95,7 @@ export default function YukeeRun({
   visionActive: boolean;
   bus: MotionBus;
   onGameEvent: (kind: GameEventKind) => void;
-  onComplete: () => void;
+  onComplete: (energy: number) => void;
   onDirection: (x: number) => void;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -171,6 +171,7 @@ export default function YukeeRun({
           w.vy = JUMP_VY;
           w.grounded = false;
           w.jumpAt = now;
+          callbacks.current.onGameEvent("jump");
           burst(YUKEE_X + 14, GROUND_Y, 5, PALETTE.A, 40);
         }
         setHud("up");
@@ -357,7 +358,7 @@ export default function YukeeRun({
         if (hasReachedCompletion(w.t) && !w.completed) {
           w.completed = true;
           callbacks.current.onGameEvent("complete");
-          callbacks.current.onComplete();
+          callbacks.current.onComplete(w.energyCount);
         }
         if (w.t >= FINISH_AT && !finished) {
           setFinished(true);

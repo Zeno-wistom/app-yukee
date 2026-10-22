@@ -61,7 +61,7 @@ export default function LeanCalibrationView({
           lastSample = latest!.at;
           calibrator.update(s, latest!.at);
         }
-      } else if (calibrator.profile && !done.current) {
+      } else if (calibrator.profile && !done.current && s && !pauseRef.current) {
         // 「好了」状态展示 0.7 秒后直接进入游戏
         if (!readyAt) readyAt = now;
         if (now - readyAt > 700) {
@@ -69,7 +69,7 @@ export default function LeanCalibrationView({
           callback.current(calibrator.profile, "camera");
           return;
         }
-      }
+      } else readyAt = 0;
       if (now - flush > 80) {
         flush = now;
         setHud({

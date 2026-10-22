@@ -24,7 +24,7 @@ export default memo(function MoonWingScene({
       <svg
         className="wing-svg"
         viewBox="0 0 960 540"
-        preserveAspectRatio="none"
+        preserveAspectRatio="xMidYMid meet"
       >
         <defs>
           <linearGradient id="moonCloth" x2="0.8" y2="1">

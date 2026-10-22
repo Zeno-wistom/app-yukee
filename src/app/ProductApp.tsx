@@ -1,874 +1,462 @@
-import type { SquatProfile } from "../vision/squatPose";
-import type { SquatMode } from "../games/squatJump/SquatJump";
 import {
   lazy,
   Suspense,
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useReducer,
   useRef,
   useState,
 } from "react";
 import {
-  ArrowUpRight,
   ArrowLeft,
-  SlidersHorizontal,
-  X,
-  Sun,
+  Pause,
+  Play,
+  RotateCcw,
   Volume2,
+  VolumeX,
+  X,
 } from "lucide-react";
 import gsap from "gsap";
 import { useGSAP } from "@gsap/react";
-import { initialState, reducer, sequences } from "../state/machine";
-import { MotionBus } from "../demo/MotionBus";
-import DeskScene from "../scene/DeskScene";
-import { LampDisplay, MonitorDisplay } from "../ui/Experience";
-import { cameraVision } from "../vision/CameraVision";
-import YukeeCast from "../yukee/YukeeCast";
-import { pickHurtEvent, yukeeStateForPhase } from "../yukee/yukeeStateMap";
 import {
-  GazeCenter,
-  bodyFromFaceCenter,
-  gazeFromHead,
-} from "../yukee/yukeeMotion";
-import type { YukeeFaceHandle } from "../yukee/YukeeFace";
-import type { GameEventKind } from "../games/YukeeRun";
-import type { MotionAction, VisionStatus } from "../vision/types";
-import { GAMES } from "../selection/games";
-import type { LeanProfile, LeanMode } from "../vision/leanPose";
-import type { WingProfile } from "../vision/wingPose";
-import type { WingInputMode } from "../games/useWingSession";
-import { useSelectionPreference } from "../selection/preference";
-import { useLampInput } from "../vision/lampInput";
+  arcadeInitialState,
+  isGame,
+  reducer,
+  type GameResult,
+} from "../state/machine";
+import { MotionBus } from "../demo/MotionBus";
+import { cameraVision } from "../vision/CameraVision";
 import { audioEngine } from "../audio/engine";
-gsap.registerPlugin(useGSAP);
+import { GAMES } from "../selection/games";
+import SelectionScreen from "../selection/SelectionScreen";
+import type { WingProfile } from "../vision/wingPose";
+import type { LeanMode, LeanProfile } from "../vision/leanPose";
+import type { SquatProfile } from "../vision/squatPose";
+import type { GameEventKind } from "../games/YukeeRun";
+import type { MotionAction } from "../vision/types";
+import YukeeFace from "../yukee/YukeeFace";
+import "./arcade.css";
+
+const Calibration = lazy(() => import("../games/CalibrationView"));
+const WingCalibration = lazy(() => import("../games/WingCalibrationView"));
+const LeanCalibration = lazy(() => import("../games/LeanCalibrationView"));
+const SquatCalibration = lazy(
+  () => import("../games/squatJump/SquatCalibrationView"),
+);
+const Run = lazy(() => import("../games/YukeeRun"));
+const Wing = lazy(() => import("../games/Winglight"));
+const Lean = lazy(() => import("../games/LeanSurf"));
+const Squat = lazy(() => import("../games/squatJump/SquatJump"));
 const VisionSpike = lazy(() => import("../vision/VisionSpike"));
-const labels: Partial<Record<MotionAction, string>> = {
-  calibrated: "校准成功（跳过真实校准）",
-  gameComplete: "直接完成游戏",
-};
-const debugDirections: { action: MotionAction; label: string }[] = [
-  { action: "up", label: "↑ 抬头=跳" },
-  { action: "down", label: "↓ 低头=蹲" },
-  { action: "left", label: "← 左转" },
-  { action: "right", label: "→ 右转" },
-];
-/** 调试面板内的实时推理指标（8Hz） */
-function VisionStats({ phase }: { phase: string }) {
-  const [status, setStatus] = useState<VisionStatus | null>(null);
-  const [pose, setPose] = useState(cameraVision.getPoseDiagnostics());
-  useEffect(() => cameraVision.onStatus(setStatus), []);
-  useEffect(() => {
-    const timer = window.setInterval(() => setPose(cameraVision.getPoseDiagnostics()), 250);
-    return () => clearInterval(timer);
-  }, []);
-  return (
-    <>
-    <p className="vision-stats">
-      {status?.running
-        ? `推理 ${status.fps.toFixed(1)} FPS · 单帧 ${status.inferMs.toFixed(0)}ms · ${status.frames} 帧 · 矩阵角 yaw ${cameraVision.matrixYawDeg?.toFixed(1) ?? "—"}° / pitch ${cameraVision.matrixPitchDeg?.toFixed(1) ?? "—"}° · HandReady=${status.handModelReady ? "1" : "0"} · palmX=${status.palmX?.toFixed(2) ?? "—"}`
-        : "摄像头未运行"}
-    </p>
-    <p className="pose-stats" data-testid="pose-diagnostics">
-      G02 · {phase} · 视频轨道 {pose.track} · 播放 {pose.videoPaused ? "暂停" : "持续"} · 时间 {pose.videoTime.toFixed(2)}s<br />
-      Pose {pose.poseActive ? "开启" : "关闭"} / {pose.poseReady ? "就绪" : "未就绪"} · {pose.subscribers} 订阅 · {pose.frames} 帧 · 最新帧 {pose.frameAgeMs?.toFixed(0) ?? "—"}ms · 最近识别 {pose.lastSuccessAgeMs?.toFixed(0) ?? "—"}ms<br />
-      肩L/R 肘L/R 腕L/R：{pose.visibility.map(v => v?.toFixed(2) ?? "—").join(" / ")}<br />
-      动作 {document.querySelector('[data-testid="winglight"]')?.getAttribute("data-stage") ?? "—"} · 暂停原因 {document.querySelector('[data-testid="winglight"]')?.getAttribute("data-paused") ?? "—"}<br />
-      {pose.error ? `Pose错误：${pose.error}` : "Pose无错误"} {pose.faceError ? `人脸错误：${pose.faceError}` : ""}
-    </p>
-    </>
-  );
-}
+gsap.registerPlugin(useGSAP);
+
 export default function ProductApp() {
-  const [state, dispatch] = useReducer(reducer, initialState),
-    [entered, setEntered] = useState(false),
-    [ready, setReady] = useState(false),
-    [panel, setPanel] = useState(false),
-    [spike, setSpike] = useState(location.hash === "#vision"),
-    [brightness, setBrightness] = useState(0.8),
-    [direction, setDirection] = useState(0),
-    [pulse, setPulse] = useState<{ kind: GameEventKind; at: number } | null>(
-      null,
-    ),
-    [castActive, setCastActive] = useState(false),
-    [faceGone, setFaceGone] = useState(false),
-    [selectionVisionReady, setSelectionVisionReady] = useState(false),
-    [selectionConfirming, setSelectionConfirming] = useState(false),
-    [visionError, setVisionError] = useState<string | null>(null),
-    [masterVolume, setMasterVolume] = useState(() =>
-      audioEngine.getMasterVolume(),
-    );
-  const selection = useSelectionPreference();
-  /** G02/G03 的个人阈值各自独立；键盘演示单独记录来源。 */
-  const [leanProfile, setLeanProfile] = useState<LeanProfile | null>(null);
-  const [leanMode, setLeanMode] = useState<LeanMode>("camera");
-  const [wingProfile, setWingProfile] = useState<WingProfile | null>(null);
-  /** G05 浅蹲个人档案（站立基线 + 本人舒适浅蹲幅度）；键盘演示使用合成档案 */
-  const [squatProfile, setSquatProfile] = useState<SquatProfile | null>(null);
-  const [squatMode, setSquatMode] = useState<SquatMode>("camera");
-  const [wingMode, setWingMode] = useState<WingInputMode>("camera");
-  const [hintDismissed, setHintDismissed] = useState(
-    selection.hasSeenFirstHint,
-  );
-  const lamp = useRef<HTMLDivElement>(null),
-    monitor = useRef<HTMLDivElement>(null),
-    root = useRef<HTMLElement>(null),
-    lampYukee = useRef<YukeeFaceHandle>(null),
-    monitorYukee = useRef<YukeeFaceHandle>(null),
-    castActiveRef = useRef(false),
-    selectionConfirmingRef = useRef(false),
-    selectionConfirmTimer = useRef<number | null>(null),
-    selectionTransitionTimer = useRef<number | null>(null),
-    selectionTransitionLocked = useRef(false),
-    queuedSelectionDirection = useRef<-1 | 1 | null>(null),
-    phaseRef = useRef(state.phase),
-    /** GAME COMPLETE 庆祝窗口：期间暂停摄像头 gaze / body 跟随 */
-    celebrateUntilRef = useRef(0);
+  const [state, dispatch] = useReducer(reducer, arcadeInitialState);
   const bus = useMemo(() => new MotionBus(), []);
-  const leanCalibrated = useCallback((profile: LeanProfile, mode: LeanMode) => {
-    setLeanProfile(profile); setLeanMode(mode); bus.emit("calibrated", mode === "camera" ? "camera" : "debug");
-  }, [bus]);
-  const squatCalibrated = useCallback((profile: SquatProfile, mode: SquatMode) => {
-    setSquatProfile(profile); setSquatMode(mode); bus.emit("calibrated", mode === "camera" ? "camera" : "debug");
-  }, [bus]);
-  const gazeCenter = useMemo(() => new GazeCenter(), []);
-  // 选择页改为鼠标操作。保留底层实验配置，但不再激活任何视觉选择输入。
-  // G01 的游戏内头部控制、G02 的身体动作识别不受此开关影响。
-  const selectionMode = selection.inputMode;
-  const selectionActive = state.phase === "lampSelection";
-  /** 唯一体验入口：只开启镜头序列，业务状态在 CameraRig 完成后再进入 focus。 */
-  const enter = useCallback(() => {
-    // 首个明确手势：尽早解锁 AudioContext 并预载 BGM（不播放）
-    audioEngine.unlock();
-    setReady(false);
-    setEntered(true);
-  }, []);
-  const arrive = useCallback(() => {
-    setReady(true);
-    dispatch({ type: "ENTER" });
-  }, []);
-  const motion = useCallback((action: MotionAction) => bus.emit(action), [bus]);
-  // 选择阶段 Yukee 轻反馈：切卡 → notice（好奇一瞥），确认 → success（轻弹跳）
-  const moveSelection = useCallback((nextDirection: -1 | 1) => {
-    if (selectionTransitionLocked.current) {
-      // 当前卡栈 timeline 不被重启；过渡期间最多记住最后一个方向。
-      queuedSelectionDirection.current = nextDirection;
-      return;
-    }
-    selectionTransitionLocked.current = true;
-    lampYukee.current?.event("notice");
-    dispatch({
-      type: nextDirection === 1 ? "LAMP_NEXT" : "LAMP_PREV",
-      totalCount: GAMES.length,
-    });
-    selectionTransitionTimer.current = window.setTimeout(() => {
-      selectionTransitionLocked.current = false;
-      selectionTransitionTimer.current = null;
-      const queued = queuedSelectionDirection.current;
-      queuedSelectionDirection.current = null;
-      if (queued !== null) moveSelection(queued);
-    }, 630);
-  }, []);
-  const lampNext = useCallback(() => moveSelection(1), [moveSelection]);
-  const lampPrev = useCallback(() => moveSelection(-1), [moveSelection]);
-  const lampConfirm = useCallback(() => {
-    if (
-      state.phase !== "lampSelection" ||
-      selectionConfirmingRef.current ||
-      selectionTransitionLocked.current
-    )
-      return;
-    const card =
-      GAMES[
-        ((state.selectionIndex % GAMES.length) + GAMES.length) % GAMES.length
-      ];
-    if (card.available) {
-      selectionConfirmingRef.current = true;
-      setSelectionConfirming(true);
-      lampYukee.current?.event("success");
-      selectionConfirmTimer.current = window.setTimeout(() => {
-        dispatch({ type: "LAMP_CONFIRM", gameId: card.id, available: true });
-        selectionConfirmingRef.current = false;
-        setSelectionConfirming(false);
-        selectionConfirmTimer.current = null;
-      }, 420);
-    } else {
-      dispatch({
-        type: "LAMP_CONFIRM",
-        gameId: card.id,
-        available: false,
-      });
-      lampYukee.current?.event("miss");
-      window.setTimeout(() => {
-        dispatch({ type: "CLEAR_DEV_NOTICE" });
-      }, 2200);
-    }
-  }, [state]);
-  const lampCancel = useCallback(() => {
-    if (selectionTransitionTimer.current !== null)
-      window.clearTimeout(selectionTransitionTimer.current);
-    selectionTransitionTimer.current = null;
-    selectionTransitionLocked.current = false;
-    queuedSelectionDirection.current = null;
-    dispatch({ type: "EXIT_LAMP_SELECTION" });
-  }, []);
-  /** hand 模型加载状态（用于 hand→head 会话内降级与调试面板显示） */
-  const [handReady, setHandReady] = useState(false);
-  useEffect(
-    () =>
-      cameraVision.onStatus((status) => {
-        setHandReady(status.handModelReady);
-        setSelectionVisionReady(status.selectionReady);
-      }),
+  const [wingProfile, setWingProfile] = useState<WingProfile | null>(null);
+  const [leanProfile, setLeanProfile] = useState<LeanProfile | null>(null);
+  const [squatProfile, setSquatProfile] = useState<SquatProfile | null>(null);
+  const [mode, setMode] = useState<LeanMode>("camera");
+  const [volume, setVolume] = useState(() => audioEngine.getMasterVolume());
+  const [restartKey, setRestartKey] = useState(0);
+  const [vision, setVision] = useState(location.hash === "#vision");
+  const root = useRef<HTMLElement>(null);
+  const dialog = useRef<HTMLDialogElement>(null);
+  const phaseRef = useRef(state.phase);
+  phaseRef.current = state.phase;
+  useLayoutEffect(() => { if (root.current) root.current.scrollTop = 0; }, [state.phase]);
+  const selection = state.phase === "lampSelection";
+  const playing = isGame(state.phase);
+  const paused = state.overlay !== "none";
+  const game = GAMES.find((g) => g.id === state.activeGame);
+  const toSelection = useCallback(
+    () => dispatch({ type: "BACK_TO_SELECTION" }),
     [],
   );
-  useEffect(
-    () => () => {
-      if (selectionConfirmTimer.current !== null)
-        window.clearTimeout(selectionConfirmTimer.current);
-      if (selectionTransitionTimer.current !== null)
-        window.clearTimeout(selectionTransitionTimer.current);
-    },
-    [],
-  );
-  useEffect(() => {
-    if (selectionActive) return;
-    if (selectionTransitionTimer.current !== null)
-      window.clearTimeout(selectionTransitionTimer.current);
-    selectionTransitionTimer.current = null;
-    selectionTransitionLocked.current = false;
-    queuedSelectionDirection.current = null;
-  }, [selectionActive]);
-  /** 实际接入视觉输入：hand → swipe 事件；head → 左右转头；两种模式共用点头确认 */
-  useLampInput(
-    false,
-    selectionMode,
-    useMemo(
-      () => ({
-        next: lampNext,
-        prev: lampPrev,
-        confirm: lampConfirm,
-        cancel: lampCancel,
-      }),
-      [lampNext, lampPrev, lampConfirm, lampCancel],
-    ),
-  );
-  /** 受伤严重度：短窗口内连续 stumble 次数（窗口 2.5s） */
-  const hurtStreak = useRef({ at: 0, streak: 0 });
-  const gameEvent = useCallback((kind: GameEventKind) => {
-    setPulse({ kind, at: performance.now() });
-    if (kind === "left") setDirection(-1);
-    else if (kind === "right") setDirection(1);
-    // 声音反馈：动作 → 声音必须立即、清楚、短促
-    if (kind === "stumble") audioEngine.sfx("hit");
-    else if (kind === "left" || kind === "right") audioEngine.sfx("reward");
-    else if (kind === "complete") {
-      // 长奖励音播放时 BGM 深压，随后由相位 effect 淡出
-      audioEngine.duckBgm(0.12, 0.5);
-      audioEngine.sfx("complete");
-    } else if (kind === "finale") audioEngine.duckBgm(0.42, 1.1);
-    // 游戏分身与挂灯本体共用事件语言；屏幕分身由 Canvas 自己切换 sprite。
-    if (
-      kind === "jump" ||
-      kind === "duck" ||
-      kind === "left" ||
-      kind === "right" ||
-      kind === "land"
-    )
-      lampYukee.current?.event("success");
-    else if (kind === "stumble" || kind === "fall") {
-      const now = performance.now();
-      const h = hurtStreak.current;
-      h.streak = now - h.at < 2500 ? h.streak + 1 : 0;
-      h.at = now;
-      lampYukee.current?.event(pickHurtEvent(h.streak));
-    } else if (kind === "complete") lampYukee.current?.event("success");
+  const calibrated = useCallback(() => bus.emit("calibrated", "camera"), [bus]);
+  const finish = useCallback((result: Omit<GameResult, "game">) => {
+    dispatch({ type: "FINISH_GAME", result });
+    dispatch({ type: "BACK_TO_SELECTION" });
   }, []);
-  const leave = useCallback(() => {
-    setReady(false);
-    setEntered(false);
-    castActiveRef.current = false;
-    setCastActive(false);
-    audioEngine.stopBgm(0.5);
-    cameraVision.stop();
-    dispatch({ type: "RESET" });
-  }, []);
-  /**
-   * 校准完成后只析出一颗 Yukee 能量分身；挂灯本体不离开载体。
-   * 游戏相位由 YukeeCast 抵达主屏的时间线回调触发，避免视觉与状态计时漂移。
-   */
-  const beginYukeeCast = useCallback(() => {
-    if (castActiveRef.current) return;
-    castActiveRef.current = true;
-    lampYukee.current?.event("enterGame");
-    setCastActive(true);
-  }, []);
-  const castArrived = useCallback(() => motion("calibrated"), [motion]);
-  const castComplete = useCallback(() => {
-    castActiveRef.current = false;
-    setCastActive(false);
-  }, []);
-  /** 分身在屏幕内结束庆祝，本体从陪伴态直接回到工作态。 */
-  const returnToWork = useCallback(() => {
-    monitorYukee.current?.event("exitGame");
-    lampYukee.current?.event("exitGame");
-    dispatch({ type: "RETURN_WORK" });
-  }, []);
-  /** G02 校准完成：记下个人阈值，再由状态机切到游戏相位 */
   const wingCalibrated = useCallback(
-    (profile: WingProfile, mode: WingInputMode) => {
+    (profile: WingProfile, input: LeanMode) => {
       setWingProfile(profile);
-      setWingMode(mode);
-      audioEngine.unlock();
-      motion("calibrated");
+      setMode(input);
+      bus.emit("calibrated", input === "camera" ? "camera" : "debug");
     },
-    [motion],
+    [bus],
   );
-  /** G02 完成：双角色轻反馈 + 记录结果（仅内存，不上传） */
-  const wingFinish = useCallback(
-    (result: {
-      effectiveMs: number;
-      reps: number;
-      source: "camera" | "keyboard-demo";
-    }) => {
-      lampYukee.current?.event("success");
-      monitorYukee.current?.event("success");
-      audioEngine.stopBgm(0.4);
-      dispatch({ type: "FINISH_GAME", result });
+  const leanCalibrated = useCallback(
+    (profile: LeanProfile, input: LeanMode) => {
+      setLeanProfile(profile);
+      setMode(input);
+      bus.emit("calibrated", input === "camera" ? "camera" : "debug");
     },
-    [],
+    [bus],
   );
-  /** 超过建议时长后主动结束：返回工作态，不计入完成 */
-  const wingEarlyExit = useCallback(() => {
-    dispatch({ type: "RETURN_WORK" });
+  const squatCalibrated = useCallback(
+    (profile: SquatProfile, input: LeanMode) => {
+      setSquatProfile(profile);
+      setMode(input);
+      bus.emit("calibrated", input === "camera" ? "camera" : "debug");
+    },
+    [bus],
+  );
+  const runDemo = useCallback(() => {
+    setMode("demo");
+    cameraVision.stop();
+    bus.emit("calibrated");
+  }, [bus]);
+  const runComplete = useCallback(
+    (energy: number) =>
+      dispatch({
+        type: "FINISH_RUN",
+        source: mode === "camera" ? "camera" : "keyboard-demo",
+        energy,
+      }),
+    [mode],
+  );
+  const gameEvent = useCallback((kind: GameEventKind) => {
+    if (phaseRef.current === "squatJump") return; // G05 自带音效，避免重复。
+    if (kind === "stumble") audioEngine.sfx("hit");
+    else if (kind === "jump") audioEngine.sfx("jump");
+    else if (kind === "left" || kind === "right") audioEngine.sfx("reward");
+    else if (kind === "complete") audioEngine.sfx("complete");
   }, []);
-  // 统一动作总线 → 状态机（相位级动作）
   useEffect(
     () => bus.subscribe((input) => dispatch({ type: "MOTION", input })),
     [bus],
   );
-  // 抬头起跳瞬间的弹性音效（与摄像头 / 调试按钮同一总线，时机一致）
   useEffect(
     () =>
-      bus.subscribe((input) => {
-        if (phaseRef.current === "yukeeRun" && input.action === "up")
-          audioEngine.sfx("jump");
+      cameraVision.onAction((action) => {
+        if (phaseRef.current === "yukeeRun") bus.emit(action, "camera");
       }),
     [bus],
   );
-  /**
-   * BGM 生命周期（与相位严格绑定）：
-   * yukeeRun 进入 → 「游戏世界被唤醒」BGM 淡入；
-   * reward 进入 → 长奖励音优先，BGM 淡出；
-   * 中途退出 / 返回工作 → 快速淡出。
-   * 同时记录 GAME COMPLETE 庆祝窗口，暂停 Yukee 的 gaze / body 跟随。
-   */
+  // 主动进入校准后才请求权限；选择、演示与结算阶段立即释放轨道。
   useEffect(() => {
-    const prev = phaseRef.current;
-    phaseRef.current = state.phase;
-    if (state.phase === prev) return;
-    if (state.phase === "yukeeRun") audioEngine.playBgm();
-    else if (state.phase === "reward") {
-      // GAME COMPLETE 庆祝窗口：gaze/body 跟随锁定，双 Yukee 专心庆祝
-      celebrateUntilRef.current = performance.now() + 2600;
-      audioEngine.stopBgm(2.4);
-      // 双角色的完整位移由 reward 专属 keyframes 驱动；结尾只触发眨眼，
-      // 避免两次 imperative success 与 CSS 动画叠加后产生 transform 残留。
-      const blinkTimer = window.setTimeout(() => {
-        lampYukee.current?.event("blink");
-        monitorYukee.current?.event("blink");
-      }, 2050);
-      return () => window.clearTimeout(blinkTimer);
-    } else if (prev === "yukeeRun" || prev === "reward")
-      audioEngine.stopBgm(0.9);
-  }, [state.phase]);
-  // 摄像头识别到的方向动作 → 总线（游戏与状态机共享）
+    if (selection || state.phase === "reward" || (playing && mode === "demo"))
+      cameraVision.stop();
+    if (selection) setMode("camera");
+  }, [selection, state.phase, playing, mode]);
   useEffect(
-    () => cameraVision.onAction((dir) => bus.emit(dir, "camera")),
-    [bus],
+    () => () => {
+      cameraVision.stop();
+      audioEngine.stopBgm(0);
+      audioEngine.chargeStop();
+    },
+    [],
   );
-  /**
-   * 摄像头生命周期：进入体验后持续运行（Yukee 的视线与身体跟随
-   * 在正常工作阶段也依赖它），离开体验即释放轨道。
-   * 权限被拒绝时静默降级：Yukee 进入自主眼神微动，游戏校准仍会
-   * 在 CalibrationView 中单独处理错误提示。
-   */
   useEffect(() => {
-    if (!ready) return;
-    setVisionError(null);
-    cameraVision.start().catch((error: unknown) => {
-      if (error instanceof Error && error.name === "AbortError") return;
-      setVisionError(error instanceof Error ? error.message : "摄像头未连接");
-    });
-  }, [ready]);
-  const retryVision = useCallback(() => {
-    setVisionError(null);
-    cameraVision.start().catch((error: unknown) => {
-      if (error instanceof Error && error.name === "AbortError") return;
-      setVisionError(error instanceof Error ? error.message : "摄像头未连接");
-    });
-  }, []);
-  /**
-   * 阶段切换 → 首次进入 selection 时启用 onboarding 提示；
-   * 设置项里也有同样的 hint dismiss hook。
-   */
-  useEffect(() => {
-    if (!selectionActive) return;
-    if (selection.hasSeenFirstHint) {
-      setHintDismissed(true);
-      return;
+    if (playing && !paused) audioEngine.playBgm(0.5);
+    else {
+      audioEngine.stopBgm(0.15);
+      audioEngine.chargeStop();
     }
-    setHintDismissed(false);
-    const t = window.setTimeout(() => {
-      selection.markHintSeen();
-      setHintDismissed(true);
-    }, 4200);
-    return () => clearTimeout(t);
-  }, [selectionActive]); // eslint-disable-line react-hooks/exhaustive-deps
-  // MediaPipe → Yukee：头部姿态驱动 gaze，脸部中心驱动身体 X 跟随
-  useEffect(
-    () =>
-      cameraVision.onStatus((status) => {
-        setFaceGone(status.running && !status.facePresent);
-        if (!status.running || !status.facePresent) return;
-        // GAME COMPLETE 庆祝窗口：两个 Yukee 专心庆祝，暂停跟随
-        if (performance.now() < celebrateUntilRef.current) return;
-        gazeCenter.push(status.rawYaw, status.rawPitch);
-        const center = gazeCenter.current;
-        const gaze = gazeFromHead(
-          status.rawYaw,
-          status.rawPitch,
-          center.yaw,
-          center.pitch,
-        );
-        const body =
-          status.faceCenterX !== null
-            ? bodyFromFaceCenter(status.faceCenterX)
-            : 0;
-        lampYukee.current?.setGaze(gaze.x, gaze.y);
-        lampYukee.current?.setBody(body);
-        lampYukee.current?.setTurn(gaze.x * 18);
-        monitorYukee.current?.setGaze(gaze.x, gaze.y);
-        monitorYukee.current?.setBody(body);
-        monitorYukee.current?.setTurn(gaze.x * 18);
-      }),
-    [gazeCenter],
-  );
-  // 调试面板打开时允许鼠标驱动视线（仅调试，正式体验为摄像头）
-  useEffect(() => {
-    if (!panel) return;
-    const move = (e: PointerEvent) => {
-      const x = (e.clientX / innerWidth) * 2 - 1;
-      const y = (e.clientY / innerHeight) * 2 - 1;
-      lampYukee.current?.setGaze(x, y);
-      lampYukee.current?.setBody(x);
-      lampYukee.current?.setTurn(x * 18);
-      monitorYukee.current?.setGaze(x, y);
-      monitorYukee.current?.setBody(x);
-      monitorYukee.current?.setTurn(x * 18);
-    };
-    window.addEventListener("pointermove", move);
-    return () => window.removeEventListener("pointermove", move);
-  }, [panel]);
-  useEffect(() => {
-    if (
-      !state.pending ||
-      state.reminderDueAt === null ||
-      state.overlay !== "none"
-    )
-      return;
-    const generation = state.reminderGeneration;
-    const timer = window.setTimeout(
-      () =>
-        dispatch({
-          type: "DELAY_DONE",
-          now: Date.now(),
-          generation,
-        }),
-      Math.max(0, state.reminderDueAt - Date.now()),
-    );
-    return () => clearTimeout(timer);
-  }, [
-    state.pending,
-    state.reminderDueAt,
-    state.reminderGeneration,
-    state.overlay,
-  ]);
+    return () => audioEngine.stopBgm(0.1);
+  }, [playing, paused, state.activeGame]);
   useEffect(() => {
     const key = (e: KeyboardEvent) => {
       if (
-        e.key.toLowerCase() === "d" &&
-        !(e.target instanceof HTMLInputElement)
+        e.target instanceof HTMLInputElement ||
+        e.target instanceof HTMLTextAreaElement
       )
-        setPanel((v) => !v);
-      if (e.key === "Escape") {
-        if (panel) setPanel(false);
-        else if (selectionActive) dispatch({ type: "EXIT_LAMP_SELECTION" });
-        else if (
-          state.overlay !== "none" &&
-          (state.phase === "winglight" || state.phase === "wingCalibration" || state.phase === "leanSurf" || state.phase === "leanCalibration" || state.phase === "squatJump" || state.phase === "squatCalibration")
-        )
-          // G02：Esc 在暂停弹窗内再次按下 = 继续
-          dispatch({ type: "RESUME" });
-        else if (
-          state.phase === "winglight" ||
-          state.phase === "wingCalibration" || state.phase === "leanSurf" || state.phase === "leanCalibration" ||
-          state.phase === "squatJump" || state.phase === "squatCalibration"
-        )
-          // G02：游戏中 Esc = 暂停（继续/退出由弹窗决定）
-          dispatch({ type: "OPEN", overlay: "pause" });
-        else leave();
+        return;
+      if (e.key === "Escape" && playing) {
+        e.preventDefault();
+        dispatch(
+          paused ? { type: "RESUME" } : { type: "OPEN", overlay: "pause" },
+        );
       }
-      // 调试快捷键：←/→ 在 selection 阶段手动切换，对应开发与课堂紧急兜底
-      if (selectionActive) {
-        if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
-          if (e.key === "ArrowLeft") lampPrev();
-          else lampNext();
+      if (
+        state.phase === "yukeeRun" &&
+        mode === "demo" &&
+        !paused &&
+        !e.repeat
+      ) {
+        const actions: Record<string, MotionAction> = {
+          ArrowUp: "up",
+          ArrowDown: "down",
+          ArrowLeft: "left",
+          ArrowRight: "right",
+        };
+        if (actions[e.key]) {
           e.preventDefault();
+          bus.emit(actions[e.key]);
         }
-        if (e.key === "Enter") lampConfirm();
       }
     };
+    const hidden = () => {
+      if (document.hidden && playing)
+        dispatch({ type: "OPEN", overlay: "pause" });
+    };
     window.addEventListener("keydown", key);
-    return () => window.removeEventListener("keydown", key);
-  }, [
-    leave,
-    panel,
-    selectionActive,
-    lampPrev,
-    lampNext,
-    lampConfirm,
-    state.overlay,
-    state.phase,
-  ]);
+    document.addEventListener("visibilitychange", hidden);
+    return () => {
+      window.removeEventListener("keydown", key);
+      document.removeEventListener("visibilitychange", hidden);
+    };
+  }, [state.phase, playing, paused, mode, bus]);
   useGSAP(
     () => {
-      gsap
-        .timeline()
-        .from(".brand", { autoAlpha: 0, y: -12, duration: 0.8 })
-        .from(
-          ".hero-copy > *",
-          {
-            autoAlpha: 0,
-            y: 24,
-            stagger: 0.13,
-            duration: 0.9,
-            ease: "power3.out",
-          },
-          0.2,
-        )
-        .from(".scene-caption", { autoAlpha: 0, duration: 1 }, 0.8);
+      if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+      gsap.fromTo(
+        ".arcade-surface",
+        { opacity: 0, y: 12 },
+        { opacity: 1, y: 0, duration: 0.38, ease: "power2.out" },
+      );
     },
-    { scope: root },
+    {
+      scope: root,
+      dependencies: [state.phase, restartKey],
+      revertOnUpdate: true,
+    },
   );
-  // 游戏中丢脸 → Yukee confused；其余按相位映射（Visual Adapter）
-  const yukeeState =
-    faceGone && state.phase === "yukeeRun"
-      ? "confused"
-      : yukeeStateForPhase(state.phase);
-  const lampSelectionProps = useMemo(
-    () => ({
-      selectionIndex: state.selectionIndex,
-      selectionDevNoticeId: state.selectionDevNotice,
-      selectionHintDismissed: hintDismissed,
-      selectionMode,
-      selectionVisionReady,
-      selectionHandReady: handReady,
-      selectionConfirming,
-      selectionVisionError: visionError,
-      selectionOnRetryVision: retryVision,
-      selectionTotalCount: GAMES.length,
-      selectionOnNext: lampNext,
-      selectionOnPrev: lampPrev,
-      selectionOnConfirm: lampConfirm,
-      selectionOnCancel: lampCancel,
-    }),
-    [
-      state.selectionIndex,
-      state.selectionDevNotice,
-      hintDismissed,
-      selectionMode,
-      selectionVisionReady,
-      handReady,
-      selectionConfirming,
-      visionError,
-      retryVision,
-      lampNext,
-      lampPrev,
-      lampConfirm,
-      lampCancel,
-    ],
-  );
+  useEffect(() => {
+    const el = dialog.current;
+    if (paused && !el?.open) el?.showModal();
+    else if (!paused && el?.open) el.close();
+  }, [paused]);
+  const restart = () => {
+    setMode("camera");
+    setRestartKey((n) => n + 1);
+    dispatch({ type: "RESTART_GAME" });
+  };
+  const pause = () => dispatch({ type: "OPEN", overlay: "pause" });
+  const quit = () => dispatch({ type: "OPEN", overlay: "quit" });
+  const shared = {
+    paused,
+    onPause: pause,
+    onQuit: quit,
+    onFinish: finish,
+    onEarlyExit: toSelection,
+  };
+
+  if (vision)
+    return (
+      <main className="arcade-app">
+        <button
+          className="quiet"
+          onClick={() => {
+            cameraVision.stop();
+            setVision(false);
+            location.hash = "";
+          }}
+        >
+          返回游戏选择
+        </button>
+        <Suspense fallback={<p>加载摄像头预检…</p>}>
+          <VisionSpike />
+        </Suspense>
+      </main>
+    );
+
   return (
     <main
       ref={root}
-      className={`product-experience ${entered ? "entered" : ""} ${ready ? "arrived" : ""}`}
+      className={`arcade-app ${selection ? "is-selection" : "is-session"}`}
+      data-phase={state.phase}
+      data-mode={mode}
     >
-      <div className="scene">
-        <DeskScene
-          entered={entered}
-          phase={state.phase}
-          onArrive={arrive}
-          lampPortal={lamp}
-          monitorPortal={monitor}
-          direction={direction}
-          brightness={brightness}
-          pulse={pulse}
-        />
-      </div>
-      <header className="site-header">
-        <a
-          className="brand"
-          href="#"
-          onClick={(e) => {
-            e.preventDefault();
-            leave();
-          }}
+      <header className="arcade-header">
+        <button
+          className="arcade-brand"
+          onClick={playing ? quit : toSelection}
+          aria-label="YUKEE 游戏选择"
         >
-          <span className="brand-symbol">
+          <span className="brand-eyes" aria-hidden>
             <i />
             <i />
-          </span>
-          yukee<span className="brand-caption">屏幕挂灯机器人</span>
-        </a>
-        <div className="header-right">
-          <span>LIGHT. MOVE. FEEL BETTER.</span>
-          {entered ? (
-            <button className="overview-button" onClick={leave}>
-              <ArrowLeft size={15} />
-              返回桌面
+          </span>{" "}
+          YUKEE <small>PLAY A LITTLE. FEEL BETTER.</small>
+        </button>
+        <div className="arcade-tools">
+          {!selection && (
+            <span className="session-title">{game?.title ?? "活动完成"}</span>
+          )}
+          <button
+            className="icon-button"
+            aria-label={volume === 0 ? "开启声音" : "静音"}
+            onClick={() => {
+              audioEngine.unlock();
+              const v = volume === 0 ? 0.5 : 0;
+              setVolume(v);
+              audioEngine.setMasterVolume(v);
+            }}
+          >
+            {volume === 0 ? <VolumeX size={19} /> : <Volume2 size={19} />}
+          </button>
+          {!selection && (
+            <button
+              className="icon-button"
+              aria-label="返回游戏选择"
+              onClick={playing ? quit : toSelection}
+            >
+              <ArrowLeft size={19} />
             </button>
-          ) : (
-            <span className="edition">INTERACTIVE EXPERIENCE / 01</span>
+          )}
+          {playing && (
+            <button
+              className="icon-button"
+              aria-label="暂停游戏"
+              onClick={pause}
+            >
+              <Pause size={19} />
+            </button>
           )}
         </div>
       </header>
-      {!entered && (
-        <section className="hero-copy">
-          <span className="eyebrow">YOUR LITTLE DESK COMPANION</span>
-          <h1>
-            认真陪你，
-            <br />
-            <em>也提醒你休息。</em>
-          </h1>
-          <p>
-            一盏灯，一个叫 Yukee 的小伙伴。
-            <br />
-            在每一次专注之间，给你一点温柔的关心。
-          </p>
-          <button className="hero-start" onClick={enter}>
-            开始体验 <ArrowUpRight size={18} />
-          </button>
-          <div className="hero-footnote">
-            <span className="status-dot" />
-            光，刚刚好。陪伴，也是。
-          </div>
-        </section>
-      )}
-      {!entered && (
-        <div className="scene-caption">
-          <span>01 — YUKEE ON YOUR DESK</span>
-          <b>你的桌面，多了一点关心。</b>
-        </div>
-      )}
-      {entered && !ready && (
-        <div className="approaching">
-          坐下来，和 Yukee 打个招呼。
-          <span />
-        </div>
-      )}
-      <div
-        ref={lamp}
-        className={`projected lamp-portal ${ready ? "visible" : ""}`}
-      >
-        {ready && (
-          <LampDisplay
-            state={state}
-            dispatch={dispatch}
-            yukeeState={yukeeState}
-            yukeeRef={lampYukee}
-            linked={
-              castActive ||
-              state.phase === "yukeeRun" || state.phase === "leanSurf" || state.phase === "squatJump" ||
-              state.phase === "reward"
+      {selection ? (
+        <SelectionScreen
+          selectionIndex={state.selectionIndex}
+          onMove={(direction) =>
+            dispatch({
+              type: direction === 1 ? "LAMP_NEXT" : "LAMP_PREV",
+              totalCount: GAMES.length,
+            })
+          }
+          onStart={() => {
+            audioEngine.unlock();
+            setMode("camera");
+            const card = GAMES[state.selectionIndex];
+            dispatch({
+              type: "LAMP_CONFIRM",
+              gameId: card.id,
+              available: card.available,
+            });
+          }}
+        />
+      ) : (
+        <div
+          className={`game-viewport arcade-surface phase-${state.phase}`}
+          key={restartKey}
+        >
+          <Suspense
+            fallback={
+              <div className="arcade-loading" role="status">
+                正在准备活动…
+              </div>
             }
-            splitting={castActive}
-            eventPulse={pulse}
-            selectionProps={lampSelectionProps}
-          />
-        )}
-      </div>
-      <div
-        ref={monitor}
-        className={`projected monitor-portal ${ready ? "visible" : ""}`}
-      >
-        {ready && (
-          <MonitorDisplay
-            key={state.phase}
-            state={state}
-            dispatch={dispatch}
-            onMotion={motion}
-            bus={bus}
-            onGameEvent={gameEvent}
-            onDirection={setDirection}
-            yukeeState={yukeeState}
-            yukeeRef={monitorYukee}
-            onBegin={() => dispatch({ type: "BEGIN" })}
-            onCalibrationComplete={beginYukeeCast}
-            onReturnWork={returnToWork}
-            leanProfile={leanProfile}
-            leanMode={leanMode}
-            onLeanCalibrated={leanCalibrated}
-            squatProfile={squatProfile}
-            squatMode={squatMode}
-            onSquatCalibrated={squatCalibrated}
-            wingProfile={wingProfile}
-            wingMode={wingMode}
-            onWingCalibrated={wingCalibrated}
-            onWingFinish={wingFinish}
-            onWingEarlyExit={wingEarlyExit}
-          />
-        )}
-      </div>
-      <YukeeCast
-        active={castActive}
-        lampPortal={lamp}
-        monitorPortal={monitor}
-        onArrive={castArrived}
-        onComplete={castComplete}
-      />
-      <div className="bottom-bar">
-        <span>
-          {ready
-            ? "头部体感控制，和 Yukee 一起活动。"
-            : "专注时安静相伴 · 休息时一起活动"}
-        </span>
-        <div>
-          {ready && (
-            <label className="brightness-control">
-              <Sun size={15} />
-              <input
-                aria-label="灯光亮度"
-                type="range"
-                min=".2"
-                max="1.4"
-                step=".05"
-                value={brightness}
-                onChange={(e) => setBrightness(Number(e.target.value))}
+          >
+            {state.phase === "calibration" && (
+              <Calibration onCalibrated={calibrated} onDemo={runDemo} />
+            )}
+            {state.phase === "wingCalibration" && (
+              <WingCalibration paused={paused} onCalibrated={wingCalibrated} />
+            )}
+            {state.phase === "leanCalibration" && (
+              <LeanCalibration paused={paused} onCalibrated={leanCalibrated} />
+            )}
+            {state.phase === "squatCalibration" && (
+              <SquatCalibration
+                paused={paused}
+                onCalibrated={squatCalibrated}
               />
-            </label>
-          )}
-          <button
-            className="settings-button"
-            aria-label="打开演示面板"
-            title="演示面板 · D"
-            onClick={() => setPanel((v) => !v)}
-          >
-            <SlidersHorizontal size={17} />
-          </button>
-        </div>
-      </div>
-      {panel && (
-        <aside className="demo-drawer">
-          <div>
-            <h2>演示控制</h2>
-            <button aria-label="关闭演示面板" onClick={() => setPanel(false)}>
-              <X size={18} />
-            </button>
-          </div>
-          <p>仅演示者可见 · 按 D 收起 · 面板打开时鼠标可临时驱动 Yukee 视线</p>
-          <button
-            disabled={state.phase !== "focus" || !!state.pending}
-            onClick={() => dispatch({ type: "SIMULATE_45" })}
-          >
-            模拟久坐 45 分钟
-          </button>
-          <button onClick={leave}>重置演示</button>
-          <hr />
-          {/* Hand 模式暂未稳定：课堂版本隐藏切换器，正式唯一输入为 HEAD。
-              preference / handSwipe 管线保留为 experimental，不在 UI 暴露。 */}
-          <p>游戏选择：左右转头切换 · 点头确认</p>
-          <hr />
-          <p>主音量（BGM 与音效共用 · 刷新后保持）</p>
-          <label className="brightness-control drawer-volume">
-            <Volume2 size={14} />
-            <input
-              aria-label="主音量"
-              type="range"
-              min="0"
-              max="1"
-              step="0.05"
-              value={masterVolume}
-              onChange={(e) => {
-                const v = Number(e.target.value);
-                setMasterVolume(v);
-                audioEngine.setMasterVolume(v);
-              }}
-            />
-          </label>
-          <hr />
-          <p>调试输入 · 非正式体验（正式游戏仅摄像头体感）</p>
-          <div className="debug-actions">
-            {Object.entries(labels).map(([action, label]) => (
-              <button
-                key={action}
-                disabled={
-                  state.overlay !== "none" ||
-                  !sequences[state.phase]?.includes(action as MotionAction) ||
-                  state.phase === "leanCalibration" ||
-                  state.phase === "squatCalibration"
-                }
-                onClick={() =>
-                  action === "calibrated" && state.phase !== "wingCalibration" && state.phase !== "leanCalibration" && state.phase !== "squatCalibration"
-                    ? beginYukeeCast()
-                    : motion(action as MotionAction)
-                }
-              >
-                {label}
-              </button>
-            ))}
-            {debugDirections.map(({ action, label }) => (
-              <button
-                key={action}
-                disabled={
-                  state.phase !== "yukeeRun" || state.overlay !== "none"
-                }
-                onClick={() => motion(action)}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-          <VisionStats phase={state.phase} />
-          <hr />
-          <button
-            onClick={() => {
-              setSpike(true);
-              setPanel(false);
-            }}
-          >
-            摄像头技术预检
-          </button>
-        </aside>
-      )}
-      {spike && (
-        <div className="spike-modal">
-          <button
-            className="spike-close"
-            onClick={() => {
-              setSpike(false);
-              location.hash = "";
-            }}
-          >
-            <X size={20} />
-            返回体验
-          </button>
-          <Suspense fallback={<p>加载摄像头模块…</p>}>
-            <VisionSpike />
+            )}
+            {state.phase === "yukeeRun" && (
+              <>
+                <Run
+                  paused={paused}
+                  visionActive={mode === "camera"}
+                  bus={bus}
+                  onGameEvent={gameEvent}
+                  onComplete={runComplete}
+                  onDirection={() => {}}
+                />
+                <span className="run-source">
+                  {mode === "demo"
+                    ? "键盘演示 · ↑ 跳 / ↓ 躲 / ← → 收能量 · 非真人识别"
+                    : "本机摄像头识别 · 画面不保存、不上传"}
+                </span>
+              </>
+            )}
+            {state.phase === "winglight" && (
+              <Wing {...shared} profile={wingProfile} mode={mode} />
+            )}
+            {state.phase === "leanSurf" && leanProfile && (
+              <Lean
+                {...shared}
+                profile={leanProfile}
+                mode={mode}
+                onGameEvent={gameEvent}
+              />
+            )}
+            {state.phase === "squatJump" && squatProfile && (
+              <Squat
+                {...shared}
+                profile={squatProfile}
+                mode={mode}
+                onGameEvent={gameEvent}
+              />
+            )}
+            {state.phase === "reward" && (
+              <section className="arcade-reward">
+                <YukeeFace
+                  state="celebrate"
+                  sizeVariant="completion"
+                  motionMode="celebrate"
+                />
+                <span className="arcade-kicker">A LITTLE BETTER, TOGETHER</span>
+                <h1>这一小段，完成了。</h1>
+                <p>
+                  {mode === "demo"
+                    ? "键盘演示完成 · 非真人体感记录"
+                    : "和 Yukee 一起，让身体换了个姿势。"}
+                </p>
+                <div className="button-row">
+                  <button className="primary" onClick={restart}>
+                    <RotateCcw size={16} /> 再玩一次
+                  </button>
+                  <button className="quiet" onClick={toSelection}>
+                    返回游戏选择
+                  </button>
+                </div>
+              </section>
+            )}
           </Suspense>
         </div>
       )}
+      <dialog
+        ref={dialog}
+        className="arcade-dialog"
+        data-testid="session-dialog"
+        onCancel={(e) => {
+          e.preventDefault();
+          dispatch({ type: "RESUME" });
+        }}
+      >
+        <button
+          className="icon-button dialog-dismiss"
+          aria-label="关闭弹窗"
+          onClick={() => dispatch({ type: "RESUME" })}
+        >
+          <X size={18} />
+        </button>
+        <span className="arcade-kicker">YUKEE / TAKE YOUR TIME</span>
+        <h2>
+          {state.overlay === "quit" ? "先休息一下？" : "按自己的节奏来。"}
+        </h2>
+        <p>
+          {state.overlay === "quit"
+            ? "退出会结束本局，下一次从校准开始。"
+            : "游戏已暂停，准备好了就继续。"}
+        </p>
+        <button
+          className="primary"
+          onClick={() => dispatch({ type: "RESUME" })}
+        >
+          <Play size={16} /> 继续游戏
+        </button>
+        <button className="quiet" onClick={restart}>
+          <RotateCcw size={16} /> 重新校准并重开
+        </button>
+        <button className="quiet" onClick={toSelection}>
+          退出并返回选择
+        </button>
+      </dialog>
     </main>
   );
 }

@@ -340,7 +340,7 @@ export default function Winglight({
               onClick={finish}
               data-testid="wing-back"
             >
-              回到专注
+              返回游戏选择
             </button>
           </div>
         )}

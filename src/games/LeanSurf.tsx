@@ -299,7 +299,7 @@ export default function LeanSurf({
               })
             }
           >
-            回到专注
+            返回游戏选择
           </button>
         </div>
       )}

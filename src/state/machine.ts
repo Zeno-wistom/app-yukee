@@ -1,4 +1,5 @@
 import type { MotionAction, MotionInput } from "../vision/types";
+import { TOTAL_SECONDS } from "../games/level";
 import {
   DEMO_DELAY_MS,
   REMINDER_CYCLE_MS,
@@ -97,6 +98,8 @@ export const initialState: State = {
   selectionIndex: 0,
   selectionDevNotice: null,
 };
+/** 浏览器直达游戏系统；旧产品提醒状态保留，便于回滚和独立回归。 */
+export const arcadeInitialState: State = { ...initialState, phase: "lampSelection" };
 /** 各相位接受的 reducer 级动作（游戏内方向动作由 YukeeRun 直接从总线消费） */
 export const sequences: Partial<Record<Phase, MotionAction[]>> = {
   calibration: ["calibrated"],
@@ -122,6 +125,7 @@ export type LampEvent =
   | { type: "LAMP_CONFIRM"; gameId: string; available: boolean };
 
 export type Event =
+  | { type: "FINISH_RUN"; source: "camera" | "keyboard-demo"; energy: number }
   | { type: "FINISH_GAME"; result: Omit<GameResult, "game"> }
   | {
       type:
@@ -144,6 +148,7 @@ export type Event =
   | { type: "CONTINUE_WORK" | "LATER"; now?: number }
   | { type: "DELAY_DONE"; now?: number; generation?: number }
   | LampEvent
+  | { type: "BACK_TO_SELECTION" | "RESTART_GAME" }
   | { type: "OPEN"; overlay: Overlay }
   | { type: "MOTION"; input: MotionInput };
 export const isGame = (phase: Phase) =>
@@ -154,6 +159,20 @@ function wrapIndex(i: number, total: number) {
 }
 export function reducer(s: State, e: Event): State {
   switch (e.type) {
+    case "FINISH_RUN":
+      if (s.phase !== "yukeeRun" || s.overlay !== "none") return s;
+      return { ...s, phase: "reward", completed: s.completed + (e.source === "camera" ? 1 : 0),
+        lastGame: { game: "yukeeRun", effectiveMs: TOTAL_SECONDS * 1000, reps: e.energy, source: e.source }, saved: null };
+    case "BACK_TO_SELECTION":
+      return { ...s, phase: "lampSelection", overlay: "none", activeGame: null,
+        step: 0, saved: null, pending: null, reminderDueAt: null,
+        reminderGeneration: s.reminderGeneration + 1, selectionDevNotice: null };
+    case "RESTART_GAME":
+      if (!s.activeGame) return s;
+      return { ...s, phase: s.activeGame === "squatJump" ? "squatCalibration"
+        : s.activeGame === "leanSurf" ? "leanCalibration"
+        : s.activeGame === "winglight" ? "wingCalibration" : "calibration",
+        overlay: "none", step: 0 };
     case "RESET":
       return { ...initialState };
     case "ENTER":
@@ -401,14 +420,14 @@ export function reducer(s: State, e: Event): State {
           snoozeUntil: null,
         };
       }
-      if (s.phase === "leanSurf" && (e.result.reps !== 6 || s.overlay !== "none" || !Number.isFinite(e.result.effectiveMs) || e.result.effectiveMs < 0)) return s;
+      if (e.result.reps !== (s.phase === "leanSurf" ? 6 : 5) || s.overlay !== "none" || !Number.isFinite(e.result.effectiveMs) || e.result.effectiveMs < 0) return s;
       return {
         ...s,
         phase: "focus",
         activeGame: null,
         overlay: "none",
         step: 0,
-        completed: s.completed + 1,
+        completed: s.completed + (e.result.source === "camera" ? 1 : 0),
         lastGame: { game: s.phase === "leanSurf" ? "leanSurf" : "winglight", ...e.result },
         saved: null,
         pending: null,

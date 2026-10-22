@@ -60,9 +60,12 @@ function useSmoothProgress() {
 
 export default function CalibrationView({
   onCalibrated,
+  onDemo,
 }: {
   onCalibrated: () => void;
+  onDemo?: () => void;
 }) {
+  const [attempt, setAttempt] = useState(0);
   const [stage, setStage] = useState<
     "starting" | "waiting-face" | "holding" | "done" | "error"
   >("starting");
@@ -73,6 +76,8 @@ export default function CalibrationView({
   useEffect(() => {
     let unsubscribe: (() => void) | undefined;
     let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    done.current = false;
     (async () => {
       try {
         await cameraVision.start();
@@ -84,7 +89,7 @@ export default function CalibrationView({
           displayedRef.current = 1;
           setStage("done");
           // bloom pulse 结束后自动进入分裂动画
-          setTimeout(onCalibrated, 620);
+          timer = setTimeout(() => { if (!cancelled) onCalibrated(); }, 620);
         });
         unsubscribe = cameraVision.onStatus((status) => {
           if (done.current) return;
@@ -105,10 +110,11 @@ export default function CalibrationView({
     })();
     return () => {
       cancelled = true;
+      clearTimeout(timer);
       unsubscribe?.();
       if (!done.current) cameraVision.cancelCalibration();
     };
-  }, [onCalibrated, targetRef, displayedRef]);
+  }, [onCalibrated, targetRef, displayedRef, attempt]);
 
   return (
     <div className="calibration-view" data-testid="calibration-view">
@@ -139,7 +145,8 @@ export default function CalibrationView({
               setStage("starting");
               setError("");
               cameraVision.stop();
-              location.reload();
+              targetRef.current = 0; displayedRef.current = 0;
+              setAttempt((n) => n + 1);
             }}
           >
             <RefreshCcw size={14} /> 重试
@@ -165,6 +172,7 @@ export default function CalibrationView({
           </small>
         </>
       )}
+      {onDemo && <button className="quiet" onClick={onDemo}>键盘演示 · 非人体识别</button>}
     </div>
   );
 }

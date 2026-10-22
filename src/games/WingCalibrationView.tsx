@@ -469,13 +469,13 @@ export default function WingCalibrationView({
           {countdown}
         </div>
       )}
-      {import.meta.env.DEV && stage !== "ready" && stage !== "error" && (
+      {stage !== "ready" && (
         <button
           className="wing-demo-link"
           onClick={startDemo}
           title="仅用于开发调试：用键盘模拟展开，不计为摄像头识别"
         >
-          <Hand size={11} /> 开发者演示 · 键盘控制
+          <Hand size={11} /> 键盘演示 · 非人体识别
         </button>
       )}
     </div>

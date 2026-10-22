@@ -107,7 +107,7 @@ export function useWingSession(options: {
   }, [mode]);
 
   useEffect(() => {
-    if (paused) sessionRef.current?.pause();
+    if (paused) { sessionRef.current?.pause(); demoHoldRef.current = false; }
   }, [paused]);
 
   useEffect(() => {
