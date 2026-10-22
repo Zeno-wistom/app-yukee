@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { cameraVision } from "../../vision/CameraVision";
-import { measureSquatDiag, SquatSession, squatDebugLog, SQUAT_CONFIG, type SquatMissReason, type SquatProfile, type SquatUpdate } from "../../vision/squatPose";
+import { measureSquatDiag, SquatSession, squatDebugLog, squatThresholds, SQUAT_CONFIG, type SquatMissReason, type SquatProfile, type SquatUpdate } from "../../vision/squatPose";
 import { audioEngine } from "../../audio/engine";
 import { f2, f3, SquatDebugPanel, useSquatDebugToggle, type DebugRow } from "./SquatDebug";
 import type { PoseFrame } from "../../vision/wingPose";
@@ -241,7 +241,7 @@ export default function SquatJump({
     const tick = (now: number) => {
       const dtMs = now - last;
       last = now;
-      const dt = Math.min(1 / 30, dtMs / 1000);
+      const dt = Math.max(0, Math.min(0.1, dtMs / 1000));
       if (resizeDirty) {
         resizeDirty = false;
         resize();
@@ -262,7 +262,7 @@ export default function SquatJump({
         miss = m.reason;
         visL = m.visL;
         visR = m.visR;
-        lastSq = session.update(dtMs, m.sample);
+        lastSq = session.update(dtMs, m.sample, p?.at);
         pressing = lastSq.charging;
         release = lastSq.release;
         cancel = lastSq.cancel;
@@ -291,6 +291,7 @@ export default function SquatJump({
         }
       }
       if (isPaused) {
+        space.current = { down: false, released: false };
         if (state === "charging") {
           state = "ready";
           charge = 0;
@@ -392,6 +393,7 @@ export default function SquatJump({
 
   const target = JUMP_CONFIG.targetJumps;
   const pct = Math.round((hud.charge / JUMP_CONFIG.maxChargeSec) * 100);
+  const thresholds = squatThresholds(profile);
   const instruction =
     hud.state === "over"
       ? hud.cleared
@@ -406,7 +408,7 @@ export default function SquatJump({
           : hud.tracking === "lost"
             ? "看不到双肩，站回标记处"
             : hud.state === "charging"
-              ? hud.u < SQUAT_CONFIG.downU
+              ? hud.u < thresholds.downU
                 ? "站直，就会起跳"
                 : "保持浅蹲蓄力，站直起跳"
               : hud.failed && hud.u > 0.4
@@ -479,9 +481,9 @@ export default function SquatJump({
             value: hud.u,
             max: 1.4,
             marks: [
-              { at: SQUAT_CONFIG.releaseU, label: "站" },
-              { at: SQUAT_CONFIG.holdU, label: "保" },
-              { at: SQUAT_CONFIG.downU, label: "蹲" },
+              { at: thresholds.releaseU, label: "站" },
+              { at: thresholds.holdU, label: "保" },
+              { at: thresholds.downU, label: "蹲" },
               { at: 1, label: "A" },
             ],
           }}
@@ -500,6 +502,8 @@ export default function SquatJump({
               ["需要蓄力", `${hud.needCharge.toFixed(2)} s`],
               ["上次释放", hud.dbg.releasedBy || "–"],
               ["幅度 A", `${f3(profile.amp)} W0 · W0 ${Math.round(profile.w0)}px`],
+              ["实际入蹲门槛", `${(thresholds.downQ * profile.w0).toFixed(1)} px · ${f3(thresholds.downU)} A`],
+              ["站回门槛", `${(thresholds.releaseU * profile.amp * profile.w0).toFixed(1)} px`],
             ] as DebugRow[]
           }
         />
@@ -528,7 +532,7 @@ export default function SquatJump({
                   })
                 }
               >
-                回到专注
+                返回游戏选择
               </button>
             ) : (
               <button onClick={onEarlyExit}>结束活动</button>

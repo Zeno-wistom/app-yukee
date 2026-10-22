@@ -10,13 +10,11 @@ import type { PoseFrame } from "./wingPose";
  * 弯腰也可能让双肩下降，正面单摄像头无法严格区分。
  * 不使用相对髋部的世界坐标（会抵消整体下降）。所有阈值均为展前起测值，需真人校正。
  *
- * v2（真人试玩反馈后的修正）：
- * - 校准第二步不再要求「0.5 秒内抖动 < 0.04 W0」的严格停住：
- *   蹲到位停约 0.35 秒，或「蹲下 → 站起」一个完整来回（在蹲位 ≥ 0.25 秒）都可通过，幅度取蹲位的高分位。
- * - 推理掉帧 < 0.6 秒不清空校准缓冲；可见度门槛 0.65 → 0.5（MediaPipe 肩点正常可见时通常 > 0.9）。
- * - 最小有效下降按像素 / 抖动 / 肩宽取较大值，但封顶 0.14 W0，避免嘈杂摄像头要求蹲得过深。
- * - 游戏：进入阈值 0.65A → 0.5A；站立基线缓慢自适应（人前后挪动、站姿变化后仍能释放）；
- *   回升停在中间区不再卡死（从峰值回落足够多且已稳定即释放）；检查项失败需持续 0.3 秒才取消蓄力。
+ * v3：校准按肩宽、静止噪声与最小像素共同定下限；噪声太大先站稳。
+ * 游戏阈值由本人幅度派生，舒适工作幅度封顶 0.14W0，误做深蹲不会抬高门槛。
+ * 站稳上膛 → 新姿态帧确认下降 → 保持蓄力 → 站回稳定释放；不再在半途回升时自动释放。
+ * 画面掉失、异常横移/前探、暂停会冻结或取消当前动作，恢复必须先站直。
+ * 所有阈值仍需真人舒适度验证，单目肩部信号不能严格区分浅蹲与弯腰。
  */
 
 export interface SquatSample {
@@ -55,10 +53,10 @@ export const SQUAT_CONFIG = {
   /** 推理掉帧容忍：短于此不清空校准缓冲 */
   calGapMs: 600,
   /** 校准浅蹲最小有效下降：max(minDropPx, jitterFactor×抖动, minAmpW·W0)，封顶 maxMinAmpW·W0 */
-  minDropPx: 8,
-  jitterFactor: 4,
-  minAmpW: 0.06,
-  maxMinAmpW: 0.14,
+  minDropPx: 3,
+  jitterFactor: 3,
+  minAmpW: 0.035,
+  maxMinAmpW: 0.10,
   /** 蹲到位「停住」：0.35 秒内变化不超过 max(0.05 W0, 30% 当前下降) */
   bottomHoldMs: 350,
   bottomHoldW: 0.05,
@@ -70,24 +68,18 @@ export const SQUAT_CONFIG = {
   /** 校准第三步：u ≤ 该值稳定 300ms 视为站回 */
   calReadyU: 0.35,
   calReadyMs: 300,
-  /** 站回超时：2.5 秒后若已稳定 0.6 秒且 u < 0.7，以当前站姿为新基线 */
-  calRebaseAfterMs: 2500,
   /** 游戏判定（u 为本人幅度的比例） */
   readyU: 0.3,
-  downU: 0.5,
+  downU: 0.45,
   /** 已在蹲位时，u 回升到这里以下停止增加蓄力 */
   holdU: 0.35,
   releaseU: 0.3,
-  downStableMs: 100,
-  releaseStableMs: 120,
-  /** 回升卡在中间区：已从峰值回落 ≥ 该比例且 250ms 内基本不再变化 → 释放 */
-  releaseDropU: 0.45,
-  releaseMidMaxU: 0.55,
-  releaseSettleMs: 250,
+  downStableMs: 140,
+  releaseStableMs: 160,
   /** 落地后站立区累计多久才允许下一次蓄力 */
   rearmMs: 150,
   /** 站立基线自适应时间常数（只在站立区、静止时更新） */
-  baselineTauMs: 2500,
+  baselineTauMs: 900,
   baselineMaxU: 0.6,
   /** 检查项（游戏） */
   syncFrac: 0.45,
@@ -123,6 +115,9 @@ export function measureSquatDiag(
   const l = frame.landmarks[11],
     r = frame.landmarks[12];
   if (!l || !r) return { sample: null, reason: "noLandmarks", visL: 0, visR: 0 };
+  if (![W, H, l.x, l.y, r.x, r.y, l.visibility, r.visibility].every((v) => typeof v === "number" && Number.isFinite(v)) ||
+    [l, r].some((p) => p.x < 0 || p.x > 1 || p.y < 0 || p.y > 1))
+    return { sample: null, reason: "noLandmarks", visL: 0, visR: 0 };
   const visL = l.visibility ?? 0,
     visR = r.visibility ?? 0;
   if (visL < minVisibility || visR < minVisibility) return { sample: null, reason: "lowVisibility", visL, visR };
@@ -133,6 +128,17 @@ export function measureSquatDiag(
 
 export function measureSquat(frame: PoseFrame | null, minVisibility: number = SQUAT_CONFIG.minVisibility): SquatSample | null {
   return measureSquatDiag(frame, minVisibility).sample;
+}
+
+/** 噪声门槛 + 舒适幅度上限：误做深蹲不会抬高下一局的动作门槛。 */
+export function squatThresholds(p: SquatProfile) {
+  const noiseQ = Math.max(SQUAT_CONFIG.minDropPx, p.jitterPx * SQUAT_CONFIG.jitterFactor) / p.w0;
+  const comfortableAmp = Math.min(p.amp, 0.14);
+  const downQ = Math.max(comfortableAmp * SQUAT_CONFIG.downU, noiseQ);
+  const holdQ = downQ * 0.62;
+  const releaseQ = Math.min(holdQ * 0.8, Math.max(noiseQ * 0.45, comfortableAmp * 0.18));
+  return { downU: downQ / p.amp, holdU: holdQ / p.amp, releaseU: releaseQ / p.amp,
+    readyU: releaseQ / p.amp, noiseQ, downQ, comfortableAmp };
 }
 
 const tiltOf = (s: SquatSample) => Math.atan2(s.ry - s.ly, Math.abs(s.lx - s.rx));
@@ -213,8 +219,6 @@ export class SquatCalibrator {
   private failSince = -1;
   private amp = 0;
   private riseSince = -1;
-  private riseStart = -1;
-  private riseHist: { t: number; q: number }[] = [];
 
   get minQ() {
     const c = SQUAT_CONFIG,
@@ -261,7 +265,10 @@ export class SquatCalibrator {
     this.diag.q = q;
     this.diag.minQ = minQ;
     if (this.stage === "squat") return this.updateSquat(q, sig, t, minQ);
-    if (this.stage === "rise") return this.updateRise(q, t);
+    if (this.stage === "rise") {
+      if (!sig.ok) { this.riseSince = -1; this.hint = "checks"; return; }
+      return this.updateRise(q, t);
+    }
   }
 
   private updateStand(s: SquatSample, t: number) {
@@ -285,6 +292,10 @@ export class SquatCalibrator {
       const avg = (k: keyof SquatSample) => this.buf.reduce((a, b) => a + b.s[k], 0) / this.buf.length;
       const mean = my.reduce((a, b) => a + b, 0) / my.length;
       const sd = Math.sqrt(my.reduce((a, b) => a + (b - mean) ** 2, 0) / my.length);
+      if (c.jitterFactor * sd / w > c.maxMinAmpW) {
+        this.buf = this.buf.slice(Math.floor(this.buf.length * 0.7));
+        this.hint = "still"; return;
+      }
       this.base = {
         ly0: avg("ly"),
         ry0: avg("ry"),
@@ -355,9 +366,7 @@ export class SquatCalibrator {
         this.diag.stage = "rise";
         this.diag.passedBy = "held";
         this.progress = 0.75;
-        this.riseStart = t;
         this.riseSince = -1;
-        this.riseHist = [];
       }
     }
   }
@@ -368,9 +377,7 @@ export class SquatCalibrator {
     this.stage = "rise";
     this.diag.stage = "rise";
     this.progress = 0.75;
-    this.riseStart = t;
     this.riseSince = -1;
-    this.riseHist = [];
   }
 
   private updateRise(q: number, t: number) {
@@ -381,13 +388,7 @@ export class SquatCalibrator {
       if (this.riseSince < 0) this.riseSince = t;
       if (t - this.riseSince >= c.calReadyMs) return this.finish(0);
     } else this.riseSince = -1;
-    // 站回超时：身体前后挪动导致回不到原基线时，以当前稳定站姿为新基线
-    this.riseHist.push({ t, q });
-    while (this.riseHist.length > 2 && t - this.riseHist[0].t > 600) this.riseHist.shift();
-    if (t - this.riseStart > c.calRebaseAfterMs && u < 0.7 && this.riseHist.length >= 4 && t - this.riseHist[0].t >= 550) {
-      const qs = this.riseHist.map((x) => x.q);
-      if (Math.max(...qs) - Math.min(...qs) <= Math.max(0.03, 0.15 * this.amp)) this.finish(quantile(qs, 0.5));
-    }
+    // 不把尚未站回的中间姿态自动认成新的站姿；站位改变时由用户重新校准。
   }
 
   private finish(rebaseQ: number) {
@@ -445,6 +446,7 @@ export interface SquatUpdate {
  * 抖动跨过单一阈值不会反复触发：进入与释放都带迟滞和稳定时长。
  */
 export class SquatSession {
+  private lastSampleAt = -1;
   private q: number | null = null;
   private phase: SquatPhase = "ready";
   private downMs = 0;
@@ -454,7 +456,6 @@ export class SquatSession {
   private paused = false;
   private failMs = 0;
   private peakU = 0;
-  private settle: { ms: number; u: number }[] = [];
   /** 站立基线修正（q 单位） */
   private zero = 0;
   /** 站立区稳定后才允许下一次进入蹲位（防止落地后立刻二次触发） */
@@ -468,11 +469,13 @@ export class SquatSession {
     this.readyMs = 0;
     this.failMs = 0;
     this.peakU = 0;
-    this.settle = [];
+    this.q = null;
+    this.lastSampleAt = -1;
   }
-  update(dtMs: number, s: SquatSample | null): SquatUpdate {
+  update(dtMs: number, s: SquatSample | null, sampleAt?: number): SquatUpdate {
     const c = SQUAT_CONFIG;
-    const dt = Math.max(0, Math.min(100, dtMs));
+    let dt = Math.max(0, Math.min(100, dtMs));
+    const thresholds = squatThresholds(this.profile);
     const amp = this.profile.amp;
     const out: SquatUpdate = {
       u: 0,
@@ -504,6 +507,19 @@ export class SquatSession {
       out.phase = this.phase;
       return out;
     }
+    // 重复的同一推理帧可维持画面，不能重复累计稳定证据。
+    if (sampleAt !== undefined) {
+      if (sampleAt <= this.lastSampleAt) {
+        out.u = this.q === null ? 0 : Math.max(0, (this.q - this.zero) / amp);
+        out.ok = this.failMs === 0 && !this.paused;
+        out.charging = this.phase === "down" && out.ok;
+        out.armed = this.phase === "ready" && this.readyMs >= c.rearmMs;
+        out.tracking = this.paused ? "unstable" : "ok";
+        return out;
+      }
+      dt = this.lastSampleAt < 0 ? Math.min(dt, 33) : Math.max(0, Math.min(150, sampleAt - this.lastSampleAt));
+      this.lastSampleAt = sampleAt;
+    }
     this.lostMs = 0;
     const sig = squatSignal(s, this.profile, this.zero);
     const rawQ = sig.q + this.zero;
@@ -514,7 +530,7 @@ export class SquatSession {
     out.failed = firstFailed(sig.checks);
     // 站立基线自适应：只在站立区、检查通过、非蹲位时缓慢跟随（不追蹲位）
     const uSigned = (this.q - this.zero) / amp;
-    if (this.phase === "ready" && sig.ok && Math.abs(uSigned) < c.readyU) {
+    if (this.phase === "ready" && sig.ok && Math.abs(uSigned) < thresholds.readyU && this.downMs === 0) {
       const k = 1 - Math.exp(-dt / c.baselineTauMs);
       this.zero += (this.q - this.zero) * k;
       this.zero = Math.max(-c.baselineMaxU * amp, Math.min(c.baselineMaxU * amp, this.zero));
@@ -523,7 +539,7 @@ export class SquatSession {
     if (this.paused) {
       // 重现后先稳定一会儿，并要求回到站立区才恢复
       out.tracking = "unstable";
-      this.resumeMs = u <= c.readyU && sig.ok ? this.resumeMs + dt : 0;
+      this.resumeMs = u <= thresholds.readyU && sig.ok ? this.resumeMs + dt : 0;
       if (this.resumeMs >= c.resumeMs) {
         this.paused = false;
         this.readyMs = c.rearmMs;
@@ -532,9 +548,10 @@ export class SquatSession {
     }
     if (this.phase === "ready") {
       // 站立区累计满 rearmMs 即「上膛」；下蹲途经中间区不会撤销
-      if (u <= c.readyU) this.readyMs += dt;
+      if (u <= thresholds.readyU && sig.ok) this.readyMs += dt;
+      else if (!sig.ok) this.readyMs = 0;
       const armed = this.readyMs >= c.rearmMs;
-      if (u >= c.downU && sig.ok && armed) {
+      if (u >= thresholds.downU && sig.ok && armed) {
         this.downMs += dt;
         if (this.downMs >= c.downStableMs) {
           this.phase = "down";
@@ -556,53 +573,35 @@ export class SquatSession {
         }
       } else {
         this.failMs = 0;
-        if (u < c.holdU) {
+        if (u < thresholds.holdU) {
           this.phase = "rising";
-          this.settle = [];
           this.upMs = 0;
-        } else if (u < c.downU) this.trySettle(out, u, dt);
-        else this.settle = [];
+        }
       }
     } else {
       // 回升中：蓄力冻结；回到站立区稳定后释放，若又蹲回去则继续蓄力
-      if (u >= c.downU && sig.ok) {
+      if (!sig.ok) {
+        this.upMs = 0; this.failMs += dt;
+        if (this.failMs >= c.checkFailMs) { out.cancel = true; this.reset(); }
+      } else if (u >= thresholds.downU) {
         this.phase = "down";
         this.upMs = 0;
-      } else if (u <= c.releaseU) {
+      } else if (u <= thresholds.releaseU) {
+        this.failMs = 0;
         this.upMs += dt;
         if (this.upMs >= c.releaseStableMs) this.doRelease(out, "stand");
       } else {
         this.upMs = 0;
-        this.trySettle(out, u, dt);
+        this.failMs = 0;
       }
     }
     out.phase = this.phase;
-    out.charging = this.phase === "down";
+    out.charging = this.phase === "down" && sig.ok;
     out.armed = this.phase === "ready" && this.readyMs >= c.rearmMs;
     out.peakU = this.peakU;
     out.failMs = this.failMs;
     out.zero = this.zero;
     return out;
-  }
-  /** 卡在中间区（站姿变了 / 基线漂移）：已从峰值明显回落且稳定 → 也释放，并把基线挪到这里 */
-  private trySettle(out: SquatUpdate, u: number, dt: number) {
-    const c = SQUAT_CONFIG;
-    this.settle.push({ ms: dt, u });
-    let span = 0;
-    for (let i = this.settle.length - 1; i >= 0; i--) {
-      span += this.settle[i].ms;
-      if (span > c.releaseSettleMs + 40) {
-        this.settle = this.settle.slice(i + 1);
-        break;
-      }
-    }
-    const us = this.settle.map((x) => x.u);
-    const spanMs = this.settle.reduce((a, b) => a + b.ms, 0);
-    if (spanMs >= c.releaseSettleMs && u <= c.releaseMidMaxU && this.peakU - u >= c.releaseDropU && Math.max(...us) - Math.min(...us) <= 0.08) {
-      const amp = this.profile.amp;
-      this.zero = Math.max(-c.baselineMaxU * amp, Math.min(c.baselineMaxU * amp, this.zero + (u - 0.05) * amp));
-      this.doRelease(out, "settle");
-    }
   }
   private doRelease(out: SquatUpdate, by: "stand" | "settle") {
     out.release = true;
@@ -610,7 +609,6 @@ export class SquatSession {
     this.phase = "ready";
     this.upMs = 0;
     this.readyMs = 0;
-    this.settle = [];
   }
 }
 

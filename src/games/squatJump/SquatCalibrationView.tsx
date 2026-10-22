@@ -154,14 +154,14 @@ export default function SquatCalibrationView({
             w: Math.round(s.width),
           });
         }
-      } else if (cal.profile && !done.current) {
+      } else if (cal.profile && !done.current && s && !pausedRef.current) {
         if (!readyAt) readyAt = now;
         if (now - readyAt > 800) {
           done.current = true;
           cbRef.current(cal.profile, "camera");
           return;
         }
-      }
+      } else readyAt = 0;
       if (now - flush > 80) {
         flush = now;
         setHud({

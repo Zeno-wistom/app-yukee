@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { measureSquat, SquatCalibrator, SquatSession, SQUAT_CONFIG, type SquatProfile } from "./squatPose";
+import { measureSquat, squatThresholds, SquatCalibrator, SquatSession, SQUAT_CONFIG, type SquatProfile } from "./squatPose";
 import type { PoseFrame } from "./wingPose";
 
 const W = 640,
@@ -59,10 +59,10 @@ describe("G05 浅蹲识别", () => {
     expect(releases).toBe(0);
   });
 
-  it("半蹲未到本人阈值：不蓄力；单肩下降（耸肩/侧倾）不触发", () => {
+  it("噪声范围内的轻晃不蓄力；单肩下降（耸肩/侧倾）不触发", () => {
     const s = new SquatSession(profile);
     drive(s, {}, 600);
-    expect(drive(s, { drop: AMP_PX * 0.45 }, 800).events.charging).toBe(0);
+    expect(drive(s, { drop: 2 }, 800).events.charging).toBe(0);
     drive(s, {}, 600);
     expect(drive(s, { dl: AMP_PX * 1.6 }, 800).events.charging).toBe(0);
   });
@@ -121,7 +121,7 @@ describe("G05 浅蹲识别", () => {
     };
     feed({}, SQUAT_CONFIG.standMs + 200);
     expect(c.stage).toBe("squat");
-    feed({ drop: 6 }, 400); // 太浅：不算
+    feed({ drop: 2 }, 400); // 噪声区：不算
     expect(c.stage).toBe("squat");
     feed({ drop: 44 }, 800);
     expect(c.stage).toBe("rise");
@@ -162,7 +162,7 @@ describe("G05 浅蹲识别", () => {
     expect(c.stage).toBe("squat");
   });
 
-  it("校准：站回后姿势前后挪动回不到原基线，超时以当前站姿为新基线", () => {
+  it("校准：半途站回并停住不能被超时自动认成站立基准", () => {
     const c = new SquatCalibrator();
     let t = 0;
     const feed = (f: Parameters<typeof frame>[0], ms: number) => {
@@ -172,21 +172,21 @@ describe("G05 浅蹲识别", () => {
     feed({ drop: 48 }, 700);
     expect(c.stage).toBe("rise");
     feed({ drop: 24 }, 3500); // u ≈ 0.5，一直停在这里
+    expect(c.stage).toBe("rise");
+    expect(c.profile).toBeNull();
+    feed({}, 800);
     expect(c.stage).toBe("ready");
-    expect(c.diag.rebased).toBe(true);
-    expect(c.profile!.ly0).toBeGreaterThan(215);
+    expect(c.profile!.ly0).toBeCloseTo(200);
   });
 
-  it("游戏：回升停在中间区（站姿变了）也会释放，不会卡住", () => {
+  it("游戏：回升未完成不能提前释放，站回后才释放一次", () => {
     const s = new SquatSession(profile);
     drive(s, {}, 600);
     drive(s, { drop: AMP_PX }, 600);
     const mid = drive(s, { drop: AMP_PX * 0.42 }, 700);
-    expect(mid.events.release).toBe(1);
-    // 之后以新站姿为基准，还能再次蓄力与释放
-    drive(s, { drop: AMP_PX * 0.42 }, 400);
-    expect(drive(s, { drop: AMP_PX * 1.3 }, 500).out.charging).toBe(true);
-    expect(drive(s, { drop: AMP_PX * 0.42 }, 600).events.release).toBe(1);
+    expect(mid.events.release).toBe(0);
+    expect(drive(s, {}, 600).events.release).toBe(1);
+    expect(drive(s, {}, 1000).events.release).toBe(0);
   });
 
   it("游戏：确认蹲位时报告等待时长，供控制器补进蓄力", () => {
@@ -206,5 +206,59 @@ describe("G05 浅蹲识别", () => {
     drive(s, { drop: AMP_PX * 0.25 }, 3000);
     drive(s, { drop: AMP_PX * 1.15 }, 500);
     expect(drive(s, { drop: AMP_PX * 0.25 }, 500).events.release).toBe(1);
+  });
+
+  it.each([80, 160, 240])("舒适浅蹲：肩宽 %ipx，只有 5%% 肩宽下降即可校准与蓄力", (width) => {
+    const c = new SquatCalibrator(); let t = 0;
+    const feed = (drop: number, ms: number) => {
+      for (let i = 0; i < ms; i += 50) c.update(measureSquat(frame({ width, drop })), t += 50);
+    };
+    feed(0, 2200); feed(width * .05, 1000); feed(0, 800);
+    expect(c.stage).toBe("ready");
+    expect(c.profile!.amp).toBeCloseTo(.05, 2);
+    const s = new SquatSession(c.profile!);
+    drive(s, { width }, 600);
+    expect(drive(s, { width, drop: width * .05 }, 600).out.charging).toBe(true);
+    expect(drive(s, { width }, 600).events.release).toBe(1);
+  });
+
+  it("误做深蹲校准不会迫使游戏继续做深蹲", () => {
+    const p = { ...profile, amp: .8 };
+    expect(squatThresholds(p).downQ * p.w0).toBeLessThan(11);
+    const s = new SquatSession(p); drive(s, {}, 500);
+    expect(drive(s, { drop: 12 }, 600).out.charging).toBe(true);
+    expect(drive(s, {}, 600).events.release).toBe(1);
+  });
+
+  it("站立 10 秒与 ±1px 抖动不蓄力也不释放", () => {
+    const s = new SquatSession({ ...profile, amp: .05 });
+    let charge = 0, release = 0;
+    for (let t = 0; t < 10000; t += 50) {
+      const o = s.update(50, measureSquat(frame({ drop: Math.sin(t) })), t);
+      if (o.charging) charge++; if (o.release) release++;
+    }
+    expect(charge).toBe(0); expect(release).toBe(0);
+  });
+
+  it("单帧下降即便被 RAF 重复读取，也不能伪造稳定蓄力证据", () => {
+    const s = new SquatSession({ ...profile, amp: .05 });
+    for (let t = 0; t <= 500; t += 50) s.update(50, measureSquat(frame()), t);
+    let entered = 0;
+    for (let i = 0; i < 25; i++) entered += s.update(16, measureSquat(frame({ drop: 8 })), 550).enteredDownSec;
+    expect(entered).toBe(0);
+  });
+
+  it("回升时横移或前探不能释放，持续异常会取消本轮", () => {
+    const s = new SquatSession({ ...profile, amp: .05 });
+    drive(s, {}, 500); drive(s, { drop: 8 }, 600);
+    drive(s, { drop: 1.6 }, 100);
+    const bad = drive(s, { width: 230 }, 700);
+    expect(bad.events.release).toBe(0); expect(bad.events.cancel).toBe(1);
+  });
+
+  it("非法、缺失或画外关键点不给样本", () => {
+    const f = frame(); f.landmarks[11].y = NaN;
+    expect(measureSquat(f)).toBeNull(); f.landmarks[11].y = 1.2;
+    expect(measureSquat(f)).toBeNull();
   });
 });
