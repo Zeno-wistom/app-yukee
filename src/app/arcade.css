@@ -746,6 +746,13 @@
   .arcade-app .squat-cal-actions {
     flex-wrap: wrap;
   }
+  .arcade-app .wing-game .wing-complete { inset: 20% 16px auto; width: auto; padding: 24px 16px; max-height: calc(100% - 32px); overflow: auto; }
+  .arcade-app .squat-result { left: 16px; right: 16px; padding: 24px 16px; }
+  .arcade-app .lean-modal { inset: 20% 16px; }
+  .arcade-app :is(.wing-complete p, .squat-result p, .lean-modal p) { font-size: 13px; }
+  .arcade-app .wing-complete .wing-complete-quote { font-size: 12px !important; }
+  .arcade-app :is(.wing-complete small, .squat-result small, .lean-modal small) { font-size: 11px; }
+  .arcade-app :is(.squat-actions button, .lean-modal button) { min-height: 44px; font-size: 13px; }
   .arcade-app .lean-guide-text b {
     font-size: 14px;
   }
