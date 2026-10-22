@@ -1,0 +1,710 @@
+[
+  {
+    "viewport": {
+      "width": 1280,
+      "height": 720
+    },
+    "card": {
+      "x": 445.7421875,
+      "y": 89.4453125,
+      "width": 344.296875,
+      "height": 54.640625
+    },
+    "preview": {
+      "x": 446.7421875,
+      "y": 90.4453125,
+      "width": 342.296875,
+      "height": 52.640625
+    },
+    "side": {
+      "x": 658.9765625,
+      "y": 90.4453125,
+      "width": 130.0625,
+      "height": 52.640625
+    },
+    "portal": {
+      "x": 295.96875,
+      "y": 79.828125,
+      "width": 688.609375,
+      "height": 73.890625
+    },
+    "cardStyles": {
+      "width": "344.297px",
+      "height": "54.6406px",
+      "boxSizing": "border-box",
+      "borderRadius": "4.82035px",
+      "overflow": "hidden",
+      "objectFit": "fill",
+      "objectPosition": "50% 50%",
+      "imageRendering": "auto",
+      "background": "rgb(15, 40, 35) none repeat scroll 0% 0% / auto padding-box border-box",
+      "paddingLeft": "0px",
+      "paddingRight": "0px",
+      "transform": "matrix(1, 0, 0, 1, -172.148, -27.3203)",
+      "filter": "none",
+      "aspectRatio": "auto"
+    },
+    "previewStyles": {
+      "width": "342.297px",
+      "height": "52.6406px",
+      "boxSizing": "border-box",
+      "borderRadius": "0px",
+      "overflow": "visible",
+      "objectFit": "fill",
+      "objectPosition": "50% 50%",
+      "imageRendering": "auto",
+      "background": "rgba(0, 0, 0, 0) none repeat scroll 0% 0% / auto padding-box border-box",
+      "paddingLeft": "0px",
+      "paddingRight": "0px",
+      "transform": "none",
+      "filter": "none",
+      "aspectRatio": "auto"
+    },
+    "imageStyles": {
+      "width": "342.297px",
+      "height": "52.6406px",
+      "boxSizing": "border-box",
+      "borderRadius": "0px",
+      "overflow": "clip",
+      "objectFit": "cover",
+      "objectPosition": "0% 50%",
+      "imageRendering": "auto",
+      "background": "rgb(12, 36, 32) none repeat scroll 0% 0% / auto padding-box border-box",
+      "paddingLeft": "0px",
+      "paddingRight": "0px",
+      "transform": "none",
+      "filter": "none",
+      "aspectRatio": "auto"
+    },
+    "sideStyles": {
+      "width": "130.062px",
+      "height": "52.6406px",
+      "boxSizing": "border-box",
+      "borderRadius": "0px",
+      "overflow": "visible",
+      "objectFit": "fill",
+      "objectPosition": "50% 50%",
+      "imageRendering": "auto",
+      "background": "rgba(0, 0, 0, 0) linear-gradient(90deg, rgba(6, 18, 30, 0) 0%, rgba(6, 18, 30, 0.72) 34%, rgba(6, 18, 30, 0.88) 100%) repeat scroll 0% 0% / auto padding-box border-box",
+      "paddingLeft": "27.375px",
+      "paddingRight": "11.9688px",
+      "transform": "none",
+      "filter": "none",
+      "aspectRatio": "auto"
+    },
+    "selectionStyles": {
+      "width": "688.609px",
+      "height": "73.8906px",
+      "boxSizing": "border-box",
+      "borderRadius": "0px",
+      "overflow": "hidden",
+      "objectFit": "fill",
+      "objectPosition": "50% 50%",
+      "imageRendering": "auto",
+      "background": "rgb(10, 28, 25) none repeat scroll 0% 0% / auto padding-box border-box",
+      "paddingLeft": "0px",
+      "paddingRight": "0px",
+      "transform": "none",
+      "filter": "none",
+      "aspectRatio": "auto"
+    },
+    "image": {
+      "src": "/game-previews/squat-jump-card.png",
+      "width": 1290,
+      "height": 205
+    },
+    "pageOverflowX": false,
+    "errors": [],
+    "screenshot": "docs/screenshots/g05-preview-audit/1280x720.png"
+  },
+  {
+    "viewport": {
+      "width": 1366,
+      "height": 768
+    },
+    "card": {
+      "x": 475.78125,
+      "y": 95.40625,
+      "width": 367.25,
+      "height": 58.28125
+    },
+    "preview": {
+      "x": 476.78125,
+      "y": 96.40625,
+      "width": 365.25,
+      "height": 56.28125
+    },
+    "side": {
+      "x": 703.25,
+      "y": 96.40625,
+      "width": 138.78125,
+      "height": 56.28125
+    },
+    "portal": {
+      "x": 316.03125,
+      "y": 85.140625,
+      "width": 734.515625,
+      "height": 78.8125
+    },
+    "cardStyles": {
+      "width": "367.25px",
+      "height": "58.2812px",
+      "boxSizing": "border-box",
+      "borderRadius": "5.14171px",
+      "overflow": "hidden",
+      "objectFit": "fill",
+      "objectPosition": "50% 50%",
+      "imageRendering": "auto",
+      "background": "rgb(15, 40, 35) none repeat scroll 0% 0% / auto padding-box border-box",
+      "paddingLeft": "0px",
+      "paddingRight": "0px",
+      "transform": "matrix(1, 0, 0, 1, -183.625, -29.1406)",
+      "filter": "none",
+      "aspectRatio": "auto"
+    },
+    "previewStyles": {
+      "width": "365.25px",
+      "height": "56.2812px",
+      "boxSizing": "border-box",
+      "borderRadius": "0px",
+      "overflow": "visible",
+      "objectFit": "fill",
+      "objectPosition": "50% 50%",
+      "imageRendering": "auto",
+      "background": "rgba(0, 0, 0, 0) none repeat scroll 0% 0% / auto padding-box border-box",
+      "paddingLeft": "0px",
+      "paddingRight": "0px",
+      "transform": "none",
+      "filter": "none",
+      "aspectRatio": "auto"
+    },
+    "imageStyles": {
+      "width": "365.25px",
+      "height": "56.2812px",
+      "boxSizing": "border-box",
+      "borderRadius": "0px",
+      "overflow": "clip",
+      "objectFit": "cover",
+      "objectPosition": "0% 50%",
+      "imageRendering": "auto",
+      "background": "rgb(12, 36, 32) none repeat scroll 0% 0% / auto padding-box border-box",
+      "paddingLeft": "0px",
+      "paddingRight": "0px",
+      "transform": "none",
+      "filter": "none",
+      "aspectRatio": "auto"
+    },
+    "sideStyles": {
+      "width": "138.781px",
+      "height": "56.2812px",
+      "boxSizing": "border-box",
+      "borderRadius": "0px",
+      "overflow": "visible",
+      "objectFit": "fill",
+      "objectPosition": "50% 50%",
+      "imageRendering": "auto",
+      "background": "rgba(0, 0, 0, 0) linear-gradient(90deg, rgba(6, 18, 30, 0) 0%, rgba(6, 18, 30, 0.72) 34%, rgba(6, 18, 30, 0.88) 100%) repeat scroll 0% 0% / auto padding-box border-box",
+      "paddingLeft": "29.2188px",
+      "paddingRight": "12.7812px",
+      "transform": "none",
+      "filter": "none",
+      "aspectRatio": "auto"
+    },
+    "selectionStyles": {
+      "width": "734.516px",
+      "height": "78.8125px",
+      "boxSizing": "border-box",
+      "borderRadius": "0px",
+      "overflow": "hidden",
+      "objectFit": "fill",
+      "objectPosition": "50% 50%",
+      "imageRendering": "auto",
+      "background": "rgb(10, 28, 25) none repeat scroll 0% 0% / auto padding-box border-box",
+      "paddingLeft": "0px",
+      "paddingRight": "0px",
+      "transform": "none",
+      "filter": "none",
+      "aspectRatio": "auto"
+    },
+    "image": {
+      "src": "/game-previews/squat-jump-card.png",
+      "width": 1290,
+      "height": 205
+    },
+    "pageOverflowX": false,
+    "errors": [],
+    "screenshot": "docs/screenshots/g05-preview-audit/1366x768.png"
+  },
+  {
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "card": {
+      "x": 477.0390625,
+      "y": 111.7890625,
+      "width": 430.421875,
+      "height": 68.359375
+    },
+    "preview": {
+      "x": 478.0390625,
+      "y": 112.7890625,
+      "width": 428.421875,
+      "height": 66.359375
+    },
+    "side": {
+      "x": 743.6640625,
+      "y": 112.7890625,
+      "width": 162.796875,
+      "height": 66.359375
+    },
+    "portal": {
+      "x": 289.8125,
+      "y": 99.75,
+      "width": 860.859375,
+      "height": 92.4375
+    },
+    "cardStyles": {
+      "width": "430.422px",
+      "height": "68.3594px",
+      "boxSizing": "border-box",
+      "borderRadius": "6.02604px",
+      "overflow": "hidden",
+      "objectFit": "fill",
+      "objectPosition": "50% 50%",
+      "imageRendering": "auto",
+      "background": "rgb(15, 40, 35) none repeat scroll 0% 0% / auto padding-box border-box",
+      "paddingLeft": "0px",
+      "paddingRight": "0px",
+      "transform": "matrix(1, 0, 0, 1, -215.211, -34.1797)",
+      "filter": "none",
+      "aspectRatio": "auto"
+    },
+    "previewStyles": {
+      "width": "428.422px",
+      "height": "66.3594px",
+      "boxSizing": "border-box",
+      "borderRadius": "0px",
+      "overflow": "visible",
+      "objectFit": "fill",
+      "objectPosition": "50% 50%",
+      "imageRendering": "auto",
+      "background": "rgba(0, 0, 0, 0) none repeat scroll 0% 0% / auto padding-box border-box",
+      "paddingLeft": "0px",
+      "paddingRight": "0px",
+      "transform": "none",
+      "filter": "none",
+      "aspectRatio": "auto"
+    },
+    "imageStyles": {
+      "width": "428.422px",
+      "height": "66.3594px",
+      "boxSizing": "border-box",
+      "borderRadius": "0px",
+      "overflow": "clip",
+      "objectFit": "cover",
+      "objectPosition": "0% 50%",
+      "imageRendering": "auto",
+      "background": "rgb(12, 36, 32) none repeat scroll 0% 0% / auto padding-box border-box",
+      "paddingLeft": "0px",
+      "paddingRight": "0px",
+      "transform": "none",
+      "filter": "none",
+      "aspectRatio": "auto"
+    },
+    "sideStyles": {
+      "width": "162.797px",
+      "height": "66.3594px",
+      "boxSizing": "border-box",
+      "borderRadius": "0px",
+      "overflow": "visible",
+      "objectFit": "fill",
+      "objectPosition": "50% 50%",
+      "imageRendering": "auto",
+      "background": "rgba(0, 0, 0, 0) linear-gradient(90deg, rgba(6, 18, 30, 0) 0%, rgba(6, 18, 30, 0.72) 34%, rgba(6, 18, 30, 0.88) 100%) repeat scroll 0% 0% / auto padding-box border-box",
+      "paddingLeft": "34.2656px",
+      "paddingRight": "14.9844px",
+      "transform": "none",
+      "filter": "none",
+      "aspectRatio": "auto"
+    },
+    "selectionStyles": {
+      "width": "860.859px",
+      "height": "92.4375px",
+      "boxSizing": "border-box",
+      "borderRadius": "0px",
+      "overflow": "hidden",
+      "objectFit": "fill",
+      "objectPosition": "50% 50%",
+      "imageRendering": "auto",
+      "background": "rgb(10, 28, 25) none repeat scroll 0% 0% / auto padding-box border-box",
+      "paddingLeft": "0px",
+      "paddingRight": "0px",
+      "transform": "none",
+      "filter": "none",
+      "aspectRatio": "auto"
+    },
+    "image": {
+      "src": "/game-previews/squat-jump-card.png",
+      "width": 1290,
+      "height": 205
+    },
+    "pageOverflowX": false,
+    "errors": [],
+    "screenshot": "docs/screenshots/g05-preview-audit/1440x900.png"
+  },
+  {
+    "viewport": {
+      "width": 1920,
+      "height": 1080
+    },
+    "card": {
+      "x": 668.5390625,
+      "y": 134.140625,
+      "width": 516.484375,
+      "height": 82.03125
+    },
+    "preview": {
+      "x": 669.5390625,
+      "y": 135.140625,
+      "width": 514.484375,
+      "height": 80.03125
+    },
+    "side": {
+      "x": 988.5234375,
+      "y": 135.140625,
+      "width": 195.5,
+      "height": 80.03125
+    },
+    "portal": {
+      "x": 443.875,
+      "y": 119.71875,
+      "width": 1032.96875,
+      "height": 110.890625
+    },
+    "cardStyles": {
+      "width": "516.484px",
+      "height": "82.0312px",
+      "boxSizing": "border-box",
+      "borderRadius": "7.23088px",
+      "overflow": "hidden",
+      "objectFit": "fill",
+      "objectPosition": "50% 50%",
+      "imageRendering": "auto",
+      "background": "rgb(15, 40, 35) none repeat scroll 0% 0% / auto padding-box border-box",
+      "paddingLeft": "0px",
+      "paddingRight": "0px",
+      "transform": "matrix(1, 0, 0, 1, -258.242, -41.0156)",
+      "filter": "none",
+      "aspectRatio": "auto"
+    },
+    "previewStyles": {
+      "width": "514.484px",
+      "height": "80.0312px",
+      "boxSizing": "border-box",
+      "borderRadius": "0px",
+      "overflow": "visible",
+      "objectFit": "fill",
+      "objectPosition": "50% 50%",
+      "imageRendering": "auto",
+      "background": "rgba(0, 0, 0, 0) none repeat scroll 0% 0% / auto padding-box border-box",
+      "paddingLeft": "0px",
+      "paddingRight": "0px",
+      "transform": "none",
+      "filter": "none",
+      "aspectRatio": "auto"
+    },
+    "imageStyles": {
+      "width": "514.484px",
+      "height": "80.0312px",
+      "boxSizing": "border-box",
+      "borderRadius": "0px",
+      "overflow": "clip",
+      "objectFit": "cover",
+      "objectPosition": "0% 50%",
+      "imageRendering": "auto",
+      "background": "rgb(12, 36, 32) none repeat scroll 0% 0% / auto padding-box border-box",
+      "paddingLeft": "0px",
+      "paddingRight": "0px",
+      "transform": "none",
+      "filter": "none",
+      "aspectRatio": "auto"
+    },
+    "sideStyles": {
+      "width": "195.5px",
+      "height": "80.0312px",
+      "boxSizing": "border-box",
+      "borderRadius": "0px",
+      "overflow": "visible",
+      "objectFit": "fill",
+      "objectPosition": "50% 50%",
+      "imageRendering": "auto",
+      "background": "rgba(0, 0, 0, 0) linear-gradient(90deg, rgba(6, 18, 30, 0) 0%, rgba(6, 18, 30, 0.72) 34%, rgba(6, 18, 30, 0.88) 100%) repeat scroll 0% 0% / auto padding-box border-box",
+      "paddingLeft": "41.1562px",
+      "paddingRight": "18px",
+      "transform": "none",
+      "filter": "none",
+      "aspectRatio": "auto"
+    },
+    "selectionStyles": {
+      "width": "1032.97px",
+      "height": "110.891px",
+      "boxSizing": "border-box",
+      "borderRadius": "0px",
+      "overflow": "hidden",
+      "objectFit": "fill",
+      "objectPosition": "50% 50%",
+      "imageRendering": "auto",
+      "background": "rgb(10, 28, 25) none repeat scroll 0% 0% / auto padding-box border-box",
+      "paddingLeft": "0px",
+      "paddingRight": "0px",
+      "transform": "none",
+      "filter": "none",
+      "aspectRatio": "auto"
+    },
+    "image": {
+      "src": "/game-previews/squat-jump-card.png",
+      "width": 1290,
+      "height": 205
+    },
+    "pageOverflowX": false,
+    "errors": [],
+    "screenshot": "docs/screenshots/g05-preview-audit/1920x1080.png"
+  },
+  {
+    "viewport": {
+      "width": 2560,
+      "height": 1440
+    },
+    "card": {
+      "x": 891.1953125,
+      "y": 178.859375,
+      "width": 688.703125,
+      "height": 109.4375
+    },
+    "preview": {
+      "x": 892.1953125,
+      "y": 179.859375,
+      "width": 686.703125,
+      "height": 107.4375
+    },
+    "side": {
+      "x": 1317.9609375,
+      "y": 179.859375,
+      "width": 260.9375,
+      "height": 107.4375
+    },
+    "portal": {
+      "x": 591.609375,
+      "y": 159.609375,
+      "width": 1377.40625,
+      "height": 147.953125
+    },
+    "cardStyles": {
+      "width": "688.703px",
+      "height": "109.438px",
+      "boxSizing": "border-box",
+      "borderRadius": "9.64191px",
+      "overflow": "hidden",
+      "objectFit": "fill",
+      "objectPosition": "50% 50%",
+      "imageRendering": "auto",
+      "background": "rgb(15, 40, 35) none repeat scroll 0% 0% / auto padding-box border-box",
+      "paddingLeft": "0px",
+      "paddingRight": "0px",
+      "transform": "matrix(1, 0, 0, 1, -344.352, -54.7188)",
+      "filter": "none",
+      "aspectRatio": "auto"
+    },
+    "previewStyles": {
+      "width": "686.703px",
+      "height": "107.438px",
+      "boxSizing": "border-box",
+      "borderRadius": "0px",
+      "overflow": "visible",
+      "objectFit": "fill",
+      "objectPosition": "50% 50%",
+      "imageRendering": "auto",
+      "background": "rgba(0, 0, 0, 0) none repeat scroll 0% 0% / auto padding-box border-box",
+      "paddingLeft": "0px",
+      "paddingRight": "0px",
+      "transform": "none",
+      "filter": "none",
+      "aspectRatio": "auto"
+    },
+    "imageStyles": {
+      "width": "686.703px",
+      "height": "107.438px",
+      "boxSizing": "border-box",
+      "borderRadius": "0px",
+      "overflow": "clip",
+      "objectFit": "cover",
+      "objectPosition": "0% 50%",
+      "imageRendering": "auto",
+      "background": "rgb(12, 36, 32) none repeat scroll 0% 0% / auto padding-box border-box",
+      "paddingLeft": "0px",
+      "paddingRight": "0px",
+      "transform": "none",
+      "filter": "none",
+      "aspectRatio": "auto"
+    },
+    "sideStyles": {
+      "width": "260.938px",
+      "height": "107.438px",
+      "boxSizing": "border-box",
+      "borderRadius": "0px",
+      "overflow": "visible",
+      "objectFit": "fill",
+      "objectPosition": "50% 50%",
+      "imageRendering": "auto",
+      "background": "rgba(0, 0, 0, 0) linear-gradient(90deg, rgba(6, 18, 30, 0) 0%, rgba(6, 18, 30, 0.72) 34%, rgba(6, 18, 30, 0.88) 100%) repeat scroll 0% 0% / auto padding-box border-box",
+      "paddingLeft": "54.9219px",
+      "paddingRight": "24.0312px",
+      "transform": "none",
+      "filter": "none",
+      "aspectRatio": "auto"
+    },
+    "selectionStyles": {
+      "width": "1377.41px",
+      "height": "147.953px",
+      "boxSizing": "border-box",
+      "borderRadius": "0px",
+      "overflow": "hidden",
+      "objectFit": "fill",
+      "objectPosition": "50% 50%",
+      "imageRendering": "auto",
+      "background": "rgb(10, 28, 25) none repeat scroll 0% 0% / auto padding-box border-box",
+      "paddingLeft": "0px",
+      "paddingRight": "0px",
+      "transform": "none",
+      "filter": "none",
+      "aspectRatio": "auto"
+    },
+    "image": {
+      "src": "/game-previews/squat-jump-card.png",
+      "width": 1290,
+      "height": 205
+    },
+    "pageOverflowX": false,
+    "errors": [],
+    "screenshot": "docs/screenshots/g05-preview-audit/2560x1440.png"
+  },
+  {
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "card": {
+      "x": -221.921875,
+      "y": 104.828125,
+      "width": 403.65625,
+      "height": 64.15625
+    },
+    "preview": {
+      "x": -220.921875,
+      "y": 105.828125,
+      "width": 401.65625,
+      "height": 62.15625
+    },
+    "side": {
+      "x": 28.109375,
+      "y": 105.828125,
+      "width": 152.625,
+      "height": 62.15625
+    },
+    "portal": {
+      "x": -397.515625,
+      "y": 93.546875,
+      "width": 807.328125,
+      "height": 86.734375
+    },
+    "cardStyles": {
+      "width": "403.656px",
+      "height": "64.1562px",
+      "boxSizing": "border-box",
+      "borderRadius": "5.65135px",
+      "overflow": "hidden",
+      "objectFit": "fill",
+      "objectPosition": "50% 50%",
+      "imageRendering": "auto",
+      "background": "rgb(15, 40, 35) none repeat scroll 0% 0% / auto padding-box border-box",
+      "paddingLeft": "0px",
+      "paddingRight": "0px",
+      "transform": "matrix(1, 0, 0, 1, -201.828, -32.0781)",
+      "filter": "none",
+      "aspectRatio": "auto"
+    },
+    "previewStyles": {
+      "width": "401.656px",
+      "height": "62.1562px",
+      "boxSizing": "border-box",
+      "borderRadius": "0px",
+      "overflow": "visible",
+      "objectFit": "fill",
+      "objectPosition": "50% 50%",
+      "imageRendering": "auto",
+      "background": "rgba(0, 0, 0, 0) none repeat scroll 0% 0% / auto padding-box border-box",
+      "paddingLeft": "0px",
+      "paddingRight": "0px",
+      "transform": "none",
+      "filter": "none",
+      "aspectRatio": "auto"
+    },
+    "imageStyles": {
+      "width": "401.656px",
+      "height": "62.1562px",
+      "boxSizing": "border-box",
+      "borderRadius": "0px",
+      "overflow": "clip",
+      "objectFit": "cover",
+      "objectPosition": "0% 50%",
+      "imageRendering": "auto",
+      "background": "rgb(12, 36, 32) none repeat scroll 0% 0% / auto padding-box border-box",
+      "paddingLeft": "0px",
+      "paddingRight": "0px",
+      "transform": "none",
+      "filter": "none",
+      "aspectRatio": "auto"
+    },
+    "sideStyles": {
+      "width": "152.625px",
+      "height": "62.1562px",
+      "boxSizing": "border-box",
+      "borderRadius": "0px",
+      "overflow": "visible",
+      "objectFit": "fill",
+      "objectPosition": "50% 50%",
+      "imageRendering": "auto",
+      "background": "rgba(0, 0, 0, 0) linear-gradient(90deg, rgba(6, 18, 30, 0) 0%, rgba(6, 18, 30, 0.72) 34%, rgba(6, 18, 30, 0.88) 100%) repeat scroll 0% 0% / auto padding-box border-box",
+      "paddingLeft": "32.125px",
+      "paddingRight": "14.0469px",
+      "transform": "none",
+      "filter": "none",
+      "aspectRatio": "auto"
+    },
+    "selectionStyles": {
+      "width": "807.328px",
+      "height": "86.7344px",
+      "boxSizing": "border-box",
+      "borderRadius": "0px",
+      "overflow": "hidden",
+      "objectFit": "fill",
+      "objectPosition": "50% 50%",
+      "imageRendering": "auto",
+      "background": "rgb(10, 28, 25) none repeat scroll 0% 0% / auto padding-box border-box",
+      "paddingLeft": "0px",
+      "paddingRight": "0px",
+      "transform": "none",
+      "filter": "none",
+      "aspectRatio": "auto"
+    },
+    "image": {
+      "src": "/game-previews/squat-jump-card.png",
+      "width": 1290,
+      "height": 205
+    },
+    "pageOverflowX": true,
+    "errors": [],
+    "screenshot": "docs/screenshots/g05-preview-audit/390x844.png"
+  }
+]

@@ -44,6 +44,14 @@ export interface GameCard {
   palette: GamePalette;
 }
 
+/**
+ * G05 专用新图接入入口：最终图尚未交付，保持 null 以继续使用现有素材。
+ * 收到并验收后，将文件放在 public/game-previews/g05-selection-final.png，
+ * 再将此值改为 "/game-previews/g05-selection-final.png"。
+ * 尺寸、裁切与构图安全区见 docs/G05-PREVIEW-ASSET.md。
+ */
+export const G05_FINAL_PREVIEW_IMAGE: string | null = null;
+
 export const GAMES: readonly GameCard[] = [
   {
     id: "yukeeRun",
@@ -127,7 +135,7 @@ export const GAMES: readonly GameCard[] = [
     subtitle: "浅蹲蓄力 · 站直起跳 · 五连跳通关",
     available: true,
     preview: "image",
-    previewImage: "/game-previews/squat-jump-card.png",
+    previewImage: G05_FINAL_PREVIEW_IMAGE ?? "/game-previews/squat-jump-card.png",
     fullBleed: true,
     palette: {
       sky: "#eef1f4",
