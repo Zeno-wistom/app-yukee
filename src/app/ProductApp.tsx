@@ -146,7 +146,7 @@ export default function ProductApp() {
     () => () => {
       cameraVision.stop();
       audioEngine.stopBgm(0);
-      audioEngine.chargeStop();
+      audioEngine.stopEffects();
     },
     [],
   );
@@ -155,6 +155,7 @@ export default function ProductApp() {
     else {
       audioEngine.stopBgm(0.15);
       audioEngine.chargeStop();
+      if (paused || selection) audioEngine.stopEffects();
     }
     return () => audioEngine.stopBgm(0.1);
   }, [playing, paused, state.activeGame]);
@@ -202,6 +203,7 @@ export default function ProductApp() {
   }, [state.phase, playing, paused, mode, bus]);
   useGSAP(
     () => {
+      if (!root.current) return;
       if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
       gsap.fromTo(
         ".arcade-surface",
@@ -211,7 +213,7 @@ export default function ProductApp() {
     },
     {
       scope: root,
-      dependencies: [state.phase, restartKey],
+      dependencies: [state.phase, restartKey, vision],
       revertOnUpdate: true,
     },
   );

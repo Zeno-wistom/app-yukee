@@ -53,6 +53,27 @@ class AudioEngine {
   /** 递增令牌：取消在途的「等解码完再播」回调 */
   private bgmToken = 0;
   private masterVolume = 0.9;
+  private effects = new Map<AudioScheduledSourceNode, () => void>();
+
+  private trackEffect(source: AudioScheduledSourceNode, cleanup: () => void) {
+    this.effects.set(source, cleanup);
+    source.onended = () => { this.effects.delete(source); cleanup(); };
+  }
+
+  /** 暂停或切换活动时连同尚未播放的奖励音一起取消，不能串到下一局。 */
+  stopEffects() {
+    this.chargeStop();
+    for (const [source, cleanup] of this.effects) {
+      source.onended = null;
+      try { source.stop(); } catch { /* 已结束 */ }
+      cleanup();
+    }
+    this.effects.clear();
+  }
+
+  getDiagnostics() {
+    return { bgmActive: this.bgmPlaying, effectsActive: this.effects.size, charging: !!this.charge };
+  }
 
   /** 用户手势内调用：创建/恢复 AudioContext 并预载 BGM，不播放声音。 */
   unlock() {
@@ -244,6 +265,7 @@ class AudioEngine {
     g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
     osc.connect(g);
     g.connect(this.sfxGain);
+    this.trackEffect(osc, () => { osc.disconnect(); g.disconnect(); });
     osc.start(t0);
     osc.stop(t0 + dur + 0.05);
   }
@@ -275,6 +297,7 @@ class AudioEngine {
     src.connect(filter);
     filter.connect(g);
     g.connect(this.sfxGain);
+    this.trackEffect(src, () => { src.disconnect(); filter.disconnect(); g.disconnect(); });
     src.start(t0);
   }
 

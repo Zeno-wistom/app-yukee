@@ -75,7 +75,7 @@ export default function SquatCalibrationView({
       const l = f.landmarks[11],
         r = f.landmarks[12];
       if (!l || !r) return;
-      const ok = (l.visibility ?? 0) >= 0.65 && (r.visibility ?? 0) >= 0.65;
+      const ok = (l.visibility ?? 0) >= SQUAT_CONFIG.minVisibility && (r.visibility ?? 0) >= SQUAT_CONFIG.minVisibility;
       ctx.lineWidth = 5;
       ctx.lineCap = "round";
       ctx.strokeStyle = ok ? "#4cc3b1" : "#f0a35e";
