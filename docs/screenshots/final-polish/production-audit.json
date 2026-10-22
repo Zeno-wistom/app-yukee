@@ -1,0 +1,362 @@
+{
+  "testedAt": "2026-10-22T16:43:07.407Z",
+  "url": "http://127.0.0.1:5189",
+  "browser": "Chrome",
+  "evidence": "D keyboard-demo; no human camera test",
+  "assets": [
+    {
+      "file": "/art/g02/moon-night.png",
+      "status": 200,
+      "bytes": 1856442
+    },
+    {
+      "file": "/art/g03-sunlit-castle.png",
+      "status": 200,
+      "bytes": 2030772
+    },
+    {
+      "file": "/art/g05-sky-ruins.webp",
+      "status": 200,
+      "bytes": 212574
+    },
+    {
+      "file": "/assets/CalibrationView-CsO1AlaS.js",
+      "status": 200,
+      "bytes": 2874
+    },
+    {
+      "file": "/assets/index-BgHNZvF-.js",
+      "status": 200,
+      "bytes": 492065
+    },
+    {
+      "file": "/assets/index-eJsFvDDY.css",
+      "status": 200,
+      "bytes": 79953
+    },
+    {
+      "file": "/assets/LeanCalibrationView-qhX21ptE.js",
+      "status": 200,
+      "bytes": 3996
+    },
+    {
+      "file": "/assets/leanSurf-BsgDoLGg.css",
+      "status": 200,
+      "bytes": 8839
+    },
+    {
+      "file": "/assets/LeanSurf-CJfV39gk.js",
+      "status": 200,
+      "bytes": 21601
+    },
+    {
+      "file": "/assets/leanSurf-Ev5rBZDi.js",
+      "status": 200,
+      "bytes": 5057
+    },
+    {
+      "file": "/assets/refresh-ccw-Bx9KV5XK.js",
+      "status": 200,
+      "bytes": 322
+    },
+    {
+      "file": "/assets/scan-face-CDFTwYhb.js",
+      "status": 200,
+      "bytes": 417
+    },
+    {
+      "file": "/assets/SquatCalibrationView-aFnzUuRT.js",
+      "status": 200,
+      "bytes": 6736
+    },
+    {
+      "file": "/assets/SquatJump-BbJ4uNhY.js",
+      "status": 200,
+      "bytes": 36968
+    },
+    {
+      "file": "/assets/squatJump-C1sCkuOP.js",
+      "status": 200,
+      "bytes": 11643
+    },
+    {
+      "file": "/assets/squatJump-C2izJQ8l.css",
+      "status": 200,
+      "bytes": 9503
+    },
+    {
+      "file": "/assets/useWingSession-DzNlJjfE.js",
+      "status": 200,
+      "bytes": 10542
+    },
+    {
+      "file": "/assets/VisionSpike-XY2rg2Gj.js",
+      "status": 200,
+      "bytes": 4259
+    },
+    {
+      "file": "/assets/WingCalibrationView-aNzED3GM.js",
+      "status": 200,
+      "bytes": 8428
+    },
+    {
+      "file": "/assets/Winglight-B95M60Rp.css",
+      "status": 200,
+      "bytes": 5653
+    },
+    {
+      "file": "/assets/Winglight-Du-_M6Pg.js",
+      "status": 200,
+      "bytes": 20186
+    },
+    {
+      "file": "/assets/YukeeRun-DhA8mmE3.js",
+      "status": 200,
+      "bytes": 13345
+    },
+    {
+      "file": "/audio/yukee-run-bgm.mp3",
+      "status": 200,
+      "bytes": 1740268
+    },
+    {
+      "file": "/favicon.svg",
+      "status": 200,
+      "bytes": 218
+    },
+    {
+      "file": "/game/yukee-run-nature-pixel.png",
+      "status": 200,
+      "bytes": 1781924
+    },
+    {
+      "file": "/game-previews/squat-jump-card.png",
+      "status": 200,
+      "bytes": 401813
+    },
+    {
+      "file": "/game-previews/sun-surf-card.png",
+      "status": 200,
+      "bytes": 440488
+    },
+    {
+      "file": "/game-previews/winglight-card.png",
+      "status": 200,
+      "bytes": 366043
+    },
+    {
+      "file": "/game-previews/yukee-run.png",
+      "status": 200,
+      "bytes": 1743197
+    },
+    {
+      "file": "/game-select/cloudfall-kingdom.png",
+      "status": 200,
+      "bytes": 2030772
+    },
+    {
+      "file": "/game-select/moonbridge-city.png",
+      "status": 200,
+      "bytes": 1881538
+    },
+    {
+      "file": "/game-select/moonwind-village.png",
+      "status": 200,
+      "bytes": 1770510
+    },
+    {
+      "file": "/game-select/saint-gate-dawn.png",
+      "status": 200,
+      "bytes": 2123355
+    },
+    {
+      "file": "/index.html",
+      "status": 200,
+      "bytes": 496
+    },
+    {
+      "file": "/mediapipe/face_landmarker.task",
+      "status": 200,
+      "bytes": 3758596
+    },
+    {
+      "file": "/mediapipe/hand_landmarker.task",
+      "status": 200,
+      "bytes": 7819105
+    },
+    {
+      "file": "/mediapipe/pose_landmarker_lite.task",
+      "status": 200,
+      "bytes": 5777746
+    },
+    {
+      "file": "/mediapipe/wasm/vision_wasm_internal.js",
+      "status": 200,
+      "bytes": 204818
+    },
+    {
+      "file": "/mediapipe/wasm/vision_wasm_internal.wasm",
+      "status": 200,
+      "bytes": 11453626
+    },
+    {
+      "file": "/mediapipe/wasm/vision_wasm_nosimd_internal.js",
+      "status": 200,
+      "bytes": 204671
+    },
+    {
+      "file": "/mediapipe/wasm/vision_wasm_nosimd_internal.wasm",
+      "status": 200,
+      "bytes": 10647962
+    }
+  ],
+  "layouts": [
+    {
+      "viewport": "1280x720",
+      "width": 1022,
+      "height": 162.40625,
+      "imageWidth": 1022,
+      "imageHeight": 161.40625
+    },
+    {
+      "viewport": "1366x768",
+      "width": 1099.40625,
+      "height": 174.703125,
+      "imageWidth": 1099.40625,
+      "imageHeight": 173.703125
+    },
+    {
+      "viewport": "1920x1080",
+      "width": 1118,
+      "height": 177.65625,
+      "imageWidth": 1118,
+      "imageHeight": 176.65625
+    },
+    {
+      "viewport": "2560x1440",
+      "width": 1118,
+      "height": 177.65625,
+      "imageWidth": 1118,
+      "imageHeight": 176.65625
+    },
+    {
+      "viewport": "390x844",
+      "width": 356,
+      "height": 56.5625,
+      "imageWidth": 356,
+      "imageHeight": 55.5625
+    },
+    {
+      "width": 1118,
+      "height": 177.65625,
+      "fit": "cover",
+      "position": "0% 50%",
+      "captionFraction": 0.37998937835420393,
+      "source": "/game-previews/squat-jump-card.png",
+      "naturalWidth": 1290,
+      "naturalHeight": 205
+    },
+    {
+      "width": 1118,
+      "height": 177.65625,
+      "fit": "cover",
+      "position": "0% 50%",
+      "captionFraction": 0.37998937835420393,
+      "source": "/game-previews/squat-jump-card.png",
+      "naturalWidth": 1290,
+      "naturalHeight": 205
+    }
+  ],
+  "metrics": [
+    {
+      "id": "yukeeRun",
+      "source": "keyboard-demo",
+      "viewport": "1920x1080",
+      "dpr": 1,
+      "cpuThrottling": 1,
+      "sampleMs": 2209.8,
+      "rafFps": 104.08,
+      "p95Ms": 10.1,
+      "framesOver33ms": 0
+    },
+    {
+      "id": "winglight",
+      "source": "keyboard-demo",
+      "viewport": "1920x1080",
+      "dpr": 1,
+      "cpuThrottling": 1,
+      "sampleMs": 2203.1000000000004,
+      "rafFps": 103.49,
+      "p95Ms": 10.1,
+      "framesOver33ms": 0
+    },
+    {
+      "id": "leanSurf",
+      "source": "keyboard-demo",
+      "viewport": "1920x1080",
+      "dpr": 1,
+      "cpuThrottling": 1,
+      "sampleMs": 2207.9000000000015,
+      "rafFps": 103.27,
+      "p95Ms": 10.1,
+      "framesOver33ms": 0
+    },
+    {
+      "id": "squatJump",
+      "source": "keyboard-demo",
+      "viewport": "1920x1080",
+      "dpr": 1,
+      "cpuThrottling": 1,
+      "sampleMs": 2209.100000000002,
+      "rafFps": 103.66,
+      "p95Ms": 10.2,
+      "framesOver33ms": 0
+    },
+    {
+      "id": "yukeeRun",
+      "source": "keyboard-demo",
+      "viewport": "1920x1080",
+      "dpr": 2,
+      "cpuThrottling": 4,
+      "sampleMs": 2205.3999999999996,
+      "rafFps": 104.74,
+      "p95Ms": 10.1,
+      "framesOver33ms": 0
+    },
+    {
+      "id": "winglight",
+      "source": "keyboard-demo",
+      "viewport": "1920x1080",
+      "dpr": 2,
+      "cpuThrottling": 4,
+      "sampleMs": 2209.300000000001,
+      "rafFps": 87.36,
+      "p95Ms": 19.5,
+      "framesOver33ms": 1
+    },
+    {
+      "id": "leanSurf",
+      "source": "keyboard-demo",
+      "viewport": "1920x1080",
+      "dpr": 2,
+      "cpuThrottling": 4,
+      "sampleMs": 2203,
+      "rafFps": 104.4,
+      "p95Ms": 10.1,
+      "framesOver33ms": 0
+    },
+    {
+      "id": "squatJump",
+      "source": "keyboard-demo",
+      "viewport": "1920x1080",
+      "dpr": 2,
+      "cpuThrottling": 4,
+      "sampleMs": 2203.800000000003,
+      "rafFps": 104.82,
+      "p95Ms": 10.1,
+      "framesOver33ms": 0
+    }
+  ],
+  "errors": [],
+  "external": []
+}

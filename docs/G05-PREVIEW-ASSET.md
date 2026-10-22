@@ -2,6 +2,30 @@
 
 状态：尺寸规则已核对，最终专用图待用户交付。本轮未生成或替换任何预览图。
 
+## 2026-10-23 最终游戏系统：当前接图规则
+
+收尾分支 `feature/yukee-final-polish` 已移除外部挂灯/显示器展示，选择页直接占用网页视口。**1290×205 / 2580×410 的资源契约不变**，但实际显示已放大；原 1920×1080 下约 516×82 的数值仅适用于旧挂灯版本。
+
+当前容器在 `src/selection/SelectionScreen.tsx` / `src/app/arcade.css`：`aspect-ratio:1290/205`、溢出隐藏、图片 `object-fit:cover` + `object-position:left center`；右侧文字层宽度实测约 37.999%。上下安全区 5%、主体左 60% 建议不变。图片未预先写入文字，主体不能放在右侧。
+
+生产构建独立预览、DPR1 实测，单位 CSS px：
+
+| 网页视口 | 预览容器 | 实际 img 区域 |
+| --- | --- | --- |
+| 1280×720 | 1022×162.41 | 1022×161.41 |
+| 1366×768 | 1099.41×174.70 | 1099.41×173.70 |
+| 1920×1080 | 1118×177.66 | 1118×176.66 |
+| 2560×1440 | 1118×177.66 | 1118×176.66 |
+| 390×844 | 356×56.56 | 356×55.56 |
+
+容器有 1px 下边线，图片仍有极少量上下 cover 裁切。桌面内容最大宽度限制使大屏不再无限放大。窄屏保留横幅比例，详细名称和玩法在横幅下方展示；没有把新图裁成 16:9。
+
+接入入口仍是 `src/selection/games.ts` 的 `G05_FINAL_PREVIEW_IMAGE = null`。收到并验收图后，将文件放到 `public/game-previews/g05-selection-final.png`，只将常量改成 `"/game-previews/g05-selection-final.png"`；保持 null 可随时回到现有安全素材。
+
+当前原图仍为 `/game-previews/squat-jump-card.png`，自然尺寸 1290×205；没有生成、替换或伪造接图结果。[生产尺寸与资源证据](screenshots/final-polish/production-audit.json)、[当前选择页](screenshots/final-polish/production-selection-1920.png)。
+
+**以下为 2026-10-22 旧挂灯版本的核对记录，保留审计，不作为当前显示尺寸。**
+
 ## 核对基准
 
 - 代码仓库：`https://github.com/Zeno-wistom/app-yukee.git`。
