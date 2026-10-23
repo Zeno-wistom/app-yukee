@@ -34,7 +34,18 @@ export type GameEventKind =
   | "land" | "fall";
 
 const W = 480;
+/** 逻辑游戏高度（玩法、碰撞、跳跃都在这 480×170 空间内）。 */
 const H = 170;
+/**
+ * 显示空间：宽固定 480，高按舞台比例扩展（天空向上、土地向下），
+ * 角色与障碍的像素比例不变，只是看到更多上下场景，不再出现「宽银幕里一条窄画」。
+ */
+function viewFor(cssW: number, cssH: number) {
+  const vh = cssW > 0 && cssH > 0 ? Math.round((W * cssH) / cssW) : H;
+  const h = Math.max(H, Math.min(H * 3, vh));
+  const extra = h - H;
+  return { h, top: Math.round(extra * 0.62) };
+}
 const GROUND_Y = 138;
 const YUKEE_X = 84;
 const SPEED = 150; // px/s
@@ -99,6 +110,24 @@ export default function YukeeRun({
   onDirection: (x: number) => void;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const view = useRef({ h: H, top: 0 });
+  // 舞台尺寸 → 显示空间高度。只改画布高度与绘制偏移，不碰玩法坐标。
+  useEffect(() => {
+    const canvas = canvasRef.current!;
+    const apply = () => {
+      const v = viewFor(canvas.clientWidth, canvas.clientHeight);
+      if (v.h === view.current.h && canvas.height === v.h) return;
+      view.current = v;
+      canvas.width = W;
+      canvas.height = v.h;
+      const ctx = canvas.getContext("2d");
+      if (ctx) ctx.imageSmoothingEnabled = false;
+    };
+    apply();
+    const ro = new ResizeObserver(apply);
+    ro.observe(canvas);
+    return () => ro.disconnect();
+  }, []);
   const [energy, setEnergy] = useState(0);
   const [progress, setProgress] = useState(0);
   const [hud, setHud] = useState<HeadDirection>("center");
@@ -228,8 +257,8 @@ export default function YukeeRun({
   // 主循环：世界推进 + 渲染（独立 rAF，不与视觉推理耦合）
   useEffect(() => {
     const canvas = canvasRef.current!;
-    canvas.width = W;
-    canvas.height = H;
+    if (canvas.width !== W) canvas.width = W;
+    if (canvas.height !== view.current.h) canvas.height = view.current.h;
     const ctx = canvas.getContext("2d")!;
     ctx.imageSmoothingEnabled = false;
     let raf = 0;
@@ -396,20 +425,27 @@ export default function YukeeRun({
     frozen: boolean,
   ) {
     const worldX = w.t * SPEED;
+    const { h: VH, top } = view.current;
+    const bottomExtra = VH - H - top;
+    // 显示空间偏移：上方多出的天空 top 像素，玩法坐标原点下移
+    ctx.setTransform(1, 0, 0, 1, 0, top);
     // Layer 1：像素自然场景底图（树、机械遗迹、远林、天空），最慢速。
-    const sky = ctx.createLinearGradient(0, 0, 0, H);
-    sky.addColorStop(0, "#4aaee3");
+    const sky = ctx.createLinearGradient(0, -top, 0, H);
+    sky.addColorStop(0, top > 0 ? "#3f9fd9" : "#4aaee3");
     sky.addColorStop(1, "#c9eef0");
     ctx.fillStyle = sky;
-    ctx.fillRect(0, 0, W, H);
+    ctx.fillRect(0, -top, W, H + top);
 
     const scenic = sceneImage.current;
     if (scenic?.complete && scenic.naturalWidth > 0) {
-      const cropH = Math.floor(scenic.naturalWidth / 2.82);
-      const cropY = Math.max(
-        0,
-        Math.floor((scenic.naturalHeight - cropH) * 0.42),
-      );
+      const baseH = Math.floor(scenic.naturalWidth / 2.82);
+      const baseY = Math.max(0, Math.floor((scenic.naturalHeight - baseH) * 0.42));
+      // 底边不动，按同一纵向比例向上多取原画；原画不够高时剩余部分由天空渐变承接
+      const wantH = Math.round((baseH * (GROUND_Y + top)) / GROUND_Y);
+      const cropBottom = baseY + baseH;
+      const cropY = Math.max(0, cropBottom - wantH);
+      const cropH = cropBottom - cropY;
+      const destH = Math.round((cropH / baseH) * GROUND_Y);
       ctx.save();
       ctx.globalAlpha = 0.84;
       ctx.filter = "saturate(0.82) contrast(0.9)";
@@ -420,9 +456,9 @@ export default function YukeeRun({
         scenic.naturalWidth,
         cropH,
         0,
-        0,
+        GROUND_Y - destH,
         W,
-        GROUND_Y,
+        destH,
       );
       ctx.restore();
       ctx.imageSmoothingEnabled = false;
@@ -489,7 +525,16 @@ export default function YukeeRun({
 
     // Layer 6：可玩地面，最快；深色稳定轮廓保证角色与障碍清楚。
     ctx.fillStyle = "#163c34";
-    ctx.fillRect(0, GROUND_Y, W, H - GROUND_Y);
+    ctx.fillRect(0, GROUND_Y, W, H - GROUND_Y + bottomExtra);
+    if (bottomExtra > 0) {
+      // 扩展出的下方土地：同速滚动的深色土层与碎石，保持地面连续
+      ctx.fillStyle = "#123129";
+      ctx.fillRect(0, H, W, bottomExtra);
+      const pebOff = worldX % 40;
+      ctx.fillStyle = "#1d4a3e";
+      for (let y = H + 6; y < H + bottomExtra - 2; y += 14)
+        for (let x = -pebOff + ((y / 14) % 2) * 20; x < W; x += 40) ctx.fillRect(x, y, 6, 2);
+    }
     ctx.fillStyle = "#b2e58b";
     ctx.fillRect(0, GROUND_Y, W, 2);
     const dashOff = worldX % 28;

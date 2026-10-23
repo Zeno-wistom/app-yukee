@@ -42,6 +42,7 @@ import { MOTION, reducedMotion } from "../motion/tokens";
 import { useStageTransition } from "../motion/useStageTransition";
 import "./arcade.css";
 import "./motion.css";
+import "./viewport.css";
 
 const Calibration = lazy(() => import("../games/CalibrationView"));
 const WingCalibration = lazy(() => import("../games/WingCalibrationView"));

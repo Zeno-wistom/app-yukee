@@ -1,4 +1,4 @@
-import { memo, type RefObject } from "react";
+import { memo, useLayoutEffect, useRef, useState, type RefObject } from "react";
 import type { YukeeState } from "../yukee/yukeeTypes";
 import "./moonWing.css";
 import { MOON_BOAT_TRANSFORM } from "./moonSceneGeometry";
@@ -16,14 +16,35 @@ export default memo(function MoonWingScene({
   reps: number;
   firefliesRef: RefObject<MoonFirefliesHandle | null>;
 }) {
+  // 宽于 16:9 的舞台：横向扩展 viewBox，原画两侧用镜像延伸 + 渐暗收边；
+  // 船、角色、萤火虫仍在 960×540 坐标里，比例与判定不变。
+  const wrap = useRef<HTMLDivElement>(null);
+  const [extra, setExtra] = useState(0);
+  useLayoutEffect(() => {
+    const el = wrap.current;
+    if (!el) return;
+    const apply = () => {
+      const w = el.clientWidth,
+        h = el.clientHeight;
+      if (!w || !h) return;
+      const vbW = Math.min(960 * 2, (540 * w) / h);
+      const next = Math.max(0, Math.round((vbW - 960) / 2));
+      setExtra((prev) => (Math.abs(prev - next) > 1 ? next : prev));
+    };
+    apply();
+    const ro = new ResizeObserver(apply);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
   return (
     <div
+      ref={wrap}
       className={`wing-world moon-world ${finished ? "is-finished" : ""}`}
       aria-hidden="true"
     >
       <svg
         className="wing-svg"
-        viewBox="0 0 960 540"
+        viewBox={`${-extra} 0 ${960 + extra * 2} 540`}
         preserveAspectRatio="xMidYMid meet"
       >
         <defs>
@@ -37,6 +58,24 @@ export default memo(function MoonWingScene({
             <stop offset="1" stopColor="#a6eaff" stopOpacity=".4" />
           </linearGradient>
         </defs>
+        {extra > 0 && (
+          <g className="moon-extend">
+            <defs>
+              <linearGradient id="moonEdgeL" x1="1" x2="0">
+                <stop stopColor="#04183a" stopOpacity="0.05" />
+                <stop offset="1" stopColor="#03122e" stopOpacity="0.62" />
+              </linearGradient>
+              <linearGradient id="moonEdgeR" x1="0" x2="1">
+                <stop stopColor="#04183a" stopOpacity="0.05" />
+                <stop offset="1" stopColor="#03122e" stopOpacity="0.62" />
+              </linearGradient>
+            </defs>
+            <image href="/art/g02/moon-night.png" width="960" height="540" preserveAspectRatio="xMidYMid slice" transform="scale(-1 1)" />
+            <image href="/art/g02/moon-night.png" width="960" height="540" preserveAspectRatio="xMidYMid slice" transform="translate(1920 0) scale(-1 1)" />
+            <rect x={-extra} width={extra} height="540" fill="url(#moonEdgeL)" />
+            <rect x="960" width={extra} height="540" fill="url(#moonEdgeR)" />
+          </g>
+        )}
         <image
           href="/art/g02/moon-night.png"
           width="960"

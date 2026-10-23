@@ -1,0 +1,1976 @@
+{
+ "1280x720": {
+  "selection": {
+   "vw": 1280,
+   "vh": 720,
+   "docScroll": [
+    1280,
+    720
+   ],
+   "bodyScroll": [
+    1280,
+    720
+   ],
+   "appScroll": [
+    1280,
+    733,
+    1280,
+    720
+   ],
+   "scrollbarW": 0,
+   "pageScrolls": true,
+   "over": [
+    {
+     "el": "section.selection-screen.arcade-surface[game-selection]",
+     "bottom": 733,
+     "right": 1280
+    }
+   ],
+   "stage": [
+    0,
+    0,
+    1280,
+    720
+   ],
+   "canvas": []
+  },
+  "yukeeRun-cal": {
+   "vw": 1280,
+   "vh": 720,
+   "docScroll": [
+    1280,
+    720
+   ],
+   "bodyScroll": [
+    1280,
+    720
+   ],
+   "appScroll": [
+    1280,
+    720,
+    1280,
+    720
+   ],
+   "scrollbarW": 0,
+   "pageScrolls": false,
+   "over": [],
+   "stage": [
+    0,
+    0,
+    1280,
+    720
+   ],
+   "canvas": []
+  },
+  "yukeeRun": {
+   "vw": 1280,
+   "vh": 720,
+   "docScroll": [
+    1280,
+    720
+   ],
+   "bodyScroll": [
+    1280,
+    720
+   ],
+   "appScroll": [
+    1280,
+    720,
+    1280,
+    720
+   ],
+   "scrollbarW": 0,
+   "pageScrolls": false,
+   "over": [],
+   "stage": [
+    0,
+    0,
+    1280,
+    720
+   ],
+   "canvas": [
+    {
+     "cls": "",
+     "css": [
+      1232,
+      500
+     ],
+     "buf": [
+      480,
+      170
+     ],
+     "x": 24,
+     "y": 132
+    }
+   ]
+  },
+  "yukeeRun-pause": {
+   "vw": 1280,
+   "vh": 720,
+   "docScroll": [
+    1280,
+    720
+   ],
+   "bodyScroll": [
+    1280,
+    720
+   ],
+   "appScroll": [
+    1280,
+    720,
+    1280,
+    720
+   ],
+   "scrollbarW": 0,
+   "pageScrolls": false,
+   "over": [],
+   "stage": [
+    0,
+    0,
+    1280,
+    720
+   ],
+   "canvas": [
+    {
+     "cls": "",
+     "css": [
+      1232,
+      500
+     ],
+     "buf": [
+      480,
+      170
+     ],
+     "x": 24,
+     "y": 132
+    }
+   ]
+  },
+  "winglight-cal": {
+   "vw": 1280,
+   "vh": 720,
+   "docScroll": [
+    1280,
+    720
+   ],
+   "bodyScroll": [
+    1280,
+    720
+   ],
+   "appScroll": [
+    1280,
+    720,
+    1280,
+    720
+   ],
+   "scrollbarW": 0,
+   "pageScrolls": false,
+   "over": [],
+   "stage": [
+    0,
+    0,
+    1280,
+    720
+   ],
+   "canvas": [
+    {
+     "cls": "wing-camera-skeleton",
+     "css": [
+      643,
+      513
+     ],
+     "buf": [
+      643,
+      513
+     ],
+     "x": 51,
+     "y": 156
+    }
+   ]
+  },
+  "winglight": {
+   "vw": 1280,
+   "vh": 720,
+   "docScroll": [
+    1280,
+    720
+   ],
+   "bodyScroll": [
+    1280,
+    720
+   ],
+   "appScroll": [
+    1280,
+    720,
+    1280,
+    720
+   ],
+   "scrollbarW": 0,
+   "pageScrolls": false,
+   "over": [],
+   "stage": [
+    0,
+    0,
+    1280,
+    720
+   ],
+   "canvas": []
+  },
+  "winglight-pause": {
+   "vw": 1280,
+   "vh": 720,
+   "docScroll": [
+    1280,
+    720
+   ],
+   "bodyScroll": [
+    1280,
+    720
+   ],
+   "appScroll": [
+    1280,
+    720,
+    1280,
+    720
+   ],
+   "scrollbarW": 0,
+   "pageScrolls": false,
+   "over": [],
+   "stage": [
+    0,
+    0,
+    1280,
+    720
+   ],
+   "canvas": []
+  },
+  "leanSurf-cal": {
+   "vw": 1280,
+   "vh": 720,
+   "docScroll": [
+    1280,
+    720
+   ],
+   "bodyScroll": [
+    1280,
+    720
+   ],
+   "appScroll": [
+    1280,
+    720,
+    1280,
+    720
+   ],
+   "scrollbarW": 0,
+   "pageScrolls": false,
+   "over": [],
+   "stage": [
+    0,
+    0,
+    1280,
+    720
+   ],
+   "canvas": [
+    {
+     "cls": "",
+     "css": [
+      603,
+      424
+     ],
+     "buf": [
+      480,
+      270
+     ],
+     "x": 52,
+     "y": 174
+    }
+   ]
+  },
+  "leanSurf": {
+   "vw": 1280,
+   "vh": 720,
+   "docScroll": [
+    1280,
+    720
+   ],
+   "bodyScroll": [
+    1280,
+    720
+   ],
+   "appScroll": [
+    1280,
+    720,
+    1280,
+    720
+   ],
+   "scrollbarW": 0,
+   "pageScrolls": false,
+   "over": [],
+   "stage": [
+    0,
+    0,
+    1280,
+    720
+   ],
+   "canvas": [
+    {
+     "cls": "lean-ocean",
+     "css": [
+      1280,
+      648
+     ],
+     "buf": [
+      1280,
+      648
+     ],
+     "x": 0,
+     "y": 72
+    }
+   ]
+  },
+  "leanSurf-pause": {
+   "vw": 1280,
+   "vh": 720,
+   "docScroll": [
+    1280,
+    720
+   ],
+   "bodyScroll": [
+    1280,
+    720
+   ],
+   "appScroll": [
+    1280,
+    720,
+    1280,
+    720
+   ],
+   "scrollbarW": 0,
+   "pageScrolls": false,
+   "over": [],
+   "stage": [
+    0,
+    0,
+    1280,
+    720
+   ],
+   "canvas": [
+    {
+     "cls": "lean-ocean",
+     "css": [
+      1280,
+      648
+     ],
+     "buf": [
+      1280,
+      648
+     ],
+     "x": 0,
+     "y": 72
+    }
+   ]
+  },
+  "squatJump-cal": {
+   "vw": 1280,
+   "vh": 720,
+   "docScroll": [
+    1280,
+    720
+   ],
+   "bodyScroll": [
+    1280,
+    720
+   ],
+   "appScroll": [
+    1280,
+    720,
+    1280,
+    720
+   ],
+   "scrollbarW": 0,
+   "pageScrolls": false,
+   "over": [],
+   "stage": [
+    0,
+    0,
+    1280,
+    720
+   ],
+   "canvas": [
+    {
+     "cls": "",
+     "css": [
+      616,
+      347
+     ],
+     "buf": [
+      640,
+      360
+     ],
+     "x": 51,
+     "y": 213
+    }
+   ]
+  },
+  "squatJump": {
+   "vw": 1280,
+   "vh": 720,
+   "docScroll": [
+    1280,
+    720
+   ],
+   "bodyScroll": [
+    1280,
+    720
+   ],
+   "appScroll": [
+    1280,
+    720,
+    1280,
+    720
+   ],
+   "scrollbarW": 0,
+   "pageScrolls": false,
+   "over": [],
+   "stage": [
+    0,
+    0,
+    1280,
+    720
+   ],
+   "canvas": [
+    {
+     "cls": "squat-canvas",
+     "css": [
+      1280,
+      648
+     ],
+     "buf": [
+      1280,
+      648
+     ],
+     "x": 0,
+     "y": 72
+    }
+   ]
+  },
+  "squatJump-pause": {
+   "vw": 1280,
+   "vh": 720,
+   "docScroll": [
+    1280,
+    720
+   ],
+   "bodyScroll": [
+    1280,
+    720
+   ],
+   "appScroll": [
+    1280,
+    720,
+    1280,
+    720
+   ],
+   "scrollbarW": 0,
+   "pageScrolls": false,
+   "over": [],
+   "stage": [
+    0,
+    0,
+    1280,
+    720
+   ],
+   "canvas": [
+    {
+     "cls": "squat-canvas",
+     "css": [
+      1280,
+      648
+     ],
+     "buf": [
+      1280,
+      648
+     ],
+     "x": 0,
+     "y": 72
+    }
+   ]
+  }
+ },
+ "1366x768": {
+  "selection": {
+   "vw": 1366,
+   "vh": 768,
+   "docScroll": [
+    1366,
+    768
+   ],
+   "bodyScroll": [
+    1366,
+    768
+   ],
+   "appScroll": [
+    1366,
+    768,
+    1366,
+    768
+   ],
+   "scrollbarW": 0,
+   "pageScrolls": false,
+   "over": [],
+   "stage": [
+    0,
+    0,
+    1366,
+    768
+   ],
+   "canvas": []
+  },
+  "yukeeRun-cal": {
+   "vw": 1366,
+   "vh": 768,
+   "docScroll": [
+    1366,
+    768
+   ],
+   "bodyScroll": [
+    1366,
+    768
+   ],
+   "appScroll": [
+    1366,
+    768,
+    1366,
+    768
+   ],
+   "scrollbarW": 0,
+   "pageScrolls": false,
+   "over": [],
+   "stage": [
+    0,
+    0,
+    1366,
+    768
+   ],
+   "canvas": []
+  },
+  "yukeeRun": {
+   "vw": 1366,
+   "vh": 768,
+   "docScroll": [
+    1366,
+    768
+   ],
+   "bodyScroll": [
+    1366,
+    768
+   ],
+   "appScroll": [
+    1366,
+    768,
+    1366,
+    768
+   ],
+   "scrollbarW": 0,
+   "pageScrolls": false,
+   "over": [],
+   "stage": [
+    0,
+    0,
+    1366,
+    768
+   ],
+   "canvas": [
+    {
+     "cls": "",
+     "css": [
+      1318,
+      547
+     ],
+     "buf": [
+      480,
+      170
+     ],
+     "x": 24,
+     "y": 132
+    }
+   ]
+  },
+  "yukeeRun-pause": {
+   "vw": 1366,
+   "vh": 768,
+   "docScroll": [
+    1366,
+    768
+   ],
+   "bodyScroll": [
+    1366,
+    768
+   ],
+   "appScroll": [
+    1366,
+    768,
+    1366,
+    768
+   ],
+   "scrollbarW": 0,
+   "pageScrolls": false,
+   "over": [],
+   "stage": [
+    0,
+    0,
+    1366,
+    768
+   ],
+   "canvas": [
+    {
+     "cls": "",
+     "css": [
+      1318,
+      547
+     ],
+     "buf": [
+      480,
+      170
+     ],
+     "x": 24,
+     "y": 132
+    }
+   ]
+  },
+  "winglight-cal": {
+   "vw": 1366,
+   "vh": 768,
+   "docScroll": [
+    1366,
+    768
+   ],
+   "bodyScroll": [
+    1366,
+    768
+   ],
+   "appScroll": [
+    1366,
+    768,
+    1366,
+    768
+   ],
+   "scrollbarW": 0,
+   "pageScrolls": false,
+   "over": [],
+   "stage": [
+    0,
+    0,
+    1366,
+    768
+   ],
+   "canvas": [
+    {
+     "cls": "wing-camera-skeleton",
+     "css": [
+      686,
+      552
+     ],
+     "buf": [
+      686,
+      552
+     ],
+     "x": 55,
+     "y": 162
+    }
+   ]
+  },
+  "winglight": {
+   "vw": 1366,
+   "vh": 768,
+   "docScroll": [
+    1366,
+    768
+   ],
+   "bodyScroll": [
+    1366,
+    768
+   ],
+   "appScroll": [
+    1366,
+    768,
+    1366,
+    768
+   ],
+   "scrollbarW": 0,
+   "pageScrolls": false,
+   "over": [],
+   "stage": [
+    0,
+    0,
+    1366,
+    768
+   ],
+   "canvas": []
+  },
+  "winglight-pause": {
+   "vw": 1366,
+   "vh": 768,
+   "docScroll": [
+    1366,
+    768
+   ],
+   "bodyScroll": [
+    1366,
+    768
+   ],
+   "appScroll": [
+    1366,
+    768,
+    1366,
+    768
+   ],
+   "scrollbarW": 0,
+   "pageScrolls": false,
+   "over": [],
+   "stage": [
+    0,
+    0,
+    1366,
+    768
+   ],
+   "canvas": []
+  },
+  "leanSurf-cal": {
+   "vw": 1366,
+   "vh": 768,
+   "docScroll": [
+    1366,
+    768
+   ],
+   "bodyScroll": [
+    1366,
+    768
+   ],
+   "appScroll": [
+    1366,
+    768,
+    1366,
+    768
+   ],
+   "scrollbarW": 0,
+   "pageScrolls": false,
+   "over": [],
+   "stage": [
+    0,
+    0,
+    1366,
+    768
+   ],
+   "canvas": [
+    {
+     "cls": "",
+     "css": [
+      643,
+      456
+     ],
+     "buf": [
+      480,
+      270
+     ],
+     "x": 56,
+     "y": 180
+    }
+   ]
+  },
+  "leanSurf": {
+   "vw": 1366,
+   "vh": 768,
+   "docScroll": [
+    1366,
+    768
+   ],
+   "bodyScroll": [
+    1366,
+    768
+   ],
+   "appScroll": [
+    1366,
+    768,
+    1366,
+    768
+   ],
+   "scrollbarW": 0,
+   "pageScrolls": false,
+   "over": [],
+   "stage": [
+    0,
+    0,
+    1366,
+    768
+   ],
+   "canvas": [
+    {
+     "cls": "lean-ocean",
+     "css": [
+      1366,
+      696
+     ],
+     "buf": [
+      1366,
+      696
+     ],
+     "x": 0,
+     "y": 72
+    }
+   ]
+  },
+  "leanSurf-pause": {
+   "vw": 1366,
+   "vh": 768,
+   "docScroll": [
+    1366,
+    768
+   ],
+   "bodyScroll": [
+    1366,
+    768
+   ],
+   "appScroll": [
+    1366,
+    768,
+    1366,
+    768
+   ],
+   "scrollbarW": 0,
+   "pageScrolls": false,
+   "over": [],
+   "stage": [
+    0,
+    0,
+    1366,
+    768
+   ],
+   "canvas": [
+    {
+     "cls": "lean-ocean",
+     "css": [
+      1366,
+      696
+     ],
+     "buf": [
+      1366,
+      696
+     ],
+     "x": 0,
+     "y": 72
+    }
+   ]
+  },
+  "squatJump-cal": {
+   "vw": 1366,
+   "vh": 768,
+   "docScroll": [
+    1366,
+    768
+   ],
+   "bodyScroll": [
+    1366,
+    768
+   ],
+   "appScroll": [
+    1366,
+    768,
+    1366,
+    768
+   ],
+   "scrollbarW": 0,
+   "pageScrolls": false,
+   "over": [],
+   "stage": [
+    0,
+    0,
+    1366,
+    768
+   ],
+   "canvas": [
+    {
+     "cls": "",
+     "css": [
+      658,
+      370
+     ],
+     "buf": [
+      640,
+      360
+     ],
+     "x": 55,
+     "y": 224
+    }
+   ]
+  },
+  "squatJump": {
+   "vw": 1366,
+   "vh": 768,
+   "docScroll": [
+    1366,
+    768
+   ],
+   "bodyScroll": [
+    1366,
+    768
+   ],
+   "appScroll": [
+    1366,
+    768,
+    1366,
+    768
+   ],
+   "scrollbarW": 0,
+   "pageScrolls": false,
+   "over": [],
+   "stage": [
+    0,
+    0,
+    1366,
+    768
+   ],
+   "canvas": [
+    {
+     "cls": "squat-canvas",
+     "css": [
+      1366,
+      696
+     ],
+     "buf": [
+      1366,
+      696
+     ],
+     "x": 0,
+     "y": 72
+    }
+   ]
+  },
+  "squatJump-pause": {
+   "vw": 1366,
+   "vh": 768,
+   "docScroll": [
+    1366,
+    768
+   ],
+   "bodyScroll": [
+    1366,
+    768
+   ],
+   "appScroll": [
+    1366,
+    768,
+    1366,
+    768
+   ],
+   "scrollbarW": 0,
+   "pageScrolls": false,
+   "over": [],
+   "stage": [
+    0,
+    0,
+    1366,
+    768
+   ],
+   "canvas": [
+    {
+     "cls": "squat-canvas",
+     "css": [
+      1366,
+      696
+     ],
+     "buf": [
+      1366,
+      696
+     ],
+     "x": 0,
+     "y": 72
+    }
+   ]
+  }
+ },
+ "1920x1080": {
+  "selection": {
+   "vw": 1920,
+   "vh": 1080,
+   "docScroll": [
+    1920,
+    1080
+   ],
+   "bodyScroll": [
+    1920,
+    1080
+   ],
+   "appScroll": [
+    1920,
+    1080,
+    1920,
+    1080
+   ],
+   "scrollbarW": 0,
+   "pageScrolls": false,
+   "over": [],
+   "stage": [
+    0,
+    0,
+    1920,
+    1080
+   ],
+   "canvas": []
+  },
+  "yukeeRun-cal": {
+   "vw": 1920,
+   "vh": 1080,
+   "docScroll": [
+    1920,
+    1080
+   ],
+   "bodyScroll": [
+    1920,
+    1080
+   ],
+   "appScroll": [
+    1920,
+    1080,
+    1920,
+    1080
+   ],
+   "scrollbarW": 0,
+   "pageScrolls": false,
+   "over": [],
+   "stage": [
+    0,
+    0,
+    1920,
+    1080
+   ],
+   "canvas": []
+  },
+  "yukeeRun": {
+   "vw": 1920,
+   "vh": 1080,
+   "docScroll": [
+    1920,
+    1080
+   ],
+   "bodyScroll": [
+    1920,
+    1080
+   ],
+   "appScroll": [
+    1920,
+    1080,
+    1920,
+    1080
+   ],
+   "scrollbarW": 0,
+   "pageScrolls": false,
+   "over": [],
+   "stage": [
+    0,
+    0,
+    1920,
+    1080
+   ],
+   "canvas": [
+    {
+     "cls": "",
+     "css": [
+      1872,
+      854
+     ],
+     "buf": [
+      480,
+      170
+     ],
+     "x": 24,
+     "y": 132
+    }
+   ]
+  },
+  "yukeeRun-pause": {
+   "vw": 1920,
+   "vh": 1080,
+   "docScroll": [
+    1920,
+    1080
+   ],
+   "bodyScroll": [
+    1920,
+    1080
+   ],
+   "appScroll": [
+    1920,
+    1080,
+    1920,
+    1080
+   ],
+   "scrollbarW": 0,
+   "pageScrolls": false,
+   "over": [],
+   "stage": [
+    0,
+    0,
+    1920,
+    1080
+   ],
+   "canvas": [
+    {
+     "cls": "",
+     "css": [
+      1872,
+      854
+     ],
+     "buf": [
+      480,
+      170
+     ],
+     "x": 24,
+     "y": 132
+    }
+   ]
+  },
+  "winglight-cal": {
+   "vw": 1920,
+   "vh": 1080,
+   "docScroll": [
+    1920,
+    1080
+   ],
+   "bodyScroll": [
+    1920,
+    1080
+   ],
+   "appScroll": [
+    1920,
+    1080,
+    1920,
+    1080
+   ],
+   "scrollbarW": 0,
+   "pageScrolls": false,
+   "over": [],
+   "stage": [
+    0,
+    0,
+    1920,
+    1080
+   ],
+   "canvas": [
+    {
+     "cls": "wing-camera-skeleton",
+     "css": [
+      981,
+      839
+     ],
+     "buf": [
+      981,
+      839
+     ],
+     "x": 64,
+     "y": 177
+    }
+   ]
+  },
+  "winglight": {
+   "vw": 1920,
+   "vh": 1080,
+   "docScroll": [
+    1920,
+    1080
+   ],
+   "bodyScroll": [
+    1920,
+    1080
+   ],
+   "appScroll": [
+    1920,
+    1080,
+    1920,
+    1080
+   ],
+   "scrollbarW": 0,
+   "pageScrolls": false,
+   "over": [],
+   "stage": [
+    0,
+    0,
+    1920,
+    1080
+   ],
+   "canvas": []
+  },
+  "winglight-pause": {
+   "vw": 1920,
+   "vh": 1080,
+   "docScroll": [
+    1920,
+    1080
+   ],
+   "bodyScroll": [
+    1920,
+    1080
+   ],
+   "appScroll": [
+    1920,
+    1080,
+    1920,
+    1080
+   ],
+   "scrollbarW": 0,
+   "pageScrolls": false,
+   "over": [],
+   "stage": [
+    0,
+    0,
+    1920,
+    1080
+   ],
+   "canvas": []
+  },
+  "leanSurf-cal": {
+   "vw": 1920,
+   "vh": 1080,
+   "docScroll": [
+    1920,
+    1080
+   ],
+   "bodyScroll": [
+    1920,
+    1080
+   ],
+   "appScroll": [
+    1920,
+    1080,
+    1920,
+    1080
+   ],
+   "scrollbarW": 0,
+   "pageScrolls": false,
+   "over": [],
+   "stage": [
+    0,
+    0,
+    1920,
+    1080
+   ],
+   "canvas": [
+    {
+     "cls": "",
+     "css": [
+      918,
+      684
+     ],
+     "buf": [
+      480,
+      270
+     ],
+     "x": 65,
+     "y": 207
+    }
+   ]
+  },
+  "leanSurf": {
+   "vw": 1920,
+   "vh": 1080,
+   "docScroll": [
+    1920,
+    1080
+   ],
+   "bodyScroll": [
+    1920,
+    1080
+   ],
+   "appScroll": [
+    1920,
+    1080,
+    1920,
+    1080
+   ],
+   "scrollbarW": 0,
+   "pageScrolls": false,
+   "over": [],
+   "stage": [
+    0,
+    0,
+    1920,
+    1080
+   ],
+   "canvas": [
+    {
+     "cls": "lean-ocean",
+     "css": [
+      1920,
+      1008
+     ],
+     "buf": [
+      1920,
+      1008
+     ],
+     "x": 0,
+     "y": 72
+    }
+   ]
+  },
+  "leanSurf-pause": {
+   "vw": 1920,
+   "vh": 1080,
+   "docScroll": [
+    1920,
+    1080
+   ],
+   "bodyScroll": [
+    1920,
+    1080
+   ],
+   "appScroll": [
+    1920,
+    1080,
+    1920,
+    1080
+   ],
+   "scrollbarW": 0,
+   "pageScrolls": false,
+   "over": [],
+   "stage": [
+    0,
+    0,
+    1920,
+    1080
+   ],
+   "canvas": [
+    {
+     "cls": "lean-ocean",
+     "css": [
+      1920,
+      1008
+     ],
+     "buf": [
+      1920,
+      1008
+     ],
+     "x": 0,
+     "y": 72
+    }
+   ]
+  },
+  "squatJump-cal": {
+   "vw": 1920,
+   "vh": 1080,
+   "docScroll": [
+    1920,
+    1080
+   ],
+   "bodyScroll": [
+    1920,
+    1080
+   ],
+   "appScroll": [
+    1920,
+    1080,
+    1920,
+    1080
+   ],
+   "scrollbarW": 0,
+   "pageScrolls": false,
+   "over": [],
+   "stage": [
+    0,
+    0,
+    1920,
+    1080
+   ],
+   "canvas": [
+    {
+     "cls": "",
+     "css": [
+      941,
+      530
+     ],
+     "buf": [
+      640,
+      360
+     ],
+     "x": 64,
+     "y": 299
+    }
+   ]
+  },
+  "squatJump": {
+   "vw": 1920,
+   "vh": 1080,
+   "docScroll": [
+    1920,
+    1080
+   ],
+   "bodyScroll": [
+    1920,
+    1080
+   ],
+   "appScroll": [
+    1920,
+    1080,
+    1920,
+    1080
+   ],
+   "scrollbarW": 0,
+   "pageScrolls": false,
+   "over": [],
+   "stage": [
+    0,
+    0,
+    1920,
+    1080
+   ],
+   "canvas": [
+    {
+     "cls": "squat-canvas",
+     "css": [
+      1920,
+      1008
+     ],
+     "buf": [
+      1920,
+      1008
+     ],
+     "x": 0,
+     "y": 72
+    }
+   ]
+  },
+  "squatJump-pause": {
+   "vw": 1920,
+   "vh": 1080,
+   "docScroll": [
+    1920,
+    1080
+   ],
+   "bodyScroll": [
+    1920,
+    1080
+   ],
+   "appScroll": [
+    1920,
+    1080,
+    1920,
+    1080
+   ],
+   "scrollbarW": 0,
+   "pageScrolls": false,
+   "over": [],
+   "stage": [
+    0,
+    0,
+    1920,
+    1080
+   ],
+   "canvas": [
+    {
+     "cls": "squat-canvas",
+     "css": [
+      1920,
+      1008
+     ],
+     "buf": [
+      1920,
+      1008
+     ],
+     "x": 0,
+     "y": 72
+    }
+   ]
+  }
+ },
+ "2560x1440": {
+  "selection": {
+   "vw": 2560,
+   "vh": 1440,
+   "docScroll": [
+    2560,
+    1440
+   ],
+   "bodyScroll": [
+    2560,
+    1440
+   ],
+   "appScroll": [
+    2560,
+    1440,
+    2560,
+    1440
+   ],
+   "scrollbarW": 0,
+   "pageScrolls": false,
+   "over": [],
+   "stage": [
+    0,
+    0,
+    2560,
+    1440
+   ],
+   "canvas": []
+  },
+  "yukeeRun-cal": {
+   "vw": 2560,
+   "vh": 1440,
+   "docScroll": [
+    2560,
+    1440
+   ],
+   "bodyScroll": [
+    2560,
+    1440
+   ],
+   "appScroll": [
+    2560,
+    1440,
+    2560,
+    1440
+   ],
+   "scrollbarW": 0,
+   "pageScrolls": false,
+   "over": [],
+   "stage": [
+    0,
+    0,
+    2560,
+    1440
+   ],
+   "canvas": []
+  },
+  "yukeeRun": {
+   "vw": 2560,
+   "vh": 1440,
+   "docScroll": [
+    2560,
+    1440
+   ],
+   "bodyScroll": [
+    2560,
+    1440
+   ],
+   "appScroll": [
+    2560,
+    1440,
+    2560,
+    1440
+   ],
+   "scrollbarW": 0,
+   "pageScrolls": false,
+   "over": [],
+   "stage": [
+    0,
+    0,
+    2560,
+    1440
+   ],
+   "canvas": [
+    {
+     "cls": "",
+     "css": [
+      2512,
+      1214
+     ],
+     "buf": [
+      480,
+      170
+     ],
+     "x": 24,
+     "y": 132
+    }
+   ]
+  },
+  "yukeeRun-pause": {
+   "vw": 2560,
+   "vh": 1440,
+   "docScroll": [
+    2560,
+    1440
+   ],
+   "bodyScroll": [
+    2560,
+    1440
+   ],
+   "appScroll": [
+    2560,
+    1440,
+    2560,
+    1440
+   ],
+   "scrollbarW": 0,
+   "pageScrolls": false,
+   "over": [],
+   "stage": [
+    0,
+    0,
+    2560,
+    1440
+   ],
+   "canvas": [
+    {
+     "cls": "",
+     "css": [
+      2512,
+      1214
+     ],
+     "buf": [
+      480,
+      170
+     ],
+     "x": 24,
+     "y": 132
+    }
+   ]
+  },
+  "winglight-cal": {
+   "vw": 2560,
+   "vh": 1440,
+   "docScroll": [
+    2560,
+    1440
+   ],
+   "bodyScroll": [
+    2560,
+    1440
+   ],
+   "appScroll": [
+    2560,
+    1440,
+    2560,
+    1440
+   ],
+   "scrollbarW": 0,
+   "pageScrolls": false,
+   "over": [],
+   "stage": [
+    0,
+    0,
+    2560,
+    1440
+   ],
+   "canvas": [
+    {
+     "cls": "wing-camera-skeleton",
+     "css": [
+      1337,
+      1199
+     ],
+     "buf": [
+      300,
+      150
+     ],
+     "x": 64,
+     "y": 177
+    }
+   ]
+  },
+  "winglight": {
+   "vw": 2560,
+   "vh": 1440,
+   "docScroll": [
+    2560,
+    1440
+   ],
+   "bodyScroll": [
+    2560,
+    1440
+   ],
+   "appScroll": [
+    2560,
+    1440,
+    2560,
+    1440
+   ],
+   "scrollbarW": 0,
+   "pageScrolls": false,
+   "over": [],
+   "stage": [
+    0,
+    0,
+    2560,
+    1440
+   ],
+   "canvas": []
+  },
+  "winglight-pause": {
+   "vw": 2560,
+   "vh": 1440,
+   "docScroll": [
+    2560,
+    1440
+   ],
+   "bodyScroll": [
+    2560,
+    1440
+   ],
+   "appScroll": [
+    2560,
+    1440,
+    2560,
+    1440
+   ],
+   "scrollbarW": 0,
+   "pageScrolls": false,
+   "over": [],
+   "stage": [
+    0,
+    0,
+    2560,
+    1440
+   ],
+   "canvas": []
+  },
+  "leanSurf-cal": {
+   "vw": 2560,
+   "vh": 1440,
+   "docScroll": [
+    2560,
+    1440
+   ],
+   "bodyScroll": [
+    2560,
+    1440
+   ],
+   "appScroll": [
+    2560,
+    1440,
+    2560,
+    1440
+   ],
+   "scrollbarW": 0,
+   "pageScrolls": false,
+   "over": [],
+   "stage": [
+    0,
+    0,
+    2560,
+    1440
+   ],
+   "canvas": [
+    {
+     "cls": "",
+     "css": [
+      1247,
+      965
+     ],
+     "buf": [
+      480,
+      270
+     ],
+     "x": 65,
+     "y": 223
+    }
+   ]
+  },
+  "leanSurf": {
+   "vw": 2560,
+   "vh": 1440,
+   "docScroll": [
+    2560,
+    1440
+   ],
+   "bodyScroll": [
+    2560,
+    1440
+   ],
+   "appScroll": [
+    2560,
+    1440,
+    2560,
+    1440
+   ],
+   "scrollbarW": 0,
+   "pageScrolls": false,
+   "over": [],
+   "stage": [
+    0,
+    0,
+    2560,
+    1440
+   ],
+   "canvas": [
+    {
+     "cls": "lean-ocean",
+     "css": [
+      2560,
+      1368
+     ],
+     "buf": [
+      2200,
+      1176
+     ],
+     "x": 0,
+     "y": 72
+    }
+   ]
+  },
+  "leanSurf-pause": {
+   "vw": 2560,
+   "vh": 1440,
+   "docScroll": [
+    2560,
+    1440
+   ],
+   "bodyScroll": [
+    2560,
+    1440
+   ],
+   "appScroll": [
+    2560,
+    1440,
+    2560,
+    1440
+   ],
+   "scrollbarW": 0,
+   "pageScrolls": false,
+   "over": [],
+   "stage": [
+    0,
+    0,
+    2560,
+    1440
+   ],
+   "canvas": [
+    {
+     "cls": "lean-ocean",
+     "css": [
+      2560,
+      1368
+     ],
+     "buf": [
+      2200,
+      1176
+     ],
+     "x": 0,
+     "y": 72
+    }
+   ]
+  },
+  "squatJump-cal": {
+   "vw": 2560,
+   "vh": 1440,
+   "docScroll": [
+    2560,
+    1440
+   ],
+   "bodyScroll": [
+    2560,
+    1440
+   ],
+   "appScroll": [
+    2560,
+    1440,
+    2560,
+    1440
+   ],
+   "scrollbarW": 0,
+   "pageScrolls": false,
+   "over": [],
+   "stage": [
+    0,
+    0,
+    2560,
+    1440
+   ],
+   "canvas": [
+    {
+     "cls": "",
+     "css": [
+      1284,
+      722
+     ],
+     "buf": [
+      640,
+      360
+     ],
+     "x": 64,
+     "y": 382
+    }
+   ]
+  },
+  "squatJump": {
+   "vw": 2560,
+   "vh": 1440,
+   "docScroll": [
+    2560,
+    1440
+   ],
+   "bodyScroll": [
+    2560,
+    1440
+   ],
+   "appScroll": [
+    2560,
+    1440,
+    2560,
+    1440
+   ],
+   "scrollbarW": 0,
+   "pageScrolls": false,
+   "over": [],
+   "stage": [
+    0,
+    0,
+    2560,
+    1440
+   ],
+   "canvas": [
+    {
+     "cls": "squat-canvas",
+     "css": [
+      2560,
+      1368
+     ],
+     "buf": [
+      2200,
+      1176
+     ],
+     "x": 0,
+     "y": 72
+    }
+   ]
+  },
+  "squatJump-pause": {
+   "vw": 2560,
+   "vh": 1440,
+   "docScroll": [
+    2560,
+    1440
+   ],
+   "bodyScroll": [
+    2560,
+    1440
+   ],
+   "appScroll": [
+    2560,
+    1440,
+    2560,
+    1440
+   ],
+   "scrollbarW": 0,
+   "pageScrolls": false,
+   "over": [],
+   "stage": [
+    0,
+    0,
+    2560,
+    1440
+   ],
+   "canvas": [
+    {
+     "cls": "squat-canvas",
+     "css": [
+      2560,
+      1368
+     ],
+     "buf": [
+      2200,
+      1176
+     ],
+     "x": 0,
+     "y": 72
+    }
+   ]
+  }
+ }
+}

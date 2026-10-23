@@ -1,0 +1,154 @@
+{
+ "1920x937": {
+  "selection": {
+   "vw": 1920,
+   "vh": 937,
+   "docScroll": [
+    1920,
+    937
+   ],
+   "bodyScroll": [
+    1920,
+    937
+   ],
+   "appScroll": [
+    1920,
+    937,
+    1920,
+    937
+   ],
+   "scrollbarW": 0,
+   "pageScrolls": false,
+   "over": [],
+   "stage": [
+    0,
+    0,
+    1920,
+    937
+   ],
+   "canvas": [],
+   "clip": [
+    865,
+    865
+   ],
+   "cardClip": [
+    473,
+    473
+   ]
+  }
+ },
+ "1920x1080": {
+  "selection": {
+   "vw": 1920,
+   "vh": 1080,
+   "docScroll": [
+    1920,
+    1080
+   ],
+   "bodyScroll": [
+    1920,
+    1080
+   ],
+   "appScroll": [
+    1920,
+    1080,
+    1920,
+    1080
+   ],
+   "scrollbarW": 0,
+   "pageScrolls": false,
+   "over": [],
+   "stage": [
+    0,
+    0,
+    1920,
+    1080
+   ],
+   "canvas": [],
+   "clip": [
+    1008,
+    1008
+   ],
+   "cardClip": [
+    493,
+    493
+   ]
+  }
+ },
+ "2560x1297": {
+  "selection": {
+   "vw": 2560,
+   "vh": 1297,
+   "docScroll": [
+    2560,
+    1297
+   ],
+   "bodyScroll": [
+    2560,
+    1297
+   ],
+   "appScroll": [
+    2560,
+    1297,
+    2560,
+    1297
+   ],
+   "scrollbarW": 0,
+   "pageScrolls": false,
+   "over": [],
+   "stage": [
+    0,
+    0,
+    2560,
+    1297
+   ],
+   "canvas": [],
+   "clip": [
+    1225,
+    1225
+   ],
+   "cardClip": [
+    589,
+    589
+   ]
+  }
+ },
+ "2560x1440": {
+  "selection": {
+   "vw": 2560,
+   "vh": 1440,
+   "docScroll": [
+    2560,
+    1440
+   ],
+   "bodyScroll": [
+    2560,
+    1440
+   ],
+   "appScroll": [
+    2560,
+    1440,
+    2560,
+    1440
+   ],
+   "scrollbarW": 0,
+   "pageScrolls": false,
+   "over": [],
+   "stage": [
+    0,
+    0,
+    2560,
+    1440
+   ],
+   "canvas": [],
+   "clip": [
+    1368,
+    1368
+   ],
+   "cardClip": [
+    601,
+    601
+   ]
+  }
+ }
+}
