@@ -45,6 +45,7 @@ export default function Winglight({
   onQuit,
   onFinish,
   onEarlyExit,
+  onRestart,
 }: {
   paused: boolean;
   profile: WingProfile | null;
@@ -57,6 +58,7 @@ export default function Winglight({
     source: "camera" | "keyboard-demo";
   }) => void;
   onEarlyExit: () => void;
+  onRestart?: () => void;
 }) {
   const rootRef = useRef<HTMLDivElement>(null);
   const [finished, setFinished] = useState(false);
@@ -90,6 +92,11 @@ export default function Winglight({
     disp.uL += ((finishedRef.current ? 1 : update.uL) - disp.uL) * k;
     disp.uR += ((finishedRef.current ? 1 : update.uR) - disp.uR) * k;
     const u = Math.min(disp.uL, disp.uR);
+    // Sample existing SVG geometry before any style writes. One visual frame of
+    // target latency avoids a forced read-after-write flush; scoring is untouched.
+    if (update.tracking === "ok" && !update.resuming) {
+      firefliesRef.current?.step(dt, u, update.openValid, update.reps, finishedRef.current);
+    }
     el.style.setProperty("--wing-open", u.toFixed(4));
     el.style.setProperty("--wing-left", disp.uL.toFixed(4));
     el.style.setProperty("--wing-right", disp.uR.toFixed(4));
@@ -105,16 +112,6 @@ export default function Winglight({
       el.querySelector(`[data-moon-rope="${rope.side}"]`)?.setAttribute(
         "d",
         rope.d,
-      );
-    }
-    // 互动粒子仅消费显示数据；手动暂停由原 RAF 门控，身体丢失/恢复也冻结粒子时钟。
-    if (update.tracking === "ok" && !update.resuming) {
-      firefliesRef.current?.step(
-        dt,
-        u,
-        update.openValid,
-        update.reps,
-        finishedRef.current,
       );
     }
   }, []);
@@ -342,6 +339,7 @@ export default function Winglight({
             >
               返回游戏选择
             </button>
+            {onRestart && <button className="quiet" onClick={onRestart}>再玩一次</button>}
           </div>
         )}
       </div>

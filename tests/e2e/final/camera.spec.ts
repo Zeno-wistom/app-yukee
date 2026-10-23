@@ -55,6 +55,8 @@ test("D 合成姿态 G05：8px 舒适浅蹲校准、蓄力、真实站回释放�
   await choose(page, 1);
   expect(await page.evaluate(() => (window as any).streams.length)).toBe(2);
   await page.getByRole("button", { name: "返回游戏选择", exact: true }).click();
+  // Exit now has a short visual handoff; assert cleanup after the actual phase change.
+  await expect(page.getByTestId("game-selection")).toBeVisible();
   expect(
     await page.evaluate(() => (window as any).poseDiag().subscribers),
   ).toBe(0);

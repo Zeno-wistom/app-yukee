@@ -75,8 +75,8 @@ class AudioEngine {
     return { bgmActive: this.bgmPlaying, effectsActive: this.effects.size, charging: !!this.charge };
   }
 
-  /** 用户手势内调用：创建/恢复 AudioContext 并预载 BGM，不播放声音。 */
-  unlock() {
+  /** Idle warm-up: construct the local audio graph only. No resume, fetch or playback. */
+  prepare() {
     try {
       if (!this.ctx) {
         const AC =
@@ -102,12 +102,18 @@ class AudioEngine {
         this.masterVolume = saved;
         this.master.gain.value = saved;
       }
-      if (this.ctx.state === "suspended")
-        void this.ctx.resume().catch(() => {});
-      this.preloadBgm();
     } catch {
       /* 无音频环境：静默 */
     }
+  }
+
+  /** 用户手势内调用：恢复 AudioContext 并预载 BGM，不播放声音。 */
+  unlock() {
+    this.prepare();
+    try {
+      if (this.ctx?.state === "suspended") void this.ctx.resume().catch(() => {});
+      this.preloadBgm();
+    } catch { /* 无音频环境：静默 */ }
   }
 
   setMasterVolume(v: number) {

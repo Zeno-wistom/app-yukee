@@ -18,6 +18,19 @@ test("窄屏三款结算完整、文字可读、返回按钮可用（演示输�
     await expect(result).toBeVisible(); await page.waitForTimeout(1700);
     const r = await result.boundingBox(); expect(r!.x).toBeGreaterThanOrEqual(0); expect(r!.y).toBeGreaterThanOrEqual(60);
     expect(r!.x + r!.width).toBeLessThanOrEqual(391); expect(r!.y + r!.height).toBeLessThanOrEqual(844);
+    expect(r!.width).toBeGreaterThanOrEqual(330);
+    if (index === 2) {
+      const contrast = await result.locator("button.quiet").evaluate(el => {
+        const style = getComputedStyle(el);
+        const luminance = (color: string) => {
+          const values = color.match(/[\d.]+/g)!.slice(0, 3).map(Number).map(v => v / 255).map(v => v <= .04045 ? v / 12.92 : ((v + .055) / 1.055) ** 2.4);
+          return values[0] * .2126 + values[1] * .7152 + values[2] * .0722;
+        };
+        const a = luminance(style.color), b = luminance(style.backgroundColor);
+        return (Math.max(a, b) + .05) / (Math.min(a, b) + .05);
+      });
+      expect(contrast).toBeGreaterThanOrEqual(4.5);
+    }
     await page.screenshot({ path: `docs/screenshots/final-polish/mobile-result-${index}.png` });
     await result.getByRole("button", { name: "返回游戏选择", exact: true }).click(); await expect(page.getByTestId("game-selection")).toBeVisible();
   }

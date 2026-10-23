@@ -27,6 +27,7 @@ export default function LeanSurf({
   onFinish,
   onEarlyExit,
   onGameEvent,
+  onRestart,
 }: {
   profile: LeanProfile;
   mode: LeanMode;
@@ -36,6 +37,7 @@ export default function LeanSurf({
   onFinish: (r: Omit<GameResult, "game">) => void;
   onEarlyExit: () => void;
   onGameEvent: (k: GameEventKind) => void;
+  onRestart?: () => void;
 }) {
   const session = useRef(new LeanSession(profile));
   const frame = useRef({ ...session.current.current });
@@ -301,6 +303,7 @@ export default function LeanSurf({
           >
             返回游戏选择
           </button>
+          {onRestart && <button className="quiet" onClick={onRestart}>再玩一次</button>}
         </div>
       )}
     </div>

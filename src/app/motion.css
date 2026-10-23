@@ -1,0 +1,219 @@
+/* YUKEE — a small reset. Quiet surfaces, warm light, purposeful motion.
+   Timings mirror src/motion/tokens.ts. No continuously animated full-screen effects. */
+.arcade-app {
+  --motion-micro: 160ms;
+  --motion-card: 420ms;
+  --motion-scene: 640ms;
+  --ease-out: cubic-bezier(.22, 1, .36, 1);
+  --ease-in-out: cubic-bezier(.76, 0, .24, 1);
+  --mint: #c2e6b6;
+  --ink: #f1f1e5;
+  --muted: #acbab0;
+  position: relative;
+  isolation: isolate;
+  background: #101c19;
+}
+.arcade-app[data-game="winglight"] { --mint: #bedcea; }
+.arcade-app[data-game="leanSurf"] { --mint: #efd4a3; }
+.arcade-app[data-game="squatJump"] { --mint: #b6e2d7; }
+.arcade-atmosphere { position: absolute; inset: 0; pointer-events: none; z-index: -1; overflow: hidden; }
+.arcade-atmosphere > div { position: absolute; inset: 0; opacity: 0; transition: opacity 700ms ease; }
+.arcade-atmosphere > .is-current { opacity: 1; }
+.is-session .arcade-atmosphere { display: none; }
+.arcade-header { background: #101c19f5; border-color: #b1c1ad16; }
+.arcade-brand { letter-spacing: .035em; font-weight: 700; }
+.arcade-brand small { letter-spacing: .18em; font-size: 9px; color: #9bac9c; }
+.brand-eyes { border-color: #9ab69155; background: #a7cc9c0d; transition: border-color 300ms, background 300ms; }
+.brand-eyes i { transition: background 400ms, transform 300ms var(--ease-out); }
+.arcade-brand:hover .brand-eyes i { transform: translateY(-2px); }
+.arcade-brand:hover .brand-eyes { border-color: var(--mint); background: #a7cc9c1a; }
+.arcade-kicker { color: #adbda6; font-size: 10px; letter-spacing: .18em; }
+.selection-screen { position: relative; padding-top: clamp(24px, 4.8vh, 68px); }
+.selection-heading { margin-bottom: clamp(24px, 3.4vh, 46px); }
+.selection-heading .arcade-kicker { display: flex; align-items: center; gap: 9px; }
+.status-seed { width: 5px; height: 5px; background: var(--mint); border-radius: 50%; box-shadow: 0 0 0 4px #b0d5a30a; }
+.selection-heading h1 { font-size: clamp(30px, 2.8vw, 48px); font-weight: 450; letter-spacing: -.045em; margin: 14px 0; }
+.selection-heading h1 span { transition: color 450ms; }
+.selection-heading p { color: #a8b7aa; letter-spacing: .015em; }
+.selection-companion { gap: 14px; }
+.selection-companion > span { color: #d2dec8; font-size: 12px; }
+.selection-companion small { display: block; font-size: 7px; margin-top: 7px; letter-spacing: .13em; color: #8c9f90; }
+.selection-active {
+  position: relative;
+  border-radius: 20px;
+  border: 1px solid #c0d3b92b;
+  background: linear-gradient(125deg, #263c2d 0%, #1b2d25 52%, #182921 100%);
+  box-shadow: 0 24px 56px -24px #0009, 0 1px 0 #d8edc90a inset;
+  transform-origin: 50% 40%;
+}
+.arcade-app[data-game="winglight"] .selection-active { background: linear-gradient(125deg, #263b40, #192d30 70%); }
+.arcade-app[data-game="leanSurf"] .selection-active { background: linear-gradient(125deg, #343d2c, #242f24 70%); }
+.arcade-app[data-game="squatJump"] .selection-active { background: linear-gradient(125deg, #273d39, #1b2d2a 70%); }
+.selection-preview { border-color: #c6d4b824; }
+.selection-preview-caption { background: linear-gradient(90deg, #10201b00, #10201b9e 38%, #10201bdb); }
+.selection-preview-caption span { letter-spacing: .2em; font-size: clamp(6px, .65vw, 9px); }
+.selection-preview-caption b { font-weight: 450; letter-spacing: .06em; }
+.selection-detail { padding: clamp(24px, 3vw, 42px); gap: 7%; }
+.selection-tag { display: flex; gap: 12px; align-items: center; padding-bottom: 0; border: 0; color: var(--mint); transition: color 420ms; }
+.selection-tag > span { padding: 5px 7px; border: 1px solid #bad2a93d; border-radius: 4px; font-size: 9px; letter-spacing: .08em; }
+.selection-story h2 { font-size: clamp(30px, 2.6vw, 44px); font-weight: 500; margin: 16px 0 14px; letter-spacing: .02em; }
+.selection-story p { color: #b8c7b7; font-size: 14px; max-width: 410px; line-height: 1.95; }
+.selection-duration { margin-top: 22px; color: #a3b59e; letter-spacing: .03em; }
+.selection-how { padding-left: 32px; border-color: #c7d8b520; }
+.selection-how .arcade-kicker { font-size: 9px; }
+.selection-how ol { gap: 13px; margin: 16px 0 22px; }
+.selection-how li { font-size: 13px; color: #e2e8d9; }
+.selection-how li span { color: #93aa8b; font-size: 9px; }
+.selection-how > small { color: #a3b49d; font-size: 10px; }
+.arcade-app :is(.primary, .quiet, .icon-button, .selection-arrow, .selection-pagination button,
+  .squat-actions button, .lean-modal button, .wing-demo-hold) {
+  transition: transform var(--motion-micro) var(--ease-out), background-color 220ms ease,
+    color 220ms ease, border-color 220ms ease, box-shadow 220ms ease, opacity 160ms ease;
+}
+.arcade-app .primary {
+  position: relative; overflow: hidden; min-height: 48px; border-radius: 9px;
+  background: var(--mint); color: #192c20; border: 1px solid #f4ffe638;
+  font-size: 14px; font-weight: 650; box-shadow: 0 2px 0 #0002, 0 1px 0 #fff4 inset;
+}
+.arcade-app .primary::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background: linear-gradient(110deg, transparent 25%, #fff3 48%, transparent 70%);
+  transform: translateX(-110%); transition: transform 600ms var(--ease-out);
+}
+.arcade-app .primary:not(:disabled):hover { background: color-mix(in srgb, var(--mint), white 12%); transform: translateY(-2px); box-shadow: 0 6px 20px #0003, 0 1px 0 #fff4 inset; }
+.arcade-app .primary:not(:disabled):hover::after { transform: translateX(110%); }
+.arcade-app .primary:not(:disabled):active { transform: translateY(1px) scale(.99); box-shadow: 0 0 0 transparent; transition-duration: 80ms; }
+.selection-start svg { transition: transform 240ms var(--ease-out); }
+.selection-start:hover svg { transform: translate(2px, -2px); }
+.selection-start[aria-busy="true"] svg { animation: departing-arrow 700ms ease both; }
+@keyframes departing-arrow { to { transform: translate(18px, -18px); opacity: 0; } }
+.arcade-app button:disabled { cursor: default; opacity: .5; }
+.arcade-app .selection-start[aria-busy="true"] { opacity: 1; background: #d5e7c3; }
+.arcade-app .quiet { min-height: 46px; border-radius: 9px; border-color: #b6c9a733; }
+.arcade-app .quiet:not(:disabled):hover { background: #a6c19312; border-color: #bad5ac88; transform: translateY(-1px); }
+.arcade-app .quiet:not(:disabled):active { transform: translateY(1px); }
+.arcade-app .icon-button { border-color: #adc1a32e; color: #c7d6c0; }
+.arcade-app .icon-button:hover { background: #adc1a311; border-color: #adc1a366; transform: translateY(-1px); }
+.arcade-app .icon-button:active { transform: scale(.94); }
+.selection-arrow { width: 46px; height: 64px; border-color: #a0b79344; color: #c6d9ba; background: #a9c19805; }
+.selection-arrow:hover:not(:disabled) { background: #b2cda012; border-color: #b2cda0aa; }
+.selection-arrow.prev:hover:not(:disabled) { transform: translateX(-3px); }
+.selection-arrow.next:hover:not(:disabled) { transform: translateX(3px); }
+.selection-arrow:active:not(:disabled) { transform: scale(.94); }
+.selection-pagination { margin: 24px 64px 20px; gap: 12px; }
+.selection-pagination button { position: relative; border-bottom: 0; border-radius: 6px; color: #91a88f; padding: 12px 18px; }
+.selection-pagination button::after { content: ""; position: absolute; bottom: 0; left: 18px; right: 18px; height: 2px; border-radius: 2px; background: var(--mint); transform: scaleX(0); transition: transform 420ms var(--ease-out), background 420ms; }
+.selection-pagination button[aria-current] { color: var(--mint); background: #bbd9a907; }
+.selection-pagination button[aria-current]::after { transform: scaleX(1); }
+.selection-pagination button:not(:disabled):hover { background: #bbd9a90c; color: #e7eddb; transform: translateY(-2px); }
+.selection-pagination span { font-size: 8px; letter-spacing: .05em; }
+.selection-pagination b { font-size: 12px; letter-spacing: .03em; }
+.selection-footer { border-color: #aec59c1a; color: #91a58d; padding-top: 16px; }
+.selection-footer > span:first-child { max-width: 70%; }
+/* The card opens into a cropped scene aperture. No typography is scaled or stretched. */
+.stage-transition { position: fixed; inset: 72px 0 0; visibility: hidden; z-index: 30; pointer-events: none; background: #14261f; overflow: hidden; contain: layout paint; }
+.transition-art { position: absolute; inset: 0; }
+.transition-art img { width: 100%; height: 100%; object-fit: cover; object-position: left center; opacity: .65; }
+.transition-art::after { content: ""; position: absolute; inset: 0; background: linear-gradient(0deg, #14261fdd, #14261f00 80%); }
+.transition-label { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; color: #f3f6e9; }
+.transition-label span { font-size: 10px; letter-spacing: .22em; }
+.transition-label b { font-size: clamp(26px, 3vw, 44px); letter-spacing: .12em; font-weight: 450; }
+.transition-label i { width: 36px; height: 2px; background: var(--mint); }
+.arcade-app[data-transition="entering"] .selection-screen { pointer-events: none; }
+.game-viewport { transform-origin: 50% 45%; }
+.arcade-loading { gap: 20px; background: #14261f; color: #c8dac0; font-size: 13px; }
+.arcade-loading::before { content: ""; height: 3px; width: 44px; background: var(--mint); transform-origin: left; animation: loading-breath 900ms ease-in-out infinite alternate; }
+@keyframes loading-breath { from { transform: scaleX(.3); opacity: .4; } to { transform: scaleX(1); opacity: 1; } }
+/* Scene and HUD use separate rhythms, including split chunks that mount after Suspense. */
+.game-viewport :is(.yukee-run, .wing-game, .lean-game, .squat-jump) { animation: world-arrive var(--motion-scene) var(--ease-out) both; }
+@keyframes world-arrive { from { opacity: .45; transform: scale(1.018); } to { opacity: 1; transform: scale(1); } }
+.game-viewport :is(.yukee-hud-top, .wing-hud-top, .lean-hud, .squat-hud) { animation: hud-arrive 480ms 120ms var(--ease-out) both; }
+.game-viewport :is(.yukee-hud-bottom, .wing-demo-bar, .lean-guide, .squat-guide, .run-source) { animation: guide-arrive 500ms 220ms var(--ease-out) both; }
+@keyframes hud-arrive { from { opacity: 0; translate: 0 -10px; } to { opacity: 1; translate: 0 0; } }
+@keyframes guide-arrive { from { opacity: 0; translate: 0 10px; } to { opacity: 1; translate: 0 0; } }
+.arcade-app[data-paused="true"] .game-viewport { pointer-events: none; }
+.arcade-app[data-paused="true"] .game-viewport * { animation-play-state: paused !important; }
+.arcade-app[data-paused="true"] :is(.lean-guide, .squat-guide, .wing-guide) { opacity: .4; }
+.arcade-dialog { padding: 52px 36px 32px; width: min(460px, calc(100vw - 32px)); border-color: #afc39955; border-radius: 20px; background: linear-gradient(135deg, #263b2c, #192b22); box-shadow: 0 32px 100px #0007, 0 1px 0 #eef8de0c inset; }
+.arcade-dialog::backdrop { background: #07130dd4; animation: backdrop-arrive 260ms ease both; }
+@keyframes backdrop-arrive { from { background: #07130d00; } }
+.arcade-dialog::before { content: "Ⅱ"; display: block; font-size: 24px; color: var(--mint); margin-bottom: 24px; font-weight: 300; }
+.arcade-dialog h2 { letter-spacing: -.03em; font-weight: 450; font-size: 28px; }
+.arcade-dialog p { color: #b5c3ab; }
+.arcade-dialog > .quiet:last-child { border-color: transparent; color: #9aac96; }
+.arcade-dialog > .quiet:last-child:hover { border-color: #abc59e33; }
+/* Completion keeps each game's own light/dark palette; only spacing and rhythm are shared. */
+.arcade-app .game-viewport :is(.wing-complete, .lean-result, .squat-result, .arcade-reward) { animation: result-arrive 540ms var(--ease-out) both; }
+@keyframes result-arrive { from { opacity: 0; transform: translateY(20px) scale(.975); } to { opacity: 1; transform: translateY(0) scale(1); } }
+.arcade-app .game-viewport :is(.wing-complete, .lean-result, .squat-result) { border-radius: 18px; box-shadow: 0 24px 64px #06152238; backdrop-filter: none; }
+.arcade-app .game-viewport :is(.wing-complete, .lean-result, .squat-result) > * { animation: result-content 400ms var(--ease-out) both; }
+.arcade-app .game-viewport :is(.wing-complete, .lean-result, .squat-result) > :nth-child(2) { animation-delay: 80ms; }
+.arcade-app .game-viewport :is(.wing-complete, .lean-result, .squat-result) > :nth-child(3) { animation-delay: 140ms; }
+.arcade-app .game-viewport :is(.wing-complete, .lean-result, .squat-result) > :nth-child(n+4) { animation-delay: 200ms; }
+@keyframes result-content { from { opacity: 0; translate: 0 8px; } to { opacity: 1; translate: 0 0; } }
+.arcade-app :is(.wing-complete-stats b, .squat-result p b, .lean-result p b) { display: inline-block; font-variant-numeric: tabular-nums; animation: score-arrive 650ms 180ms var(--ease-out) both; }
+@keyframes score-arrive { from { opacity: 0; transform: scale(.86); } to { opacity: 1; transform: scale(1); } }
+.arcade-reward { background: radial-gradient(ellipse at 50% 35%, #3b58362b, transparent 65%), #14231b; text-align: center; padding: 24px; gap: 18px; }
+.arcade-reward > .yukee-face { margin-bottom: 4px; }
+.arcade-reward .button-row { display: flex; gap: 12px; margin-top: 8px; }
+.reward-score { display: flex; align-items: baseline; gap: 12px; color: var(--mint); animation: score-arrive 650ms 150ms var(--ease-out) both; }
+.reward-score b { font-size: 52px; font-weight: 400; font-variant-numeric: tabular-nums; }
+.reward-score span { font-size: 12px; color: var(--muted); }
+.arcade-app .game-viewport .squat-result { border: 1px solid #72908466; background: #fffdf5; padding: 36px 28px; }
+.arcade-app .game-viewport .squat-result h2 { font-weight: 600; }
+.arcade-app .game-viewport .squat-result .squat-actions { flex-wrap: wrap; gap: 12px; justify-content: center; }
+.arcade-app .game-viewport .squat-result button { min-height: 46px; padding: 12px 20px; border-radius: 9px; font-size: 14px; box-shadow: none; }
+.arcade-app .game-viewport .squat-result .primary { background: #b7e5d6; color: #183c34; border: 1px solid #9fc9bb; }
+.arcade-app .game-viewport .squat-result .primary:hover { background: #ccefe3; }
+.arcade-app .game-viewport .squat-result button:not(.primary) { color: #52616b; background: #f5f7f8; border: 1px solid #d4dce0; }
+.arcade-app .game-viewport .lean-result button { min-width: 154px; min-height: 46px; border-radius: 9px; align-items: center; justify-content: center; font-size: 14px; }
+.arcade-app .game-viewport .lean-result button.quiet { background: #1d3646; color: #d0e0e4; border: 1px solid #607681; }
+.arcade-app .game-viewport .lean-result button.quiet:hover { background: #2b4757; }
+@media (min-width: 1800px) { .selection-screen { padding-top: 64px; } }
+@media (max-height: 800px) and (min-width: 801px) {
+  .selection-screen { padding-top: 20px; }
+  .selection-heading { margin-bottom: 18px; }
+  .selection-heading h1 { font-size: 31px; margin: 10px 0; }
+  .selection-detail { padding: 22px 28px; }
+  .selection-story h2 { font-size: 32px; margin: 10px 0; }
+  .selection-story p { font-size: 13px; line-height: 1.85; }
+  .selection-duration { margin-top: 14px; }
+  .selection-how ol { margin: 12px 0 16px; gap: 9px; }
+  .selection-pagination { margin-top: 14px; margin-bottom: 14px; }
+  .selection-footer { padding-top: 12px; }
+}
+@media (max-width: 800px) {
+  .stage-transition { top: 60px; }
+  .selection-screen { padding-top: 28px; }
+  .selection-heading { margin-bottom: 24px; }
+  .selection-heading h1 { font-size: 26px; }
+  .selection-heading .arcade-kicker { font-size: 9px; gap: 7px; }
+  .selection-active { border-radius: 14px; }
+  .selection-detail { padding: 24px; gap: 22px; }
+  .selection-story h2 { font-size: 32px; margin: 12px 0; }
+  .selection-story p { font-size: 13px; }
+  .selection-duration { margin-top: 16px; }
+  .selection-how { padding: 22px 0 0; }
+  .selection-preview-caption span { font-size: 6px; }
+  .selection-pagination { gap: 0; margin: 16px 0; }
+  .selection-pagination button { padding: 10px 5px; }
+  .selection-pagination button::after { left: 5px; right: 5px; }
+  .selection-pagination b { font-size: 11px; }
+  .selection-arrow { width: 52px; height: 44px; }
+  .selection-footer { padding: 16px 0 0; }
+  .selection-footer > span:first-child { max-width: 100%; }
+  .arcade-dialog { padding: 40px 24px 24px; }
+  .arcade-dialog::before { margin-bottom: 16px; }
+  .arcade-dialog h2 { font-size: 24px; }
+  .arcade-reward .button-row { flex-wrap: wrap; justify-content: center; }
+  .arcade-app .game-viewport .lean-result { inset: auto 16px 24px; width: auto; padding: 24px 20px; gap: 12px; }
+  .arcade-app .game-viewport .lean-result h2 { font-size: 22px; line-height: 1.45; }
+  .arcade-app .game-viewport .lean-result > small { font-size: 10px; letter-spacing: .12em; }
+  .arcade-app .game-viewport .lean-result p { font-size: 13px; }
+  .arcade-app .game-viewport .squat-result { padding: 28px 18px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .arcade-app *, .arcade-app *::before, .arcade-app *::after { animation-duration: .01ms !important; animation-delay: 0ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+  .stage-transition { display: none; }
+  .arcade-app :is(.yukee-breath, .yukee-body-x) { transform: none !important; }
+}

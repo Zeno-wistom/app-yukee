@@ -11,6 +11,7 @@ import gsap from "gsap";
 import { useGSAP } from "@gsap/react";
 import { GAMES } from "./games";
 import YukeeFace from "../yukee/YukeeFace";
+import { MOTION, reducedMotion } from "../motion/tokens";
 
 const DETAILS: Record<
   string,
@@ -50,10 +51,14 @@ export default function SelectionScreen({
   selectionIndex,
   onMove,
   onStart,
+  onPrepare,
+  launching = false,
 }: {
   selectionIndex: number;
   onMove: (direction: -1 | 1) => void;
   onStart: () => void;
+  onPrepare: () => void;
+  launching?: boolean;
 }) {
   const root = useRef<HTMLElement>(null);
   const [busy, setBusy] = useState(false);
@@ -64,39 +69,61 @@ export default function SelectionScreen({
   moveRef.current = onMove;
   const startRef = useRef(onStart);
   startRef.current = onStart;
-  const [direction, setDirection] = useState(1);
-  const move = (dir: -1 | 1) => {
-    if (busyRef.current) return;
+  const direction = useRef(1);
+  const launchingRef = useRef(launching);
+  launchingRef.current = launching;
+  const { contextSafe } = useGSAP({ scope: root });
+  const select = contextSafe((delta: number) => {
+    if (busyRef.current || launchingRef.current || !delta) return;
     busyRef.current = true;
     setBusy(true);
-    setDirection(dir);
-    moveRef.current(dir);
-  };
+    direction.current = Math.sign(delta);
+    const commit = () => {
+      for (let i = 0; i < Math.abs(delta); i++) moveRef.current(delta > 0 ? 1 : -1);
+    };
+    if (reducedMotion()) { commit(); return; }
+    gsap.to(root.current!.querySelector(".selection-active"), {
+      x: -direction.current * 48, opacity: 0, scale: 0.985,
+      duration: MOTION.exit, ease: "power2.in", onComplete: commit,
+    });
+  });
+  const move = (dir: -1 | 1) => select(dir);
+  useGSAP(() => {
+    if (reducedMotion()) return;
+    const tl = gsap.timeline({ defaults: { ease: MOTION.ease } });
+    tl.from(".selection-heading .arcade-kicker, .selection-heading h1, .selection-heading p", {
+      y: 16, opacity: 0, duration: 0.5, stagger: 0.065,
+    }, 0)
+      .from(".selection-companion", { y: 14, opacity: 0, scale: 0.94, duration: 0.6 }, 0.12)
+      .from(".selection-pagination, .selection-footer", { y: 12, opacity: 0, duration: 0.4, stagger: 0.06 }, 0.26);
+  }, { scope: root });
   useGSAP(
     () => {
-      const reduced = window.matchMedia(
-        "(prefers-reduced-motion: reduce)",
-      ).matches;
+      const reduced = reducedMotion();
       gsap.fromTo(
         ".selection-active",
-        { x: reduced ? 0 : direction * 30, opacity: reduced ? 1 : 0.35 },
+        { x: reduced ? 0 : direction.current * 64, opacity: reduced ? 1 : 0, scale: reduced ? 1 : 0.985 },
         {
           x: 0,
           opacity: 1,
-          duration: reduced ? 0 : 0.42,
-          ease: "power3.out",
+          scale: 1,
+          duration: reduced ? 0 : MOTION.card,
+          ease: MOTION.ease,
           onComplete: () => {
             busyRef.current = false;
             setBusy(false);
           },
         },
       );
+      if (!reduced) gsap.fromTo(".selection-story > *, .selection-how > *", { y: 9, opacity: 0 }, {
+        y: 0, opacity: 1, duration: 0.32, stagger: 0.025, delay: 0.08, ease: MOTION.ease,
+      });
     },
     { scope: root, dependencies: [selectionIndex], revertOnUpdate: true },
   );
   useLayoutEffect(() => {
     const key = (e: KeyboardEvent) => {
-      if (e.target instanceof HTMLInputElement) return;
+      if (e.target instanceof HTMLInputElement || launchingRef.current) return;
       if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
         e.preventDefault();
         move(e.key === "ArrowRight" ? 1 : -1);
@@ -112,10 +139,12 @@ export default function SelectionScreen({
       ref={root}
       className="selection-screen arcade-surface"
       data-testid="game-selection"
+      data-moving={busy}
+      aria-busy={launching}
     >
       <div className="selection-heading">
         <div>
-          <span className="arcade-kicker">A SMALL RESET / 每天一点轻活动</span>
+          <span className="arcade-kicker"><i className="status-seed" /> A SMALL RESET / 每天一点轻活动</span>
           <h1>
             挑一个，一起动一动<span>。</span>
           </h1>
@@ -123,7 +152,7 @@ export default function SelectionScreen({
         </div>
         <div className="selection-companion">
           <YukeeFace state="calm" sizeVariant="select" />
-          <span>准备好就出发</span>
+          <span>准备好就出发<small>YUKEE IS HERE FOR YOU</small></span>
         </div>
       </div>
       <div
@@ -134,7 +163,7 @@ export default function SelectionScreen({
         <button
           className="selection-arrow prev"
           aria-label="上一款游戏"
-          disabled={busy}
+          disabled={busy || launching}
           onClick={() => move(-1)}
         >
           <ArrowLeft size={24} />
@@ -164,7 +193,7 @@ export default function SelectionScreen({
           </div>
           <div className="selection-detail">
             <div className="selection-story">
-              <span className="selection-tag">{card.type}</span>
+              <span className="selection-tag"><span>G{detail.label}</span> {card.type}</span>
               <h2>{card.title}</h2>
               <p>{detail.description}</p>
               <span className="selection-duration">
@@ -185,9 +214,13 @@ export default function SelectionScreen({
               <button
                 className="primary selection-start"
                 onClick={onStart}
-                disabled={busy}
+                onPointerEnter={onPrepare}
+                onFocus={onPrepare}
+                disabled={busy || launching}
+                aria-label="进入游戏"
+                aria-busy={launching}
               >
-                进入游戏 <ArrowUpRight size={20} />
+                <span>{launching ? "正在出发" : "进入游戏"}</span> <ArrowUpRight size={20} />
               </button>
               <small>
                 <ScanLine size={14} /> 先校准，再开始 · 也可选择键盘演示
@@ -198,7 +231,7 @@ export default function SelectionScreen({
         <button
           className="selection-arrow next"
           aria-label="下一款游戏"
-          disabled={busy}
+          disabled={busy || launching}
           onClick={() => move(1)}
         >
           <ArrowRight size={24} />
@@ -208,17 +241,12 @@ export default function SelectionScreen({
         {GAMES.map((item, index) => (
           <button
             key={item.id}
-            disabled={busy}
+            disabled={busy || launching}
             aria-label={`查看${item.title}`}
             aria-current={index === selectionIndex ? "true" : undefined}
             onClick={() => {
               if (index === selectionIndex) return;
-              const delta = index - selectionIndex;
-              busyRef.current = true;
-              setBusy(true);
-              setDirection(Math.sign(delta));
-              for (let i = 0; i < Math.abs(delta); i++)
-                moveRef.current(delta > 0 ? 1 : -1);
+              select(index - selectionIndex);
             }}
           >
             <span>G{DETAILS[item.id].label}</span>

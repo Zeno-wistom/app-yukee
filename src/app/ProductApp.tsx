@@ -8,6 +8,7 @@ import {
   useReducer,
   useRef,
   useState,
+  type CSSProperties,
 } from "react";
 import {
   ArrowLeft,
@@ -37,7 +38,10 @@ import type { SquatProfile } from "../vision/squatPose";
 import type { GameEventKind } from "../games/YukeeRun";
 import type { MotionAction } from "../vision/types";
 import YukeeFace from "../yukee/YukeeFace";
+import { MOTION, reducedMotion } from "../motion/tokens";
+import { useStageTransition } from "../motion/useStageTransition";
 import "./arcade.css";
+import "./motion.css";
 
 const Calibration = lazy(() => import("../games/CalibrationView"));
 const WingCalibration = lazy(() => import("../games/WingCalibrationView"));
@@ -64,6 +68,8 @@ export default function ProductApp() {
   const [vision, setVision] = useState(location.hash === "#vision");
   const root = useRef<HTMLElement>(null);
   const dialog = useRef<HTMLDialogElement>(null);
+  const { navigate, transition, locked } = useStageTransition(root);
+  const { contextSafe } = useGSAP({ scope: root });
   const phaseRef = useRef(state.phase);
   phaseRef.current = state.phase;
   useLayoutEffect(() => { if (root.current) root.current.scrollTop = 0; }, [state.phase]);
@@ -71,15 +77,43 @@ export default function ProductApp() {
   const playing = isGame(state.phase);
   const paused = state.overlay !== "none";
   const game = GAMES.find((g) => g.id === state.activeGame);
+  const selectedGame = game ?? GAMES[state.selectionIndex];
+  useEffect(() => {
+    if (!selection) return;
+    let idle: number | undefined;
+    // The native AudioContext constructor measured 83ms on this PC. Warm it
+    // after entrance motion, while idle, rather than inside the first start click.
+    const timer = setTimeout(() => {
+      if ("requestIdleCallback" in window) idle = window.requestIdleCallback(() => audioEngine.prepare());
+      else audioEngine.prepare();
+    }, 1100);
+    return () => { clearTimeout(timer); if (idle !== undefined) window.cancelIdleCallback(idle); };
+  }, [selection]);
+  const prepare = () => {
+    const id = GAMES[state.selectionIndex].id;
+    // Warm the existing split chunk on intent, without mounting calibration or requesting camera access.
+    const loaders: Record<string, () => Promise<unknown>> = {
+      yukeeRun: () => import("../games/CalibrationView"),
+      winglight: () => import("../games/WingCalibrationView"),
+      leanSurf: () => import("../games/LeanCalibrationView"),
+      squatJump: () => import("../games/squatJump/SquatCalibrationView"),
+    };
+    void loaders[id]().catch(() => { /* Suspense retains the normal loading path. */ });
+  };
   const toSelection = useCallback(
-    () => dispatch({ type: "BACK_TO_SELECTION" }),
-    [],
+    () => navigate(() => dispatch({ type: "BACK_TO_SELECTION" })),
+    [navigate],
   );
   const calibrated = useCallback(() => bus.emit("calibrated", "camera"), [bus]);
   const finish = useCallback((result: Omit<GameResult, "game">) => {
     dispatch({ type: "FINISH_GAME", result });
-    dispatch({ type: "BACK_TO_SELECTION" });
-  }, []);
+    navigate(() => dispatch({ type: "BACK_TO_SELECTION" }));
+  }, [navigate]);
+  const resume = contextSafe(() => {
+    const commit = () => dispatch({ type: "RESUME" });
+    if (reducedMotion() || !dialog.current?.open) { commit(); return; }
+    gsap.to(dialog.current, { opacity: 0, y: 10, scale: 0.985, duration: MOTION.micro, overwrite: true, onComplete: commit });
+  });
   const wingCalibrated = useCallback(
     (profile: WingProfile, input: LeanMode) => {
       setWingProfile(profile);
@@ -168,9 +202,8 @@ export default function ProductApp() {
         return;
       if (e.key === "Escape" && playing) {
         e.preventDefault();
-        dispatch(
-          paused ? { type: "RESUME" } : { type: "OPEN", overlay: "pause" },
-        );
+        if (paused) resume();
+        else dispatch({ type: "OPEN", overlay: "pause" });
       }
       if (
         state.phase === "yukeeRun" &&
@@ -203,12 +236,11 @@ export default function ProductApp() {
   }, [state.phase, playing, paused, mode, bus]);
   useGSAP(
     () => {
-      if (!root.current) return;
-      if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+      if (!root.current || selection || reducedMotion()) return;
       gsap.fromTo(
-        ".arcade-surface",
-        { opacity: 0, y: 12 },
-        { opacity: 1, y: 0, duration: 0.38, ease: "power2.out" },
+        ".game-viewport",
+        { opacity: 0.35, y: 18, scale: 0.985 },
+        { opacity: 1, y: 0, scale: 1, duration: MOTION.scene, ease: MOTION.ease, clearProps: "transform,opacity" },
       );
     },
     {
@@ -217,24 +249,35 @@ export default function ProductApp() {
       revertOnUpdate: true,
     },
   );
-  useEffect(() => {
+  useGSAP(() => {
     const el = dialog.current;
-    if (paused && !el?.open) el?.showModal();
-    else if (!paused && el?.open) el.close();
-  }, [paused]);
+    if (!el) return;
+    if (paused) {
+      if (!el.open) el.showModal();
+      if (!reducedMotion()) gsap.fromTo(el, { opacity: 0, y: 20, scale: 0.975 }, {
+        opacity: 1, y: 0, scale: 1, duration: 0.3, ease: MOTION.ease,
+      });
+    } else if (el.open) {
+      el.close();
+      gsap.set(el, { clearProps: "transform,opacity" });
+    }
+  }, { scope: root, dependencies: [paused, state.overlay], revertOnUpdate: true });
   const restart = () => {
-    setMode("camera");
-    setRestartKey((n) => n + 1);
-    dispatch({ type: "RESTART_GAME" });
+    navigate(() => {
+      setMode("camera");
+      setRestartKey((n) => n + 1);
+      dispatch({ type: "RESTART_GAME" });
+    });
   };
   const pause = () => dispatch({ type: "OPEN", overlay: "pause" });
   const quit = () => dispatch({ type: "OPEN", overlay: "quit" });
   const shared = {
-    paused,
+    paused: paused || transition === "returning",
     onPause: pause,
     onQuit: quit,
     onFinish: finish,
     onEarlyExit: toSelection,
+    onRestart: restart,
   };
 
   if (vision)
@@ -262,7 +305,15 @@ export default function ProductApp() {
       className={`arcade-app ${selection ? "is-selection" : "is-session"}`}
       data-phase={state.phase}
       data-mode={mode}
+      data-transition={transition}
+      data-game={selectedGame.id}
+      data-paused={paused}
+      style={{ "--theme-accent": selectedGame.palette.accent, "--theme-sky": selectedGame.palette.sky } as CSSProperties}
     >
+      <div className="arcade-atmosphere" aria-hidden="true">
+        {GAMES.map(item => <div key={item.id} className={item.id === selectedGame.id ? "is-current" : ""}
+          style={{ background: `radial-gradient(ellipse at 74% 20%, ${item.palette.accent}16, transparent 66%), radial-gradient(ellipse at 10% 80%, ${item.palette.ground}3b, transparent 65%)` }} />)}
+      </div>
       <header className="arcade-header">
         <button
           className="arcade-brand"
@@ -321,15 +372,19 @@ export default function ProductApp() {
             })
           }
           onStart={() => {
+            if (locked.current) return;
             audioEngine.unlock();
+            prepare();
             setMode("camera");
             const card = GAMES[state.selectionIndex];
-            dispatch({
+            navigate(() => dispatch({
               type: "LAMP_CONFIRM",
               gameId: card.id,
               available: card.available,
-            });
+            }), true);
           }}
+          onPrepare={prepare}
+          launching={transition !== "idle"}
         />
       ) : (
         <div
@@ -361,7 +416,7 @@ export default function ProductApp() {
             {state.phase === "yukeeRun" && (
               <>
                 <Run
-                  paused={paused}
+                  paused={paused || transition === "returning"}
                   visionActive={mode === "camera"}
                   bus={bus}
                   onGameEvent={gameEvent}
@@ -403,6 +458,7 @@ export default function ProductApp() {
                 />
                 <span className="arcade-kicker">A LITTLE BETTER, TOGETHER</span>
                 <h1>这一小段，完成了。</h1>
+                <div className="reward-score"><b>{state.lastGame?.reps ?? 0}</b><span>收集的微光</span></div>
                 <p>
                   {mode === "demo"
                     ? "键盘演示完成 · 非真人体感记录"
@@ -421,19 +477,23 @@ export default function ProductApp() {
           </Suspense>
         </div>
       )}
+      <div className="stage-transition" aria-hidden="true" data-testid="stage-transition">
+        <div className="transition-art"><img src={selectedGame.previewImage} alt="" /></div>
+        <div className="transition-label"><span>YUKEE / {selectedGame.en}</span><b>{selectedGame.title}</b><i /></div>
+      </div>
       <dialog
         ref={dialog}
         className="arcade-dialog"
         data-testid="session-dialog"
         onCancel={(e) => {
           e.preventDefault();
-          dispatch({ type: "RESUME" });
+          resume();
         }}
       >
         <button
           className="icon-button dialog-dismiss"
           aria-label="关闭弹窗"
-          onClick={() => dispatch({ type: "RESUME" })}
+          onClick={resume}
         >
           <X size={18} />
         </button>
@@ -448,7 +508,7 @@ export default function ProductApp() {
         </p>
         <button
           className="primary"
-          onClick={() => dispatch({ type: "RESUME" })}
+          onClick={resume}
         >
           <Play size={16} /> 继续游戏
         </button>

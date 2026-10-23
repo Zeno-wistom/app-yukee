@@ -92,7 +92,9 @@
   pointer-events: none;
 }
 .moon-firefly-glow {
-  filter: blur(1.3px);
+  /* The translucent outer pixel already supplies the halo. Per-particle blur
+     made the full animated SVG expensive to rasterize at desktop resolution. */
+  filter: none;
 }
 .moon-fireflies [data-flight-phase="flight"] .moon-firefly-glow {
   opacity: 0.35;
