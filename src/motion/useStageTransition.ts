@@ -31,15 +31,12 @@ export function useStageTransition(root: RefObject<HTMLElement | null>) {
     locked.current = true;
     setTransition(fromCard ? "entering" : "returning");
     gsap.set(layer, { visibility: "visible", opacity: 1, clipPath: fromCard ? `inset(${inset} round 18px)` : "inset(0 0 100% 0 round 0px)" });
-    // 画面先按「最终铺满舞台」的尺寸栅格化，再从预览矩形缩小态放大到 1：
-    // 结束帧是原生分辨率（不是把 183px 高的位图放大 3.5 倍），且中心连续落到舞台中心。
+    // 位图按预览尺寸栅格化、用 transform 放大（合成层纹理小、开销低）。
+    // 曾尝试按最终铺满尺寸栅格化（约 6300×1000 的层），本沙箱实测进入转场长任务与掉帧更多，已回退。
     const cover = Math.max(stage.width / rect.width, stage.height / rect.height);
-    const fullW = rect.width * cover, fullH = rect.height * cover;
-    const fromX = rect.left - stage.left + rect.width / 2 - fullW / 2;
-    const fromY = rect.top - stage.top + rect.height / 2 - fullH / 2;
     gsap.set(art, fromCard ? {
-      width: fullW, height: fullH, x: fromX, y: fromY,
-      opacity: 1, scale: 1 / cover, transformOrigin: "50% 50%", force3D: true, "--shade": 0,
+      width: rect.width, height: rect.height, x: rect.left - stage.left, y: rect.top - stage.top,
+      opacity: 1, scale: 1, transformOrigin: "50% 50%", force3D: true, "--shade": 0,
     } : {
       width: stage.width, height: stage.height, x: 0, y: 0,
       opacity: 0.32, scale: 1.04, transformOrigin: "50% 50%", force3D: true, "--shade": 1,
@@ -64,13 +61,13 @@ export function useStageTransition(root: RefObject<HTMLElement | null>) {
       // 结尾不再「画面淡成纯色再上卷」（会出现一帧暗屏），而是整层与目标页交叉溶解，画面轻推 3%。
       timeline.to(outgoing, { y: -12, opacity: 0, duration: MOTION.exit, ease: "power2.in" }, 0)
         .to(layer, { clipPath: "inset(0px 0px 0px 0px round 0px)", duration: 0.56, ease: MOTION.inOut }, 0)
-        .to(art, { x: (stage.width - fullW) / 2, y: (stage.height - fullH) / 2, scale: 1, duration: 0.6, ease: MOTION.inOut }, 0)
+        .to(art, { x: (stage.width - rect.width) / 2, y: (stage.height - rect.height) / 2, scale: cover, duration: 0.6, ease: MOTION.inOut }, 0)
         // 起始帧与卡片预览完全一致（不压暗），展开过程中才压暗，给标题留出对比
         .to(art, { "--shade": 1, duration: 0.42, ease: "power1.inOut" }, 0.08)
         .to(title, { opacity: 1, y: 0, duration: 0.26, ease: MOTION.ease }, 0.22)
         .call(commit, [], 0.3)
         .to(title, { opacity: 0, y: -8, duration: 0.18, ease: "power2.in" }, 0.62)
-        .to(art, { scale: 1.03, duration: 0.5, ease: "power1.out" }, 0.6)
+        .to(art, { scale: cover * 1.03, duration: 0.5, ease: "power1.out" }, 0.6)
         .to(layer, { opacity: 0, duration: 0.4, ease: "power2.out" }, 0.66);
     } else {
       // 舞台 → 选择：同样的交叉溶解节奏，反向轻拉。
