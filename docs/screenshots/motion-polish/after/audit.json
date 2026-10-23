@@ -1,0 +1,153 @@
+{
+  "tag": "after",
+  "url": "http://127.0.0.1:5194",
+  "testedAt": "2026-10-23T06:13:35.208Z",
+  "browser": "155.0.8059.85",
+  "evidence": "local Chrome headless, keyboard demonstration, no camera inference, video recording enabled",
+  "metrics": [
+    {
+      "label": "selection-8-switches",
+      "sampleMs": 6391.8,
+      "rafFps": 119.68,
+      "p95Ms": 8.4,
+      "over33ms": 0,
+      "longTasks": 0,
+      "maxLongTaskMs": 0
+    },
+    {
+      "label": "enter-1",
+      "sampleMs": 1733.4,
+      "rafFps": 113.07,
+      "p95Ms": 8.5,
+      "over33ms": 0,
+      "longTasks": 0,
+      "maxLongTaskMs": 0
+    },
+    {
+      "label": "game-1-idle",
+      "sampleMs": 2400,
+      "rafFps": 120,
+      "p95Ms": 8.4,
+      "over33ms": 0,
+      "longTasks": 0,
+      "maxLongTaskMs": 0
+    },
+    {
+      "label": "enter-2",
+      "sampleMs": 1725.1,
+      "rafFps": 116.51,
+      "p95Ms": 8.5,
+      "over33ms": 0,
+      "longTasks": 0,
+      "maxLongTaskMs": 0
+    },
+    {
+      "label": "game-2-idle",
+      "sampleMs": 2391.8,
+      "rafFps": 119.99,
+      "p95Ms": 8.4,
+      "over33ms": 0,
+      "longTasks": 0,
+      "maxLongTaskMs": 0
+    },
+    {
+      "label": "enter-3",
+      "sampleMs": 1716.7,
+      "rafFps": 117.09,
+      "p95Ms": 8.5,
+      "over33ms": 0,
+      "longTasks": 0,
+      "maxLongTaskMs": 0
+    },
+    {
+      "label": "game-3-idle",
+      "sampleMs": 2400,
+      "rafFps": 120,
+      "p95Ms": 8.4,
+      "over33ms": 0,
+      "longTasks": 0,
+      "maxLongTaskMs": 0
+    },
+    {
+      "label": "enter-4",
+      "sampleMs": 1725,
+      "rafFps": 120,
+      "p95Ms": 8.4,
+      "over33ms": 0,
+      "longTasks": 0,
+      "maxLongTaskMs": 0
+    },
+    {
+      "label": "game-4-idle",
+      "sampleMs": 2400,
+      "rafFps": 120,
+      "p95Ms": 8.4,
+      "over33ms": 0,
+      "longTasks": 0,
+      "maxLongTaskMs": 0
+    }
+  ],
+  "layouts": [
+    {
+      "width": 1280,
+      "height": 720,
+      "preview": {
+        "width": 1022,
+        "height": 162.40625
+      },
+      "objectFit": "cover",
+      "objectPosition": "0% 50%",
+      "overflow": false,
+      "footerBottom": 696.796875
+    },
+    {
+      "width": 1366,
+      "height": 768,
+      "preview": {
+        "width": 1099.40625,
+        "height": 174.703125
+      },
+      "objectFit": "cover",
+      "objectPosition": "0% 50%",
+      "overflow": false,
+      "footerBottom": 709.09375
+    },
+    {
+      "width": 1920,
+      "height": 1080,
+      "preview": {
+        "width": 1118,
+        "height": 177.65625
+      },
+      "objectFit": "cover",
+      "objectPosition": "0% 50%",
+      "overflow": false,
+      "footerBottom": 888.359375
+    },
+    {
+      "width": 2560,
+      "height": 1440,
+      "preview": {
+        "width": 1118,
+        "height": 177.65625
+      },
+      "objectFit": "cover",
+      "objectPosition": "0% 50%",
+      "overflow": false,
+      "footerBottom": 897.640625
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "preview": {
+        "width": 356,
+        "height": 56.5625
+      },
+      "objectFit": "cover",
+      "objectPosition": "0% 50%",
+      "overflow": false,
+      "footerBottom": 915.84375
+    }
+  ],
+  "errors": []
+}

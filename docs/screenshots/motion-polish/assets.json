@@ -1,0 +1,250 @@
+{
+  "testedAt": "2026-10-23T06:26:31.955Z",
+  "url": "http://127.0.0.1:5194",
+  "count": 42,
+  "checks": [
+    {
+      "file": "/art/g02/moon-night.png",
+      "status": 200,
+      "bytes": 1856442
+    },
+    {
+      "file": "/art/g03-sunlit-castle.png",
+      "status": 200,
+      "bytes": 2030772
+    },
+    {
+      "file": "/art/g05-sky-ruins.webp",
+      "status": 200,
+      "bytes": 212574
+    },
+    {
+      "file": "/assets/CalibrationView-BnAI6mJS.js",
+      "status": 200,
+      "bytes": 2874
+    },
+    {
+      "file": "/assets/index-Dst115wS.js",
+      "status": 200,
+      "bytes": 497321
+    },
+    {
+      "file": "/assets/index-Myda9LS9.css",
+      "status": 200,
+      "bytes": 94683
+    },
+    {
+      "file": "/assets/LeanCalibrationView-DauZfiHV.js",
+      "status": 200,
+      "bytes": 3996
+    },
+    {
+      "file": "/assets/leanSurf-BsgDoLGg.css",
+      "status": 200,
+      "bytes": 8839
+    },
+    {
+      "file": "/assets/LeanSurf-CLdlwaPG.js",
+      "status": 200,
+      "bytes": 21686
+    },
+    {
+      "file": "/assets/leanSurf-Ev5rBZDi.js",
+      "status": 200,
+      "bytes": 5057
+    },
+    {
+      "file": "/assets/refresh-ccw-DZWA-JJD.js",
+      "status": 200,
+      "bytes": 322
+    },
+    {
+      "file": "/assets/scan-face-D7DnxCn6.js",
+      "status": 200,
+      "bytes": 417
+    },
+    {
+      "file": "/assets/SquatCalibrationView-4tAJdBfO.js",
+      "status": 200,
+      "bytes": 6736
+    },
+    {
+      "file": "/assets/SquatJump-BJIAwKiI.js",
+      "status": 200,
+      "bytes": 36968
+    },
+    {
+      "file": "/assets/squatJump-C2izJQ8l.css",
+      "status": 200,
+      "bytes": 9503
+    },
+    {
+      "file": "/assets/squatJump-CaH9HWJo.js",
+      "status": 200,
+      "bytes": 11643
+    },
+    {
+      "file": "/assets/useWingSession-CKoh1uYG.js",
+      "status": 200,
+      "bytes": 10542
+    },
+    {
+      "file": "/assets/VisionSpike-CwE4QEWF.js",
+      "status": 200,
+      "bytes": 4259
+    },
+    {
+      "file": "/assets/WingCalibrationView-CMQSD0Gh.js",
+      "status": 200,
+      "bytes": 8428
+    },
+    {
+      "file": "/assets/Winglight-CYGsImj3.css",
+      "status": 200,
+      "bytes": 5646
+    },
+    {
+      "file": "/assets/Winglight-DGtvLQKC.js",
+      "status": 200,
+      "bytes": 20273
+    },
+    {
+      "file": "/assets/YukeeRun-D76hE1Dk.js",
+      "status": 200,
+      "bytes": 13345
+    },
+    {
+      "file": "/audio/yukee-run-bgm.mp3",
+      "status": 200,
+      "bytes": 1740268
+    },
+    {
+      "file": "/favicon.svg",
+      "status": 200,
+      "bytes": 218
+    },
+    {
+      "file": "/game/yukee-run-nature-pixel.png",
+      "status": 200,
+      "bytes": 1781924
+    },
+    {
+      "file": "/game-previews/squat-jump-card.png",
+      "status": 200,
+      "bytes": 401813
+    },
+    {
+      "file": "/game-previews/sun-surf-card.png",
+      "status": 200,
+      "bytes": 440488
+    },
+    {
+      "file": "/game-previews/winglight-card.png",
+      "status": 200,
+      "bytes": 366043
+    },
+    {
+      "file": "/game-previews/yukee-run.png",
+      "status": 200,
+      "bytes": 1743197
+    },
+    {
+      "file": "/game-select/cloudfall-kingdom.png",
+      "status": 200,
+      "bytes": 2030772
+    },
+    {
+      "file": "/game-select/moonbridge-city.png",
+      "status": 200,
+      "bytes": 1881538
+    },
+    {
+      "file": "/game-select/moonwind-village.png",
+      "status": 200,
+      "bytes": 1770510
+    },
+    {
+      "file": "/game-select/saint-gate-dawn.png",
+      "status": 200,
+      "bytes": 2123355
+    },
+    {
+      "file": "/index.html",
+      "status": 200,
+      "bytes": 524
+    },
+    {
+      "file": "/mediapipe/face_landmarker.task",
+      "status": 200,
+      "bytes": 3758596
+    },
+    {
+      "file": "/mediapipe/hand_landmarker.task",
+      "status": 200,
+      "bytes": 7819105
+    },
+    {
+      "file": "/mediapipe/pose_landmarker_lite.task",
+      "status": 200,
+      "bytes": 5777746
+    },
+    {
+      "file": "/mediapipe/README.md",
+      "status": 200,
+      "bytes": 884
+    },
+    {
+      "file": "/mediapipe/wasm/vision_wasm_internal.js",
+      "status": 200,
+      "bytes": 204818
+    },
+    {
+      "file": "/mediapipe/wasm/vision_wasm_internal.wasm",
+      "status": 200,
+      "bytes": 11453626
+    },
+    {
+      "file": "/mediapipe/wasm/vision_wasm_nosimd_internal.js",
+      "status": 200,
+      "bytes": 204671
+    },
+    {
+      "file": "/mediapipe/wasm/vision_wasm_nosimd_internal.wasm",
+      "status": 200,
+      "bytes": 10647962
+    }
+  ],
+  "games": [
+    {
+      "title": "拾光跑者",
+      "entered": true,
+      "paused": true,
+      "resumed": true,
+      "returned": true
+    },
+    {
+      "title": "展翼接光",
+      "entered": true,
+      "paused": true,
+      "resumed": true,
+      "returned": true
+    },
+    {
+      "title": "星海冲浪",
+      "entered": true,
+      "paused": true,
+      "resumed": true,
+      "returned": true
+    },
+    {
+      "title": "浅蹲跳一跳",
+      "entered": true,
+      "paused": true,
+      "resumed": true,
+      "returned": true
+    }
+  ],
+  "errors": [],
+  "external": [],
+  "evidence": "Production dist; keyboard only; camera denied"
+}

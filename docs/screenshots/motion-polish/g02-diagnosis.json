@@ -1,0 +1,66 @@
+[
+  {
+    "label": "original",
+    "fps": 111.35487302220452,
+    "p95": 16.699999999999818,
+    "metrics": {
+      "LayoutCount": 675,
+      "RecalcStyleCount": 672,
+      "LayoutDuration": 0.051662,
+      "RecalcStyleDuration": 0.18016500000000002,
+      "DevToolsCommandDuration": 0.015418999999999999,
+      "ScriptDuration": 0.258741,
+      "V8CompileDuration": 0,
+      "TaskDuration": 1.2666520000000001,
+      "TaskOtherDuration": 0.760665
+    }
+  },
+  {
+    "label": "no-glow-filter",
+    "fps": 119.66666666666663,
+    "p95": 8.599999999998545,
+    "metrics": {
+      "LayoutCount": 726,
+      "RecalcStyleCount": 723,
+      "LayoutDuration": 0.056136000000000005,
+      "RecalcStyleDuration": 0.19444000000000003,
+      "DevToolsCommandDuration": 0.0004330000000000028,
+      "ScriptDuration": 0.26718000000000003,
+      "V8CompileDuration": 0,
+      "TaskDuration": 1.231337,
+      "TaskOtherDuration": 0.7131480000000001
+    }
+  },
+  {
+    "label": "no-svg-background",
+    "fps": 101.39290582095009,
+    "p95": 16.799999999999272,
+    "metrics": {
+      "LayoutCount": 619,
+      "RecalcStyleCount": 616,
+      "LayoutDuration": 0.04964699999999998,
+      "RecalcStyleDuration": 0.16493600000000003,
+      "DevToolsCommandDuration": 0.0012050000000000012,
+      "ScriptDuration": 0.222213,
+      "V8CompileDuration": 0,
+      "TaskDuration": 1.1170149999999999,
+      "TaskOtherDuration": 0.679014
+    }
+  },
+  {
+    "label": "no-all-filters",
+    "fps": 119.67289408948878,
+    "p95": 8.600000000000364,
+    "metrics": {
+      "LayoutCount": 726,
+      "RecalcStyleCount": 723,
+      "LayoutDuration": 0.05119199999999999,
+      "RecalcStyleDuration": 0.20991700000000002,
+      "DevToolsCommandDuration": 0.0005779999999999987,
+      "ScriptDuration": 0.25048400000000004,
+      "V8CompileDuration": 0,
+      "TaskDuration": 1.2646520000000003,
+      "TaskOtherDuration": 0.752481
+    }
+  }
+]

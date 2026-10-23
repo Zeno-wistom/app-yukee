@@ -1,0 +1,153 @@
+{
+  "tag": "before",
+  "url": "http://127.0.0.1:5194",
+  "testedAt": "2026-10-23T04:40:08.365Z",
+  "browser": "155.0.8059.85",
+  "evidence": "local Chrome headless, keyboard demonstration, no camera inference, video recording enabled",
+  "metrics": [
+    {
+      "label": "selection-8-switches",
+      "sampleMs": 4250,
+      "rafFps": 119.53,
+      "p95Ms": 8.8,
+      "over33ms": 0,
+      "longTasks": 0,
+      "maxLongTaskMs": 0
+    },
+    {
+      "label": "enter-1",
+      "sampleMs": 1375,
+      "rafFps": 94.55,
+      "p95Ms": 16.6,
+      "over33ms": 4,
+      "longTasks": 1,
+      "maxLongTaskMs": 144
+    },
+    {
+      "label": "game-1-idle",
+      "sampleMs": 2400.3,
+      "rafFps": 119.99,
+      "p95Ms": 8.7,
+      "over33ms": 0,
+      "longTasks": 0,
+      "maxLongTaskMs": 0
+    },
+    {
+      "label": "enter-2",
+      "sampleMs": 1866.6,
+      "rafFps": 113.58,
+      "p95Ms": 8.9,
+      "over33ms": 1,
+      "longTasks": 0,
+      "maxLongTaskMs": 0
+    },
+    {
+      "label": "game-2-idle",
+      "sampleMs": 2399.7,
+      "rafFps": 69.18,
+      "p95Ms": 25.1,
+      "over33ms": 1,
+      "longTasks": 0,
+      "maxLongTaskMs": 0
+    },
+    {
+      "label": "enter-3",
+      "sampleMs": 1383.4,
+      "rafFps": 114.21,
+      "p95Ms": 8.9,
+      "over33ms": 1,
+      "longTasks": 0,
+      "maxLongTaskMs": 0
+    },
+    {
+      "label": "game-3-idle",
+      "sampleMs": 2400.3,
+      "rafFps": 118.74,
+      "p95Ms": 8.9,
+      "over33ms": 0,
+      "longTasks": 0,
+      "maxLongTaskMs": 0
+    },
+    {
+      "label": "enter-4",
+      "sampleMs": 1416.7,
+      "rafFps": 108.7,
+      "p95Ms": 16,
+      "over33ms": 1,
+      "longTasks": 0,
+      "maxLongTaskMs": 0
+    },
+    {
+      "label": "game-4-idle",
+      "sampleMs": 2391.7,
+      "rafFps": 120,
+      "p95Ms": 8.6,
+      "over33ms": 0,
+      "longTasks": 0,
+      "maxLongTaskMs": 0
+    }
+  ],
+  "layouts": [
+    {
+      "width": 1280,
+      "height": 720,
+      "preview": {
+        "width": 1022,
+        "height": 162.40625
+      },
+      "objectFit": "cover",
+      "objectPosition": "0% 50%",
+      "overflow": false,
+      "footerBottom": 695.796875
+    },
+    {
+      "width": 1366,
+      "height": 768,
+      "preview": {
+        "width": 1099.40625,
+        "height": 174.703125
+      },
+      "objectFit": "cover",
+      "objectPosition": "0% 50%",
+      "overflow": false,
+      "footerBottom": 708.09375
+    },
+    {
+      "width": 1920,
+      "height": 1080,
+      "preview": {
+        "width": 1118,
+        "height": 177.65625
+      },
+      "objectFit": "cover",
+      "objectPosition": "0% 50%",
+      "overflow": false,
+      "footerBottom": 884.046875
+    },
+    {
+      "width": 2560,
+      "height": 1440,
+      "preview": {
+        "width": 1118,
+        "height": 177.65625
+      },
+      "objectFit": "cover",
+      "objectPosition": "0% 50%",
+      "overflow": false,
+      "footerBottom": 884.046875
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "preview": {
+        "width": 356,
+        "height": 56.5625
+      },
+      "objectFit": "cover",
+      "objectPosition": "0% 50%",
+      "overflow": false,
+      "footerBottom": 928.53125
+    }
+  ],
+  "errors": []
+}

@@ -1,0 +1,36 @@
+{
+  "durations": [
+    {
+      "name": "AudioContext constructor",
+      "duration": 82.60000002384186
+    }
+  ],
+  "funcs": [
+    {
+      "name": "EventDispatch",
+      "ms": 90.786,
+      "data": {
+        "sampleTraceId": 3346306476762954,
+        "type": "click"
+      }
+    },
+    {
+      "name": "FunctionCall",
+      "ms": 88.536,
+      "data": {
+        "columnNumber": 28341,
+        "frame": "F3294DDE5FE02CB584ABEA23982BB0AE",
+        "functionName": "l_",
+        "isolate": "7159109451605765495",
+        "lineNumber": 10,
+        "sampleTraceId": 3346306476762958,
+        "scriptId": "5",
+        "url": "http://127.0.0.1:5194/assets/index-CooeqPEW.js"
+      }
+    },
+    {
+      "name": "Layout",
+      "ms": 16.203
+    }
+  ]
+}
