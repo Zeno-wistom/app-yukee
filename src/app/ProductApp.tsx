@@ -15,8 +15,6 @@ import {
   Pause,
   Play,
   RotateCcw,
-  Volume2,
-  VolumeX,
   X,
 } from "lucide-react";
 import gsap from "gsap";
@@ -30,6 +28,7 @@ import {
 import { MotionBus } from "../demo/MotionBus";
 import { cameraVision } from "../vision/CameraVision";
 import { audioEngine } from "../audio/engine";
+import SoundControl from "./SoundControl";
 import { GAMES } from "../selection/games";
 import SelectionScreen from "../selection/SelectionScreen";
 import type { WingProfile } from "../vision/wingPose";
@@ -64,7 +63,6 @@ export default function ProductApp() {
   const [leanProfile, setLeanProfile] = useState<LeanProfile | null>(null);
   const [squatProfile, setSquatProfile] = useState<SquatProfile | null>(null);
   const [mode, setMode] = useState<LeanMode>("camera");
-  const [volume, setVolume] = useState(() => audioEngine.getMasterVolume());
   const [restartKey, setRestartKey] = useState(0);
   const [vision, setVision] = useState(location.hash === "#vision");
   const root = useRef<HTMLElement>(null);
@@ -85,13 +83,17 @@ export default function ProductApp() {
     // The native AudioContext constructor measured 83ms on this PC. Warm it
     // after entrance motion, while idle, rather than inside the first start click.
     const timer = setTimeout(() => {
-      if ("requestIdleCallback" in window) idle = window.requestIdleCallback(() => audioEngine.prepare());
-      else audioEngine.prepare();
+      // 同时预取几个很小的 UI 音效（约 60 KB，后台线程解码），第一次点击就有反馈
+      const warm = () => { audioEngine.prepare(); audioEngine.preloadGroup("ui"); };
+      if ("requestIdleCallback" in window) idle = window.requestIdleCallback(warm);
+      else warm();
     }, 1100);
     return () => { clearTimeout(timer); if (idle !== undefined) window.cancelIdleCallback(idle); };
   }, [selection]);
   const prepare = () => {
     const id = GAMES[state.selectionIndex].id;
+    // 意图阶段就开始取回该游戏的 BGM 与音效（异步解码，不阻塞点击）
+    audioEngine.preloadGame(id);
     // Warm the existing split chunk on intent, without mounting calibration or requesting camera access.
     const loaders: Record<string, () => Promise<unknown>> = {
       yukeeRun: () => import("../games/CalibrationView"),
@@ -105,12 +107,18 @@ export default function ProductApp() {
     () => navigate(() => dispatch({ type: "BACK_TO_SELECTION" })),
     [navigate],
   );
+  /** 用户主动退出 / 返回：带返回音 */
+  const exitToSelection = useCallback(() => {
+    audioEngine.ui("ui-back");
+    toSelection();
+  }, [toSelection]);
   const calibrated = useCallback(() => bus.emit("calibrated", "camera"), [bus]);
   const finish = useCallback((result: Omit<GameResult, "game">) => {
     dispatch({ type: "FINISH_GAME", result });
     navigate(() => dispatch({ type: "BACK_TO_SELECTION" }));
   }, [navigate]);
   const resume = contextSafe(() => {
+    audioEngine.ui("ui-resume");
     const commit = () => dispatch({ type: "RESUME" });
     if (reducedMotion() || !dialog.current?.open) { commit(); return; }
     gsap.to(dialog.current, { opacity: 0, y: 10, scale: 0.985, duration: MOTION.micro, overwrite: true, onComplete: commit });
@@ -154,7 +162,8 @@ export default function ProductApp() {
     [mode],
   );
   const gameEvent = useCallback((kind: GameEventKind) => {
-    if (phaseRef.current === "squatJump") return; // G05 自带音效，避免重复。
+    // G02 / G03 / G05 各自用 gameCues 发声；这里只保留 G01 原有合成音效。
+    if (phaseRef.current !== "yukeeRun") return;
     if (kind === "stumble") audioEngine.sfx("hit");
     else if (kind === "jump") audioEngine.sfx("jump");
     else if (kind === "left" || kind === "right") audioEngine.sfx("reward");
@@ -185,15 +194,32 @@ export default function ProductApp() {
     },
     [],
   );
+  // 每款游戏一首独立 BGM：进入游戏淡入；暂停淡出并记住位置，继续时接着播；
+  // 校准 / 结算 / 选择页淡出停止。切换游戏时旧曲由引擎在 0.35 s 内淡出。
   useEffect(() => {
-    if (playing && !paused) audioEngine.playBgm(0.5);
-    else {
-      audioEngine.stopBgm(0.15);
+    audioEngine.setBgmTrack(selection ? null : state.activeGame);
+    if (playing && !paused) audioEngine.playBgm(0.9);
+    else if (playing && paused) {
+      audioEngine.pauseBgm(0.3);
+      audioEngine.stopEffects();
+    } else {
+      audioEngine.stopBgm(selection ? 0.6 : 0.4);
       audioEngine.chargeStop();
-      if (paused || selection) audioEngine.stopEffects();
+      if (selection) audioEngine.stopEffects();
     }
-    return () => audioEngine.stopBgm(0.1);
-  }, [playing, paused, state.activeGame]);
+  }, [playing, paused, selection, state.activeGame]);
+  // 主要按钮的通用点击音：已有专属交互音（暂停、继续、退出……）的点击不再叠加
+  useEffect(() => {
+    const click = (e: MouseEvent) => {
+      const el = (e.target as Element | null)?.closest?.("button");
+      if (!el || el.disabled || !root.current?.contains(el)) return;
+      if (el.dataset.sound === "none") return;
+      if (performance.now() - audioEngine.lastUiAt < 80) return;
+      if (el.matches(".primary, .quiet, .icon-button")) audioEngine.ui("ui-click");
+    };
+    window.addEventListener("click", click);
+    return () => window.removeEventListener("click", click);
+  }, []);
   useEffect(() => {
     const key = (e: KeyboardEvent) => {
       if (
@@ -204,7 +230,10 @@ export default function ProductApp() {
       if (e.key === "Escape" && playing) {
         e.preventDefault();
         if (paused) resume();
-        else dispatch({ type: "OPEN", overlay: "pause" });
+        else {
+          audioEngine.ui("ui-pause");
+          dispatch({ type: "OPEN", overlay: "pause" });
+        }
       }
       if (
         state.phase === "yukeeRun" &&
@@ -264,20 +293,27 @@ export default function ProductApp() {
     }
   }, { scope: root, dependencies: [paused, state.overlay], revertOnUpdate: true });
   const restart = () => {
+    audioEngine.ui("ui-restart");
     navigate(() => {
       setMode("camera");
       setRestartKey((n) => n + 1);
       dispatch({ type: "RESTART_GAME" });
     });
   };
-  const pause = () => dispatch({ type: "OPEN", overlay: "pause" });
-  const quit = () => dispatch({ type: "OPEN", overlay: "quit" });
+  const pause = () => {
+    audioEngine.ui("ui-pause");
+    dispatch({ type: "OPEN", overlay: "pause" });
+  };
+  const quit = () => {
+    audioEngine.ui("ui-pause");
+    dispatch({ type: "OPEN", overlay: "quit" });
+  };
   const shared = {
     paused: paused || transition === "returning",
     onPause: pause,
     onQuit: quit,
     onFinish: finish,
-    onEarlyExit: toSelection,
+    onEarlyExit: exitToSelection,
     onRestart: restart,
   };
 
@@ -318,7 +354,7 @@ export default function ProductApp() {
       <header className="arcade-header">
         <button
           className="arcade-brand"
-          onClick={playing ? quit : toSelection}
+          onClick={playing ? quit : exitToSelection}
           aria-label="YUKEE 游戏选择"
         >
           <span className="brand-eyes" aria-hidden>
@@ -331,23 +367,12 @@ export default function ProductApp() {
           {!selection && (
             <span className="session-title">{game?.title ?? "活动完成"}</span>
           )}
-          <button
-            className="icon-button"
-            aria-label={volume === 0 ? "开启声音" : "静音"}
-            onClick={() => {
-              audioEngine.unlock();
-              const v = volume === 0 ? 0.5 : 0;
-              setVolume(v);
-              audioEngine.setMasterVolume(v);
-            }}
-          >
-            {volume === 0 ? <VolumeX size={19} /> : <Volume2 size={19} />}
-          </button>
+          <SoundControl />
           {!selection && (
             <button
               className="icon-button"
               aria-label="返回游戏选择"
-              onClick={playing ? quit : toSelection}
+              onClick={playing ? quit : exitToSelection}
             >
               <ArrowLeft size={19} />
             </button>
@@ -366,15 +391,19 @@ export default function ProductApp() {
       {selection ? (
         <SelectionScreen
           selectionIndex={state.selectionIndex}
-          onMove={(direction) =>
+          onMove={(direction) => {
+            audioEngine.ui("ui-move", { rate: direction === 1 ? 1.06 : 0.94 });
             dispatch({
               type: direction === 1 ? "LAMP_NEXT" : "LAMP_PREV",
               totalCount: GAMES.length,
-            })
-          }
+            });
+          }}
           onStart={() => {
-            if (locked.current) return;
-            audioEngine.unlock();
+            if (locked.current) {
+              audioEngine.ui("ui-error");
+              return;
+            }
+            audioEngine.ui("ui-confirm");
             prepare();
             setMode("camera");
             const card = GAMES[state.selectionIndex];
@@ -469,7 +498,7 @@ export default function ProductApp() {
                   <button className="primary" onClick={restart}>
                     <RotateCcw size={16} /> 再玩一次
                   </button>
-                  <button className="quiet" onClick={toSelection}>
+                  <button className="quiet" onClick={exitToSelection}>
                     返回游戏选择
                   </button>
                 </div>
@@ -516,7 +545,7 @@ export default function ProductApp() {
         <button className="quiet" onClick={restart}>
           <RotateCcw size={16} /> 重新校准并重开
         </button>
-        <button className="quiet" onClick={toSelection}>
+        <button className="quiet" onClick={exitToSelection}>
           退出并返回选择
         </button>
       </dialog>

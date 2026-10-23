@@ -13,7 +13,7 @@ export interface MoonFirefliesHandle {
     charged: boolean,
     reps: number,
     finished: boolean,
-  ): void;
+  ): number;
 }
 
 /** 全画幅 SVG 粒子层。沿用游戏现有 RAF，逐节点写坐标，不制造每帧 React 更新。 */
@@ -29,12 +29,12 @@ export default forwardRef<MoonFirefliesHandle>(function MoonFireflies(_, ref) {
       step(dt, open, charged, reps, finished) {
         const layer = root.current,
           svg = layer?.ownerSVGElement;
-        if (!layer || !svg || dt <= 0) return;
+        if (!layer || !svg || dt <= 0) return 0;
         const boat = svg.querySelector<SVGGElement>("[data-moon-boat]");
         const left = svg.querySelector<SVGGElement>(".wing-sail-left");
         const right = svg.querySelector<SVGGElement>(".wing-sail-right");
         const world = svg.getCTM();
-        if (!boat || !left || !right || !world) return;
+        if (!boat || !left || !right || !world) return 0;
         const inverse = world.inverse();
         const point = (group: SVGGElement, x: number, y: number): Point => {
           const matrix = group.getCTM();
@@ -55,6 +55,7 @@ export default forwardRef<MoonFirefliesHandle>(function MoonFireflies(_, ref) {
         const reduced = window.matchMedia(
           "(prefers-reduced-motion: reduce)",
         ).matches;
+        const before = field.current.absorbed;
         if (!reduced)
           field.current.step(dt, open, charged, reps, finished, targets);
         const f = field.current;
@@ -99,6 +100,8 @@ export default forwardRef<MoonFirefliesHandle>(function MoonFireflies(_, ref) {
           );
           burst.current.setAttribute("opacity", String((1 - progress) * 0.7));
         }
+        // 返回本帧到达帆面的星光数，供音效使用
+        return f.absorbed - before;
       },
     }),
     [],

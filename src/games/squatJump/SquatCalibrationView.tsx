@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { audioEngine } from "../../audio/engine";
 import { cameraVision } from "../../vision/CameraVision";
 import { DEMO_SQUAT_PROFILE, measureSquatDiag, SquatCalibrator, squatDebugLog, SQUAT_CONFIG, type SquatCalDiag, type SquatCalStage, type SquatMissReason, type SquatProfile } from "../../vision/squatPose";
 import { f2, f3, SquatDebugPanel, useSquatDebugToggle, type DebugRow } from "./SquatDebug";
@@ -26,6 +27,10 @@ export default function SquatCalibrationView({
   const done = useRef(false);
   const [attempt, setAttempt] = useState(0);
   const [error, setError] = useState("");
+  // 错误反馈：出现错误提示时一声短促的低音（带 1.2 s 冷却）
+  useEffect(() => {
+    if (error) audioEngine.ui("ui-error");
+  }, [error]);
   const debug = useSquatDebugToggle();
   const [hud, setHud] = useState<{
     stage: SquatCalStage;

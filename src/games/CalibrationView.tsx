@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { audioEngine } from "../audio/engine";
 import { ScanFace, RefreshCcw } from "lucide-react";
 import { cameraVision } from "../vision/CameraVision";
 
@@ -70,6 +71,10 @@ export default function CalibrationView({
     "starting" | "waiting-face" | "holding" | "done" | "error"
   >("starting");
   const [error, setError] = useState("");
+  // 错误反馈：出现错误提示时一声短促的低音（带 1.2 s 冷却）
+  useEffect(() => {
+    if (error) audioEngine.ui("ui-error");
+  }, [error]);
   const done = useRef(false);
   const { ringRef, dotRef, targetRef, displayedRef } = useSmoothProgress();
 

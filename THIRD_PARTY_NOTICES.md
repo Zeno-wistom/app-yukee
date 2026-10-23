@@ -56,3 +56,10 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ```
+
+## 音频素材（CC0）
+
+- 背景音乐：OpenGameArt.org 上的 "Happy Lullaby (song17)"（cynicmusic）、"8 bit summer memory"（Tarush Singhal）、"Flowerbed Fields [Loop]"（Zane Little Music），均为 CC0 1.0。
+- 音效：Kenney Interface Sounds / Music Jingles（www.kenney.nl），CC0 1.0。
+- G01 背景音乐为用户提供的原曲，版权待确认。
+- 完整清单、来源链接与处理记录见 `docs/AUDIO-LICENSES.md`。

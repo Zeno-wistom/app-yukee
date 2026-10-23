@@ -11,6 +11,8 @@ import {
 import type { PoseFrame } from "../vision/wingPose";
 import type { GameResult } from "../state/machine";
 import type { GameEventKind } from "./YukeeRun";
+import { audioEngine } from "../audio/engine";
+import { LeanCues } from "../audio/gameCues";
 import LeanSurfScene from "./LeanSurfScene";
 import { RAINBOW } from "./sunSurfScene";
 import "./leanSurf.css";
@@ -101,6 +103,8 @@ export default function LeanSurf({
       flush = 0,
       prevReps = 0,
       completed = false;
+    // 音效只看状态跃迁（到位 / 回正 / 接住 / 完成），并带冷却
+    const cues = new LeanCues(audioEngine.sink);
     const tick = (now: number) => {
       const dt = now - last;
       last = now;
@@ -115,6 +119,7 @@ export default function LeanSurf({
         else sample = p && now - p.at < 250 ? measureLean(p) : null;
         const value = session.current.update(dt, sample);
         frame.current = value;
+        cues.update(value);
         if (value.reps > prevReps) {
           // 刚接住的是旧目标侧（新目标已切到另一侧）。
           callbacks.current.onGameEvent(value.target === 1 ? "left" : "right");

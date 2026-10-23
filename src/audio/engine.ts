@@ -1,16 +1,35 @@
 /**
  * Yukee 音频引擎（单例）。
  *
- * 结构：master ← bgmGain（BGM 循环）/ sfxGain（合成音效）。
- * - unlock() 必须在用户手势调用栈内执行（开始活动 / 准备好了），
- *   只创建并 resume AudioContext + 预载 BGM，不播放任何声音。
- * - BGM 播放时机严格绑定「游戏世界被唤醒」（进入 yukeeRun 相位），
- *   由 ProductApp 相位驱动；finale / complete 事件负责 duck 与收尾。
- * - SFX 全部由 WebAudio 合成：无第三方素材、无版权问题，
- *   风格目标「温暖 + 清楚 + 短促 + 有反馈力度」。
+ * 结构：
+ *   master(静音) ← musicBus(音乐音量) ← bgmGain(让位/duck) ← 每首 BGM 的独立 voice 增益
+ *   master(静音) ← sfxBus(音效音量)   ← sfxGain ← 合成音效 / 素材音效
+ *   master(静音) ← sfxBus             ← uiGain  ← 全站交互音效（不被游戏暂停清掉）
+ *
+ * - unlock() 必须在用户手势调用栈内执行，只 resume AudioContext + 预载，不播放；
+ * - 每款游戏一首独立 BGM（catalog.ts），切换时旧曲 0.35 s 内淡出，绝不长时间叠放；
+ * - 暂停：BGM 平滑淡出并记住播放位置，继续时从原位置淡入；
+ * - 素材音效：每个音效有冷却、最大并发，全局并发上限，超出时淡出最早的那一个；
+ * - G01 的合成音效与原曲保持不变。
  *
  * 任何公开方法都不会抛异常：自动化 / 无音频设备环境下静默降级。
  */
+import {
+  BGM_TRACKS,
+  GAME_SFX_GROUP,
+  SAMPLES,
+  findLoopRegion,
+  isBgmId,
+  loadSettings,
+  sampleUrl,
+  samplesInGroup,
+  saveSettings,
+  type AudioSettings,
+  type BgmId,
+  type SampleId,
+  type SfxGroup,
+} from "./catalog";
+import type { CueSink, PlayOpts } from "./gameCues";
 
 export type SfxKind =
   | "jump"
@@ -24,12 +43,10 @@ export type SfxKind =
   | "g05Bonus"
   | "g05Fail";
 
-const BGM_URL = "/audio/yukee-run-bgm.mp3";
-/** BGM 相对响度（master 之前） */
-const BGM_LEVEL = 0.5;
 /** SFX 相对响度（master 之前） */
 const SFX_LEVEL = 0.98;
-const VOLUME_KEY = "yukee.masterVolume";
+/** 全局素材音效并发上限 */
+const MAX_SAMPLE_VOICES = 10;
 
 interface ToneOpts {
   freq: number;
@@ -41,26 +58,70 @@ interface ToneOpts {
   attack?: number;
 }
 
+interface BgmVoice {
+  id: BgmId;
+  source: AudioBufferSourceNode;
+  gain: GainNode;
+  /** ctx 时间：offset 0 对应的时刻（用于算暂停位置） */
+  startedAt: number;
+  offset: number;
+  loopStart: number;
+  loopEnd: number;
+}
+
+interface SampleVoice {
+  id: SampleId;
+  source: AudioBufferSourceNode;
+  gain: GainNode;
+  ui: boolean;
+  startedAt: number;
+}
+
+interface LoadedBuffer {
+  buffer: AudioBuffer;
+  loopStart: number;
+  loopEnd: number;
+}
+
+type Listener = (s: AudioSettings) => void;
+
 class AudioEngine {
   private ctx: AudioContext | null = null;
   private master: GainNode | null = null;
-  private bgmGain: GainNode | null = null;
+  private musicBus: GainNode | null = null;
+  /** BGM 让位节点（1 = 不让位）；e2e 读取它验证 duck */
+  bgmGain: GainNode | null = null;
+  private sfxBus: GainNode | null = null;
   private sfxGain: GainNode | null = null;
-  private bgmBuffer: AudioBuffer | null = null;
-  private bgmSource: AudioBufferSourceNode | null = null;
-  private bgmLoading: Promise<AudioBuffer | null> | null = null;
+  private uiGain: GainNode | null = null;
+
+  private settings: AudioSettings = loadSettings();
+  private listeners = new Set<Listener>();
+
+  private buffers = new Map<string, LoadedBuffer>();
+  private loading = new Map<string, Promise<LoadedBuffer | null>>();
+
+  private bgm: BgmVoice | null = null;
+  /** 正在淡出的旧 BGM（最多一个，第二个立刻停） */
+  private bgmFading: BgmVoice | null = null;
+  private bgmWanted: BgmId | null = null;
   private bgmPlaying = false;
+  /** 暂停时记住的位置，继续时从这里淡入 */
+  private bgmResume: { id: BgmId; offset: number } | null = null;
   /** 递增令牌：取消在途的「等解码完再播」回调 */
   private bgmToken = 0;
-  private masterVolume = 0.9;
+
   private effects = new Map<AudioScheduledSourceNode, () => void>();
+  private sampleVoices: SampleVoice[] = [];
+  private lastPlayed = new Map<SampleId, number>();
+  private noiseBuffer: AudioBuffer | null = null;
 
   private trackEffect(source: AudioScheduledSourceNode, cleanup: () => void) {
     this.effects.set(source, cleanup);
     source.onended = () => { this.effects.delete(source); cleanup(); };
   }
 
-  /** 暂停或切换活动时连同尚未播放的奖励音一起取消，不能串到下一局。 */
+  /** 暂停或切换活动时连同尚未播放的奖励音一起取消，不能串到下一局。UI 音不受影响。 */
   stopEffects() {
     this.chargeStop();
     for (const [source, cleanup] of this.effects) {
@@ -69,175 +130,295 @@ class AudioEngine {
       cleanup();
     }
     this.effects.clear();
+    this.sampleVoices = this.sampleVoices.filter((v) => v.ui);
   }
 
   getDiagnostics() {
     return { bgmActive: this.bgmPlaying, effectsActive: this.effects.size, charging: !!this.charge };
   }
 
+  /** 扩展诊断：e2e / 调试面板读取，不影响上面的兼容结构 */
+  getAudioState() {
+    const sources = [this.bgm, this.bgmFading].filter(Boolean).length;
+    return {
+      bgmTrack: this.bgmPlaying ? (this.bgm?.id ?? null) : null,
+      bgmWanted: this.bgmWanted,
+      bgmSources: sources,
+      bgmUrl: this.bgm ? BGM_TRACKS[this.bgm.id].url : null,
+      paused: !!this.bgmResume,
+      sampleVoices: this.sampleVoices.length,
+      effectsActive: this.effects.size,
+      loaded: [...this.buffers.keys()],
+      ctxState: this.ctx?.state ?? "none",
+      settings: { ...this.settings },
+    };
+  }
+
+  // ---------------------------------------------------------------
+  // 初始化 / 解锁
+  // ---------------------------------------------------------------
+
   /** Idle warm-up: construct the local audio graph only. No resume, fetch or playback. */
   prepare() {
     try {
-      if (!this.ctx) {
-        const AC =
-          window.AudioContext ??
-          (window as unknown as { webkitAudioContext?: typeof AudioContext })
-            .webkitAudioContext;
-        if (!AC) return;
-        this.ctx = new AC();
-        this.master = this.ctx.createGain();
-        this.master.connect(this.ctx.destination);
-        this.bgmGain = this.ctx.createGain();
-        this.bgmGain.connect(this.master);
-        this.sfxGain = this.ctx.createGain();
-        this.sfxGain.gain.value = SFX_LEVEL;
-        this.sfxGain.connect(this.master);
-        let saved = 0.9;
-        try {
-          const raw = window.localStorage.getItem(VOLUME_KEY);
-          if (raw !== null) saved = Math.min(1, Math.max(0, Number(raw)));
-        } catch {
-          /* localStorage 不可用时用默认值 */
-        }
-        this.masterVolume = saved;
-        this.master.gain.value = saved;
-      }
+      if (this.ctx) return;
+      const AC =
+        window.AudioContext ??
+        (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+      if (!AC) return;
+      const ctx = new AC();
+      this.ctx = ctx;
+      this.master = ctx.createGain();
+      this.master.connect(ctx.destination);
+      this.musicBus = ctx.createGain();
+      this.musicBus.connect(this.master);
+      this.bgmGain = ctx.createGain();
+      this.bgmGain.connect(this.musicBus);
+      this.sfxBus = ctx.createGain();
+      this.sfxBus.connect(this.master);
+      this.sfxGain = ctx.createGain();
+      this.sfxGain.gain.value = SFX_LEVEL;
+      this.sfxGain.connect(this.sfxBus);
+      this.uiGain = ctx.createGain();
+      this.uiGain.connect(this.sfxBus);
+      this.applySettings(true);
     } catch {
       /* 无音频环境：静默 */
     }
   }
 
-  /** 用户手势内调用：恢复 AudioContext 并预载 BGM，不播放声音。 */
+  /** 用户手势内调用：恢复 AudioContext 并预载 UI 音效，不播放声音。 */
   unlock() {
     this.prepare();
     try {
       if (this.ctx?.state === "suspended") void this.ctx.resume().catch(() => {});
-      this.preloadBgm();
+      this.preloadGroup("ui");
+      if (this.bgmWanted) this.preloadGame(this.bgmWanted);
     } catch { /* 无音频环境：静默 */ }
   }
 
+  // ---------------------------------------------------------------
+  // 音量设置
+  // ---------------------------------------------------------------
+
+  getSettings(): AudioSettings {
+    return { ...this.settings };
+  }
+
+  subscribe(fn: Listener) {
+    this.listeners.add(fn);
+    return () => { this.listeners.delete(fn); };
+  }
+
+  updateSettings(patch: Partial<AudioSettings>) {
+    const next = { ...this.settings, ...patch };
+    next.music = Math.min(1, Math.max(0, next.music));
+    next.sfx = Math.min(1, Math.max(0, next.sfx));
+    this.settings = next;
+    saveSettings(next);
+    this.applySettings(false);
+    for (const fn of this.listeners) fn({ ...next });
+  }
+
+  private applySettings(immediate: boolean) {
+    if (!this.ctx || !this.master || !this.musicBus || !this.sfxBus) return;
+    const t = this.ctx.currentTime;
+    // 人耳对音量是对数感知：滑杆值平方后再作为增益，低段更细腻
+    const set = (p: AudioParam, v: number) => {
+      if (immediate) p.value = v;
+      else p.setTargetAtTime(v, t, 0.04);
+    };
+    set(this.master.gain, this.settings.muted ? 0 : 1);
+    set(this.musicBus.gain, this.settings.music * this.settings.music);
+    set(this.sfxBus.gain, this.settings.sfx * this.settings.sfx);
+  }
+
+  /** 兼容旧接口：0 = 静音，其余视为取消静音 */
   setMasterVolume(v: number) {
-    try {
-      this.masterVolume = Math.min(1, Math.max(0, v));
-      if (this.master && this.ctx)
-        this.master.gain.setTargetAtTime(
-          this.masterVolume,
-          this.ctx.currentTime,
-          0.05,
-        );
-      window.localStorage.setItem(VOLUME_KEY, String(this.masterVolume));
-    } catch {
-      /* 静默 */
-    }
+    this.updateSettings({ muted: v <= 0 });
   }
 
   getMasterVolume() {
-    if (!this.ctx) {
-      try {
-        const raw = window.localStorage.getItem(VOLUME_KEY);
-        if (raw !== null) return Math.min(1, Math.max(0, Number(raw)));
-      } catch {
-        /* 默认 */
-      }
-    }
-    return this.masterVolume;
+    return this.settings.muted ? 0 : 1;
   }
 
-  private preloadBgm() {
-    if (!this.ctx || this.bgmBuffer || this.bgmLoading) return;
+  private get silent() {
+    return this.settings.muted;
+  }
+
+  // ---------------------------------------------------------------
+  // 资源加载（fetch + 异步解码，结果缓存；解码在浏览器后台线程）
+  // ---------------------------------------------------------------
+
+  private load(url: string, loop = false): Promise<LoadedBuffer | null> {
+    const hit = this.buffers.get(url);
+    if (hit) return Promise.resolve(hit);
+    const pending = this.loading.get(url);
+    if (pending) return pending;
+    if (!this.ctx) return Promise.resolve(null);
     const ctx = this.ctx;
-    this.bgmLoading = fetch(BGM_URL)
+    const p = fetch(url)
       .then((r) => {
-        if (!r.ok) throw new Error(`bgm ${r.status}`);
+        if (!r.ok) throw new Error(`${url} ${r.status}`);
         return r.arrayBuffer();
       })
       .then((buf) => ctx.decodeAudioData(buf))
-      .then((audio) => {
-        this.bgmBuffer = audio;
-        return audio;
+      .then((buffer) => {
+        const region = loop
+          ? findLoopRegion(buffer.getChannelData(0), buffer.sampleRate)
+          : { start: 0, end: buffer.duration };
+        const loaded = { buffer, loopStart: region.start, loopEnd: region.end };
+        this.buffers.set(url, loaded);
+        this.loading.delete(url);
+        return loaded;
       })
       .catch(() => {
-        this.bgmLoading = null;
+        this.loading.delete(url);
         return null;
       });
+    this.loading.set(url, p);
+    return p;
   }
 
-  /** 游戏世界被唤醒：BGM 淡入循环。 */
-  playBgm(fadeInSec = 1.8) {
+  preloadGroup(group: SfxGroup) {
+    if (!this.ctx) return;
+    for (const id of samplesInGroup(group)) void this.load(sampleUrl(id));
+  }
+
+  /** 选择页意图 / 进入校准时调用：提前取回该游戏的 BGM 与音效 */
+  preloadGame(game: string) {
+    this.prepare();
+    if (!isBgmId(game) || !this.ctx) return;
+    void this.load(BGM_TRACKS[game].url, true);
+    const group = GAME_SFX_GROUP[game];
+    if (group) this.preloadGroup(group);
+  }
+
+  // ---------------------------------------------------------------
+  // BGM
+  // ---------------------------------------------------------------
+
+  /** 选定当前游戏的 BGM（不播放）；切换到别的游戏时立即淡出旧曲 */
+  setBgmTrack(id: string | null) {
+    const next = isBgmId(id) ? id : null;
+    if (next === this.bgmWanted) return;
+    this.bgmWanted = next;
+    if (this.bgmResume && this.bgmResume.id !== next) this.bgmResume = null;
+    if (this.bgm && this.bgm.id !== next) this.fadeOutVoice(0.35);
+    if (next) this.preloadGame(next);
+  }
+
+  /** 游戏世界被唤醒 / 继续：淡入当前游戏的 BGM 循环（暂停过则从原位置继续） */
+  playBgm(fadeInSec = 1.8, track?: BgmId) {
     try {
-      if (!this.ctx || !this.bgmGain || this.bgmPlaying) return;
+      if (track) this.setBgmTrack(track);
+      const id = this.bgmWanted;
+      if (!this.ctx || !this.bgmGain || !id) return;
+      if (this.bgmPlaying && this.bgm?.id === id) return;
       const ctx = this.ctx;
       if (ctx.state === "suspended") void ctx.resume().catch(() => {});
       const token = ++this.bgmToken;
-      const start = (buffer: AudioBuffer) => {
-        if (token !== this.bgmToken || this.bgmPlaying || !this.bgmGain) return;
+      this.bgmPlaying = true;
+      const resume = this.bgmResume?.id === id ? this.bgmResume.offset : null;
+      const start = (loaded: LoadedBuffer | null) => {
+        if (!loaded || token !== this.bgmToken || this.bgmWanted !== id || !this.bgmGain) return;
+        if (this.bgm) this.fadeOutVoice(0.25);
         const source = ctx.createBufferSource();
-        source.buffer = buffer;
+        source.buffer = loaded.buffer;
         source.loop = true;
-        source.connect(this.bgmGain);
+        source.loopStart = loaded.loopStart;
+        source.loopEnd = loaded.loopEnd;
+        const gain = ctx.createGain();
+        source.connect(gain);
+        gain.connect(this.bgmGain);
         const now = ctx.currentTime;
+        const level = BGM_TRACKS[id].level;
+        const fade = resume !== null ? Math.min(fadeInSec, 0.6) : fadeInSec;
+        gain.gain.setValueAtTime(0.0001, now);
+        gain.gain.exponentialRampToValueAtTime(level, now + Math.max(0.02, fade));
+        // 让位节点回到 1（上一局结算时可能还压着）
         this.bgmGain.gain.cancelScheduledValues(now);
-        this.bgmGain.gain.setValueAtTime(0.0001, now);
-        this.bgmGain.gain.exponentialRampToValueAtTime(
-          BGM_LEVEL,
-          now + fadeInSec,
-        );
-        source.start();
-        this.bgmSource = source;
-        this.bgmPlaying = true;
+        this.bgmGain.gain.setTargetAtTime(1, now, 0.08);
+        const offset = resume ?? loaded.loopStart;
+        source.start(now, offset);
+        this.bgm = { id, source, gain, startedAt: now - (offset - loaded.loopStart), offset: loaded.loopStart, loopStart: loaded.loopStart, loopEnd: loaded.loopEnd };
+        this.bgmResume = null;
       };
-      if (this.bgmBuffer) start(this.bgmBuffer);
-      else if (this.bgmLoading)
-        void this.bgmLoading.then((buf) => {
-          if (buf) start(buf);
-        });
+      const cached = this.buffers.get(BGM_TRACKS[id].url);
+      if (cached) start(cached);
+      else void this.load(BGM_TRACKS[id].url, true).then(start);
     } catch {
       /* 静默 */
     }
   }
 
-  /** 临近终点 / 长奖励音：压低 BGM，不抢戏。 */
-  duckBgm(factor = 0.38, rampSec = 0.9) {
+  /** 暂停：平滑淡出并记住位置；继续时 playBgm() 从这里接上 */
+  pauseBgm(fadeOutSec = 0.3) {
+    try {
+      this.bgmToken++;
+      this.bgmPlaying = false;
+      const v = this.bgm;
+      if (!v || !this.ctx) return;
+      const len = Math.max(0.01, v.loopEnd - v.loopStart);
+      const played = this.ctx.currentTime - v.startedAt;
+      this.bgmResume = { id: v.id, offset: v.loopStart + (((played % len) + len) % len) };
+      this.fadeOutVoice(fadeOutSec);
+    } catch {
+      /* 静默 */
+    }
+  }
+
+  /** 临近终点 / 长奖励音：压低 BGM，不抢戏。holdSec>0 时之后自动恢复。 */
+  duckBgm(factor = 0.38, rampSec = 0.9, holdSec = 0) {
     try {
       if (!this.ctx || !this.bgmGain || !this.bgmPlaying) return;
       const now = this.ctx.currentTime;
-      this.bgmGain.gain.cancelScheduledValues(now);
-      this.bgmGain.gain.setTargetAtTime(
-        BGM_LEVEL * Math.min(1, Math.max(0, factor)),
-        now,
-        rampSec / 3,
-      );
+      const g = this.bgmGain.gain;
+      g.cancelScheduledValues(now);
+      g.setTargetAtTime(Math.min(1, Math.max(0, factor)), now, rampSec / 3);
+      if (holdSec > 0) g.setTargetAtTime(1, now + rampSec + holdSec, 0.5);
     } catch {
       /* 静默 */
     }
   }
 
-  /** 结束 / 退出：淡出并停止。 */
+  /** 结束 / 退出：淡出并停止，清除暂停位置 */
   stopBgm(fadeOutSec = 1.6) {
     try {
       this.bgmToken++;
-      if (!this.ctx || !this.bgmGain) {
-        this.bgmPlaying = false;
-        return;
-      }
-      const source = this.bgmSource;
-      this.bgmSource = null;
       this.bgmPlaying = false;
-      if (!source) return;
-      const now = this.ctx.currentTime;
-      this.bgmGain.gain.cancelScheduledValues(now);
-      this.bgmGain.gain.setTargetAtTime(0.0001, now, fadeOutSec / 3);
-      source.stop(now + fadeOutSec + 0.1);
-      source.onended = () => {
-        try {
-          source.disconnect();
-        } catch {
-          /* 已断开 */
-        }
-      };
+      this.bgmResume = null;
+      this.fadeOutVoice(fadeOutSec);
     } catch {
       /* 静默 */
     }
+  }
+
+  private fadeOutVoice(sec: number) {
+    const v = this.bgm;
+    this.bgm = null;
+    if (!v || !this.ctx) return;
+    // 同一时刻最多只保留一个正在淡出的旧声部，不让三首叠在一起
+    if (this.bgmFading) this.killVoice(this.bgmFading, 0);
+    this.bgmFading = v;
+    this.killVoice(v, sec);
+  }
+
+  private killVoice(v: BgmVoice, sec: number) {
+    if (!this.ctx) return;
+    const now = this.ctx.currentTime;
+    const end = now + Math.max(0.015, sec);
+    try {
+      v.gain.gain.cancelScheduledValues(now);
+      v.gain.gain.setValueAtTime(Math.max(0.0001, v.gain.gain.value), now);
+      v.gain.gain.exponentialRampToValueAtTime(0.0001, end);
+      v.source.stop(end + 0.02);
+    } catch { /* 已停止 */ }
+    v.source.onended = () => {
+      if (this.bgmFading === v) this.bgmFading = null;
+      try { v.source.disconnect(); v.gain.disconnect(); } catch { /* 已断开 */ }
+    };
+    if (sec <= 0 && this.bgmFading === v) this.bgmFading = null;
   }
 
   get bgmActive() {
@@ -245,7 +426,82 @@ class AudioEngine {
   }
 
   // ---------------------------------------------------------------
-  // SFX 合成
+  // 素材音效
+  // ---------------------------------------------------------------
+
+  /** 全站交互音：在点击 / 按键处理里调用（属于用户手势，可顺带解锁） */
+  ui(id: SampleId, opts: PlayOpts = {}) {
+    this.markUi();
+    this.unlock();
+    this.playSample(id, opts, true);
+  }
+
+  /** 最近一次「已有专属交互音」的时间：全站通用点击音据此避免同一下点击响两次 */
+  lastUiAt = -1e9;
+  markUi() {
+    this.lastUiAt = performance.now();
+  }
+
+  /** 游戏内素材音效：暂停 / 退出时会被 stopEffects 清掉 */
+  play(id: SampleId, opts: PlayOpts = {}) {
+    this.playSample(id, opts, false);
+  }
+
+  private playSample(id: SampleId, opts: PlayOpts, ui: boolean) {
+    try {
+      if (!this.ctx || !this.sfxGain || !this.uiGain || this.silent || this.settings.sfx <= 0) return;
+      const def = SAMPLES[id];
+      const t = performance.now();
+      if (t - (this.lastPlayed.get(id) ?? -1e9) < def.cooldown) return;
+      const loaded = this.buffers.get(sampleUrl(id));
+      if (!loaded) {
+        // 未加载完不补播（迟到的反馈比没有更糟），只触发加载
+        void this.load(sampleUrl(id));
+        return;
+      }
+      this.lastPlayed.set(id, t);
+      if (this.ctx.state === "suspended") void this.ctx.resume().catch(() => {});
+      const same = this.sampleVoices.filter((v) => v.id === id);
+      if (same.length >= def.voices) this.releaseSample(same[0]);
+      if (this.sampleVoices.length >= MAX_SAMPLE_VOICES) this.releaseSample(this.sampleVoices[0]);
+      const ctx = this.ctx;
+      const t0 = ctx.currentTime + Math.max(0, opts.at ?? 0);
+      const source = ctx.createBufferSource();
+      source.buffer = loaded.buffer;
+      source.playbackRate.value = opts.rate ?? 1;
+      const gain = ctx.createGain();
+      gain.gain.value = def.gain * (opts.gain ?? 1);
+      source.connect(gain);
+      gain.connect(ui ? this.uiGain : this.sfxGain);
+      const voice: SampleVoice = { id, source, gain, ui, startedAt: t0 };
+      this.sampleVoices.push(voice);
+      const cleanup = () => {
+        this.sampleVoices = this.sampleVoices.filter((v) => v !== voice);
+        try { source.disconnect(); gain.disconnect(); } catch { /* 已断开 */ }
+      };
+      if (ui) source.onended = cleanup;
+      else this.trackEffect(source, cleanup);
+      source.start(t0);
+    } catch {
+      /* 静默 */
+    }
+  }
+
+  /** 抢占：15 ms 快速淡出，避免硬切爆音 */
+  private releaseSample(v: SampleVoice) {
+    this.sampleVoices = this.sampleVoices.filter((x) => x !== v);
+    if (!this.ctx) return;
+    const now = this.ctx.currentTime;
+    try {
+      v.gain.gain.cancelScheduledValues(now);
+      v.gain.gain.setValueAtTime(v.gain.gain.value, now);
+      v.gain.gain.linearRampToValueAtTime(0, now + 0.015);
+      v.source.stop(now + 0.02);
+    } catch { /* 已结束 */ }
+  }
+
+  // ---------------------------------------------------------------
+  // 合成音效
   // ---------------------------------------------------------------
 
   private tone({
@@ -276,35 +532,51 @@ class AudioEngine {
     osc.stop(t0 + dur + 0.05);
   }
 
+  /** 白噪声缓冲只生成一次（原来每次音效都新建并填充，首个音效会卡一下） */
+  private getNoise() {
+    if (!this.ctx) return null;
+    if (!this.noiseBuffer) {
+      const len = this.ctx.sampleRate;
+      const buf = this.ctx.createBuffer(1, len, this.ctx.sampleRate);
+      const data = buf.getChannelData(0);
+      for (let i = 0; i < len; i++) data[i] = Math.random() * 2 - 1;
+      this.noiseBuffer = buf;
+    }
+    return this.noiseBuffer;
+  }
+
   private noise(
     at: number,
     dur: number,
     gain: number,
     filterFreq: number,
     q = 1,
+    type: BiquadFilterType = "bandpass",
+    freqEnd?: number,
   ) {
     if (!this.ctx || !this.sfxGain) return;
     const ctx = this.ctx;
+    const buf = this.getNoise();
+    if (!buf) return;
     const t0 = ctx.currentTime + at;
-    const len = Math.max(1, Math.floor(ctx.sampleRate * dur));
-    const buf = ctx.createBuffer(1, len, ctx.sampleRate);
-    const data = buf.getChannelData(0);
-    for (let i = 0; i < len; i++) data[i] = Math.random() * 2 - 1;
     const src = ctx.createBufferSource();
     src.buffer = buf;
+    src.loop = dur > buf.duration;
     const filter = ctx.createBiquadFilter();
-    filter.type = "bandpass";
-    filter.frequency.value = filterFreq;
+    filter.type = type;
+    filter.frequency.setValueAtTime(filterFreq, t0);
+    if (freqEnd) filter.frequency.exponentialRampToValueAtTime(freqEnd, t0 + dur);
     filter.Q.value = q;
     const g = ctx.createGain();
     g.gain.setValueAtTime(0.0001, t0);
-    g.gain.exponentialRampToValueAtTime(gain, t0 + 0.006);
+    g.gain.exponentialRampToValueAtTime(gain, t0 + Math.min(0.006, dur / 3));
     g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
     src.connect(filter);
     filter.connect(g);
     g.connect(this.sfxGain);
     this.trackEffect(src, () => { src.disconnect(); filter.disconnect(); g.disconnect(); });
-    src.start(t0);
+    src.start(t0, Math.random() * Math.max(0, buf.duration - Math.min(dur, buf.duration)));
+    src.stop(t0 + dur + 0.02);
   }
 
   /** SFX 触发瞬间让 BGM 让位；Hit 使用更深、更完整的 220ms 窗口。 */
@@ -315,10 +587,10 @@ class AudioEngine {
       const g = this.bgmGain.gain;
       const current = g.value;
       g.cancelScheduledValues(now);
-      g.setValueAtTime(Math.min(current, BGM_LEVEL), now);
-      g.linearRampToValueAtTime(BGM_LEVEL * ratio, now + 0.025);
-      g.setValueAtTime(BGM_LEVEL * ratio, now + hold);
-      g.linearRampToValueAtTime(BGM_LEVEL, now + hold + 0.055);
+      g.setValueAtTime(Math.min(current, 1), now);
+      g.linearRampToValueAtTime(ratio, now + 0.025);
+      g.setValueAtTime(ratio, now + hold);
+      g.linearRampToValueAtTime(1, now + hold + 0.055);
     } catch {
       /* 静默 */
     }
@@ -607,6 +879,48 @@ class AudioEngine {
       /* 静默 */
     }
   }
+
+  // ---------------------------------------------------------------
+  // 新增的轻量合成提示音（参数随游戏状态变化，素材文件做不到）
+  // ---------------------------------------------------------------
+
+  /** synth cue：whoosh = G03 重心回正浪花；tick = G05 蓄力刻度；release = 站起释放；spark = 进入落点区 */
+  synth(kind: "whoosh" | "tick" | "release" | "spark", opts: PlayOpts & { freq?: number } = {}) {
+    try {
+      if (!this.ctx || !this.sfxGain || this.silent) return;
+      const g = opts.gain ?? 1;
+      const at = opts.at ?? 0;
+      switch (kind) {
+        case "whoosh":
+          // 带通噪声从低扫到高再淡出：一道轻柔的浪
+          this.noise(at, 0.42, 0.16 * g, 380, 0.9, "bandpass", 1600);
+          this.tone({ freq: 220, freqEnd: 330, at, dur: 0.3, gain: 0.05 * g, attack: 0.06 });
+          break;
+        case "tick":
+          this.tone({ freq: opts.freq ?? 523.25, at, dur: 0.07, type: "square", gain: 0.07 * g, attack: 0.002 });
+          this.tone({ freq: (opts.freq ?? 523.25) * 2, at, dur: 0.05, gain: 0.05 * g, attack: 0.002 });
+          break;
+        case "release":
+          this.noise(at, 0.035, 0.14 * g, 2400, 1.1);
+          this.tone({ freq: 880, freqEnd: 1320, at, dur: 0.06, type: "triangle", gain: 0.1 * g, attack: 0.002 });
+          break;
+        case "spark":
+          [1568, 2093].forEach((f, i) =>
+            this.tone({ freq: f, at: at + i * 0.045, dur: 0.12, type: "triangle", gain: 0.08 * g, attack: 0.003 }),
+          );
+          break;
+      }
+    } catch {
+      /* 静默 */
+    }
+  }
+
+  /** 给 gameCues 用的发声接口 */
+  readonly sink: CueSink = {
+    play: (id, opts) => this.play(id, opts),
+    synth: (kind, opts) => this.synth(kind, opts),
+    duck: (factor, holdSec) => this.duckBgm(factor, 0.25, holdSec),
+  };
 }
 
 export const audioEngine = new AudioEngine();

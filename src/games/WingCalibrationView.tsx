@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { audioEngine } from "../audio/engine";
 import { Hand, RefreshCcw, ScanLine } from "lucide-react";
 import { cameraVision } from "../vision/CameraVision";
 import {
@@ -87,6 +88,10 @@ export default function WingCalibrationView({
   pausedRef.current = paused;
   const [stage, setStage] = useState<Stage>("loading");
   const [error, setError] = useState("");
+  // 错误反馈：出现错误提示时一声短促的低音（带 1.2 s 冷却）
+  useEffect(() => {
+    if (error) audioEngine.ui("ui-error");
+  }, [error]);
   const [countdown, setCountdown] = useState<number | null>(null);
   const [liveHint, setLiveHint] = useState("正在请求摄像头…");
   const holderRef = useRef<HTMLDivElement>(null);

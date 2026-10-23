@@ -1,0 +1,217 @@
+{
+  "bgm": {
+    "g02-happy-lullaby": {
+      "source": "https://opengameart.org/sites/default/files/song17.mp3",
+      "source_sha256": "9fa0b0e96860eace536fa36f4e9c2c1284db894a8df3cdaa19ddae429b1bfd42",
+      "loop_sec": 38.54,
+      "input_lufs": -12.68,
+      "gain_db": -3.32,
+      "file": "public/audio/bgm/g02-happy-lullaby.mp3",
+      "bytes": 617786
+    },
+    "g03-8bit-summer-memory": {
+      "source": "https://opengameart.org/sites/default/files/8_bit_memory_indie_proj_2_ma_0.mp3",
+      "source_sha256": "813bc7948abf94770de354ffd096a6822b26aae2be323db0385d75c404a4e4ea",
+      "loop_sec": 121.01,
+      "input_lufs": -19.83,
+      "gain_db": 3.83,
+      "file": "public/audio/bgm/g03-8bit-summer-memory.mp3",
+      "bytes": 1937283
+    },
+    "g05-flowerbed-fields": {
+      "source": "https://opengameart.org/sites/default/files/flowerbed_fields.ogg",
+      "source_sha256": "99607b996cc43c1891afcbf7c2c8d8aad1009266cea358d4753e3c50b1332d36",
+      "loop_sec": 105.931,
+      "input_lufs": -18.9,
+      "gain_db": 2.9,
+      "file": "public/audio/bgm/g05-flowerbed-fields.mp3",
+      "bytes": 1696121
+    }
+  },
+  "sfx": {
+    "ui-click": {
+      "pack_url": "https://kenney.nl/media/pages/assets/interface-sounds/fa43c1dd4d-1677589452/kenney_interface-sounds.zip",
+      "pack_sha256": "f2193d072726d6758a5f7871b2dcc54dcce0d5c35c6f0a62f92549b327c81232",
+      "file_in_pack": "select_002.ogg",
+      "file": "public/audio/sfx/ui-click.wav",
+      "sec": 0.04,
+      "bytes": 2630
+    },
+    "ui-move": {
+      "pack_url": "https://kenney.nl/media/pages/assets/interface-sounds/fa43c1dd4d-1677589452/kenney_interface-sounds.zip",
+      "pack_sha256": "f2193d072726d6758a5f7871b2dcc54dcce0d5c35c6f0a62f92549b327c81232",
+      "file_in_pack": "pluck_001.ogg",
+      "file": "public/audio/sfx/ui-move.wav",
+      "sec": 0.1,
+      "bytes": 6414
+    },
+    "ui-confirm": {
+      "pack_url": "https://kenney.nl/media/pages/assets/interface-sounds/fa43c1dd4d-1677589452/kenney_interface-sounds.zip",
+      "pack_sha256": "f2193d072726d6758a5f7871b2dcc54dcce0d5c35c6f0a62f92549b327c81232",
+      "file_in_pack": "confirmation_002.ogg",
+      "file": "public/audio/sfx/ui-confirm.wav",
+      "sec": 0.535,
+      "bytes": 34286
+    },
+    "ui-pause": {
+      "pack_url": "https://kenney.nl/media/pages/assets/interface-sounds/fa43c1dd4d-1677589452/kenney_interface-sounds.zip",
+      "pack_sha256": "f2193d072726d6758a5f7871b2dcc54dcce0d5c35c6f0a62f92549b327c81232",
+      "file_in_pack": "minimize_009.ogg",
+      "file": "public/audio/sfx/ui-pause.wav",
+      "sec": 0.206,
+      "bytes": 13214
+    },
+    "ui-resume": {
+      "pack_url": "https://kenney.nl/media/pages/assets/interface-sounds/fa43c1dd4d-1677589452/kenney_interface-sounds.zip",
+      "pack_sha256": "f2193d072726d6758a5f7871b2dcc54dcce0d5c35c6f0a62f92549b327c81232",
+      "file_in_pack": "maximize_009.ogg",
+      "file": "public/audio/sfx/ui-resume.wav",
+      "sec": 0.208,
+      "bytes": 13374
+    },
+    "ui-back": {
+      "pack_url": "https://kenney.nl/media/pages/assets/interface-sounds/fa43c1dd4d-1677589452/kenney_interface-sounds.zip",
+      "pack_sha256": "f2193d072726d6758a5f7871b2dcc54dcce0d5c35c6f0a62f92549b327c81232",
+      "file_in_pack": "back_002.ogg",
+      "file": "public/audio/sfx/ui-back.wav",
+      "sec": 0.07,
+      "bytes": 4532
+    },
+    "ui-restart": {
+      "pack_url": "https://kenney.nl/media/pages/assets/interface-sounds/fa43c1dd4d-1677589452/kenney_interface-sounds.zip",
+      "pack_sha256": "f2193d072726d6758a5f7871b2dcc54dcce0d5c35c6f0a62f92549b327c81232",
+      "file_in_pack": "toggle_001.ogg",
+      "file": "public/audio/sfx/ui-restart.wav",
+      "sec": 0.103,
+      "bytes": 6608
+    },
+    "ui-error": {
+      "pack_url": "https://kenney.nl/media/pages/assets/interface-sounds/fa43c1dd4d-1677589452/kenney_interface-sounds.zip",
+      "pack_sha256": "f2193d072726d6758a5f7871b2dcc54dcce0d5c35c6f0a62f92549b327c81232",
+      "file_in_pack": "error_008.ogg",
+      "file": "public/audio/sfx/ui-error.wav",
+      "sec": 0.139,
+      "bytes": 8962
+    },
+    "g02-wing-open": {
+      "pack_url": "https://kenney.nl/media/pages/assets/interface-sounds/fa43c1dd4d-1677589452/kenney_interface-sounds.zip",
+      "pack_sha256": "f2193d072726d6758a5f7871b2dcc54dcce0d5c35c6f0a62f92549b327c81232",
+      "file_in_pack": "maximize_008.ogg",
+      "file": "public/audio/sfx/g02-wing-open.wav",
+      "sec": 0.209,
+      "bytes": 13434
+    },
+    "g02-wing-close": {
+      "pack_url": "https://kenney.nl/media/pages/assets/interface-sounds/fa43c1dd4d-1677589452/kenney_interface-sounds.zip",
+      "pack_sha256": "f2193d072726d6758a5f7871b2dcc54dcce0d5c35c6f0a62f92549b327c81232",
+      "file_in_pack": "minimize_008.ogg",
+      "file": "public/audio/sfx/g02-wing-close.wav",
+      "sec": 0.209,
+      "bytes": 13444
+    },
+    "g02-star": {
+      "pack_url": "https://kenney.nl/media/pages/assets/interface-sounds/fa43c1dd4d-1677589452/kenney_interface-sounds.zip",
+      "pack_sha256": "f2193d072726d6758a5f7871b2dcc54dcce0d5c35c6f0a62f92549b327c81232",
+      "file_in_pack": "glass_002.ogg",
+      "file": "public/audio/sfx/g02-star.wav",
+      "sec": 0.122,
+      "bytes": 7878
+    },
+    "g02-gather": {
+      "pack_url": "https://kenney.nl/media/pages/assets/interface-sounds/fa43c1dd4d-1677589452/kenney_interface-sounds.zip",
+      "pack_sha256": "f2193d072726d6758a5f7871b2dcc54dcce0d5c35c6f0a62f92549b327c81232",
+      "file_in_pack": "glass_001.ogg",
+      "file": "public/audio/sfx/g02-gather.wav",
+      "sec": 0.276,
+      "bytes": 17680
+    },
+    "g02-complete": {
+      "pack_url": "https://kenney.nl/media/pages/assets/music-jingles/f37e530b9e-1677590399/kenney_music-jingles.zip",
+      "pack_sha256": "b729ba57959bd58793d2c5cafa348aaf2655d354f3da35ec4729e03ec77197b8",
+      "file_in_pack": "jingles_PIZZI02.ogg",
+      "file": "public/audio/sfx/g02-complete.wav",
+      "sec": 0.947,
+      "bytes": 60622
+    },
+    "g03-lean": {
+      "pack_url": "https://kenney.nl/media/pages/assets/interface-sounds/fa43c1dd4d-1677589452/kenney_interface-sounds.zip",
+      "pack_sha256": "f2193d072726d6758a5f7871b2dcc54dcce0d5c35c6f0a62f92549b327c81232",
+      "file_in_pack": "pluck_002.ogg",
+      "file": "public/audio/sfx/g03-lean.wav",
+      "sec": 0.158,
+      "bytes": 10174
+    },
+    "g03-catch": {
+      "pack_url": "https://kenney.nl/media/pages/assets/music-jingles/f37e530b9e-1677590399/kenney_music-jingles.zip",
+      "pack_sha256": "b729ba57959bd58793d2c5cafa348aaf2655d354f3da35ec4729e03ec77197b8",
+      "file_in_pack": "jingles_STEEL09.ogg",
+      "file": "public/audio/sfx/g03-catch.wav",
+      "sec": 0.586,
+      "bytes": 37550
+    },
+    "g03-streak": {
+      "pack_url": "https://kenney.nl/media/pages/assets/music-jingles/f37e530b9e-1677590399/kenney_music-jingles.zip",
+      "pack_sha256": "b729ba57959bd58793d2c5cafa348aaf2655d354f3da35ec4729e03ec77197b8",
+      "file_in_pack": "jingles_STEEL10.ogg",
+      "file": "public/audio/sfx/g03-streak.wav",
+      "sec": 0.909,
+      "bytes": 58214
+    },
+    "g03-complete": {
+      "pack_url": "https://kenney.nl/media/pages/assets/music-jingles/f37e530b9e-1677590399/kenney_music-jingles.zip",
+      "pack_sha256": "b729ba57959bd58793d2c5cafa348aaf2655d354f3da35ec4729e03ec77197b8",
+      "file_in_pack": "jingles_STEEL02.ogg",
+      "file": "public/audio/sfx/g03-complete.wav",
+      "sec": 1.387,
+      "bytes": 88830
+    },
+    "g05-score": {
+      "pack_url": "https://kenney.nl/media/pages/assets/music-jingles/f37e530b9e-1677590399/kenney_music-jingles.zip",
+      "pack_sha256": "b729ba57959bd58793d2c5cafa348aaf2655d354f3da35ec4729e03ec77197b8",
+      "file_in_pack": "jingles_NES09.ogg",
+      "file": "public/audio/sfx/g05-score.wav",
+      "sec": 0.351,
+      "bytes": 22498
+    },
+    "g05-perfect": {
+      "pack_url": "https://kenney.nl/media/pages/assets/music-jingles/f37e530b9e-1677590399/kenney_music-jingles.zip",
+      "pack_sha256": "b729ba57959bd58793d2c5cafa348aaf2655d354f3da35ec4729e03ec77197b8",
+      "file_in_pack": "jingles_NES14.ogg",
+      "file": "public/audio/sfx/g05-perfect.wav",
+      "sec": 0.352,
+      "bytes": 22554
+    },
+    "g05-streak": {
+      "pack_url": "https://kenney.nl/media/pages/assets/music-jingles/f37e530b9e-1677590399/kenney_music-jingles.zip",
+      "pack_sha256": "b729ba57959bd58793d2c5cafa348aaf2655d354f3da35ec4729e03ec77197b8",
+      "file_in_pack": "jingles_NES08.ogg",
+      "file": "public/audio/sfx/g05-streak.wav",
+      "sec": 0.58,
+      "bytes": 37188
+    },
+    "g05-fail": {
+      "pack_url": "https://kenney.nl/media/pages/assets/music-jingles/f37e530b9e-1677590399/kenney_music-jingles.zip",
+      "pack_sha256": "b729ba57959bd58793d2c5cafa348aaf2655d354f3da35ec4729e03ec77197b8",
+      "file_in_pack": "jingles_NES10.ogg",
+      "file": "public/audio/sfx/g05-fail.wav",
+      "sec": 0.355,
+      "bytes": 22740
+    },
+    "g05-complete": {
+      "pack_url": "https://kenney.nl/media/pages/assets/music-jingles/f37e530b9e-1677590399/kenney_music-jingles.zip",
+      "pack_sha256": "b729ba57959bd58793d2c5cafa348aaf2655d354f3da35ec4729e03ec77197b8",
+      "file_in_pack": "jingles_NES12.ogg",
+      "file": "public/audio/sfx/g05-complete.wav",
+      "sec": 0.812,
+      "bytes": 52034
+    },
+    "g05-restart": {
+      "pack_url": "https://kenney.nl/media/pages/assets/music-jingles/f37e530b9e-1677590399/kenney_music-jingles.zip",
+      "pack_sha256": "b729ba57959bd58793d2c5cafa348aaf2655d354f3da35ec4729e03ec77197b8",
+      "file_in_pack": "jingles_NES16.ogg",
+      "file": "public/audio/sfx/g05-restart.wav",
+      "sec": 0.468,
+      "bytes": 29976
+    }
+  }
+}

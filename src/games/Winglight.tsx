@@ -9,6 +9,7 @@ import { Hand, Pause, ScanLine, Sparkles, X } from "lucide-react";
 import MoonWingScene from "./MoonWingScene";
 import type { YukeeState } from "../yukee/yukeeTypes";
 import { audioEngine } from "../audio/engine";
+import { WingCues } from "../audio/gameCues";
 import type { WingProfile, WingUpdate } from "../vision/wingPose";
 import { useWingSession, type WingInputMode } from "./useWingSession";
 import { computeRobotPose, robotCssVars } from "./robotRig";
@@ -80,6 +81,9 @@ export default function Winglight({
    * 同时不影响上游计分（计分只用 WingSession 内部数据）。
    */
   const dispRef = useRef({ uL: 0, uR: 0, at: 0 });
+  /** 音效规则：只在展开/收拢跃迁、星光到达、汇光、完成时发声 */
+  const cuesRef = useRef<WingCues | null>(null);
+  cuesRef.current ??= new WingCues(audioEngine.sink);
   const applyFrame = useCallback((update: WingUpdate) => {
     const el = rootRef.current;
     if (!el) return;
@@ -95,8 +99,10 @@ export default function Winglight({
     // Sample existing SVG geometry before any style writes. One visual frame of
     // target latency avoids a forced read-after-write flush; scoring is untouched.
     if (update.tracking === "ok" && !update.resuming) {
-      firefliesRef.current?.step(dt, u, update.openValid, update.reps, finishedRef.current);
+      const arrived = firefliesRef.current?.step(dt, u, update.openValid, update.reps, finishedRef.current) ?? 0;
+      if (arrived > 0) cuesRef.current?.star();
     }
+    cuesRef.current?.stageChanged(update.stage, update.tracking === "ok" && !update.resuming);
     el.style.setProperty("--wing-open", u.toFixed(4));
     el.style.setProperty("--wing-left", disp.uL.toFixed(4));
     el.style.setProperty("--wing-right", disp.uR.toFixed(4));
@@ -119,7 +125,7 @@ export default function Winglight({
   const complete = useCallback(() => {
     if (finishedRef.current) return;
     finishedRef.current = true;
-    audioEngine.sfx("complete");
+    cuesRef.current?.complete();
     setFinished(true);
   }, []);
 
@@ -128,7 +134,7 @@ export default function Winglight({
     profile,
     mode,
     onFrame: applyFrame,
-    onRep: () => audioEngine.sfx("reward"),
+    onRep: (reps) => cuesRef.current?.gathered(reps),
     onComplete: complete,
   });
 

@@ -90,6 +90,8 @@ export class MoonFireflyField {
   activeTime = 0;
   reps = 0;
   rewardAge = 2000;
+  /** 累计到达帆面的星光数（只用于音效节拍，不参与计分） */
+  absorbed = 0;
   particles: Firefly[] = SOURCES.map((source, i) => ({
     source,
     position: { ...source },
@@ -153,6 +155,7 @@ export class MoonFireflyField {
           p.progress,
         );
         if (p.progress >= 1) {
+          this.absorbed++;
           p.phase = "dock";
           p.progress = 0;
           p.dockAge = 0;

@@ -853,3 +853,100 @@
     transition-duration: 0.01ms !important;
   }
 }
+
+/* —— 声音设置：沿用头部圆形图标按钮，点开是一张小面板 —— */
+.sound-control {
+  position: relative;
+  display: inline-flex;
+}
+.sound-panel {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  z-index: 40;
+  width: 252px;
+  padding: 14px 16px 12px;
+  color: var(--ink);
+  background: #192d24;
+  border: 1px solid #647958;
+  border-radius: 14px;
+  box-shadow: 0 18px 60px #0009;
+  animation: sound-panel-in 0.18s ease-out both;
+}
+@keyframes sound-panel-in {
+  from { opacity: 0; transform: translateY(-4px) scale(0.98); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sound-panel { animation: none; }
+}
+.sound-panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+.sound-panel .arcade-kicker {
+  font-size: 10px;
+  padding: 3px 7px;
+}
+.arcade-app .sound-mute {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  font-size: 12px;
+  color: #cfe0cf;
+  border: 1px solid #50645288;
+  border-radius: 999px;
+  transition: background 0.18s;
+}
+.arcade-app .sound-mute:hover { background: #2c4135; }
+.arcade-app .sound-mute.is-on {
+  color: #10201a;
+  background: var(--mint);
+  border-color: var(--mint);
+}
+.sound-row {
+  display: grid;
+  grid-template-columns: 34px 1fr 38px;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+.sound-row output {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  color: #cfe0cf;
+}
+.sound-row input[type="range"] {
+  --fill: 50%;
+  appearance: none;
+  width: 100%;
+  height: 4px;
+  border-radius: 4px;
+  background: linear-gradient(90deg, var(--mint) var(--fill), #3a4f43 var(--fill));
+  cursor: pointer;
+}
+.sound-row input[type="range"]:disabled { opacity: 0.4; cursor: default; }
+.sound-row input[type="range"]::-webkit-slider-thumb {
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #eef4e9;
+  border: 2px solid #192d24;
+  box-shadow: 0 0 0 1px #647958;
+}
+.sound-row input[type="range"]::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #eef4e9;
+  border: 2px solid #192d24;
+}
+.sound-row input[type="range"]:focus-visible {
+  outline: 2px solid var(--mint);
+  outline-offset: 4px;
+}

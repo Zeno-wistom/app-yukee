@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { cameraVision } from "../../vision/CameraVision";
 import { measureSquatDiag, SquatSession, squatDebugLog, squatThresholds, SQUAT_CONFIG, type SquatMissReason, type SquatProfile, type SquatUpdate } from "../../vision/squatPose";
 import { audioEngine } from "../../audio/engine";
+import { SquatCues } from "../../audio/gameCues";
 import { f2, f3, SquatDebugPanel, useSquatDebugToggle, type DebugRow } from "./SquatDebug";
 import type { PoseFrame } from "../../vision/wingPose";
 import type { GameResult } from "../../state/machine";
@@ -156,6 +157,17 @@ export default function SquatJump({
       lastCharge = 0;
     const poseFrames: number[] = [];
     let chargeSound = false;
+    // 音效规则：蓄力刻度与实际蓄力值同一个数；只在跃迁时发声
+    const cues = new SquatCues(audioEngine.sink);
+    /** 当前目标的可落点区（蓄力条比例），与 HUD 亮区同一公式 */
+    const bandFor = () => {
+      const tgt = run.target;
+      if (!tgt) return null;
+      const dist = Math.abs(tgt.axis === "x" ? tgt.x - run.px : tgt.z - run.pz);
+      const half = (tgt.axis === "x" ? tgt.w : tgt.d) / 2;
+      const n = (d: number) => Math.max(0, Math.min(1, distanceToCharge(d) / barMax));
+      return { lo: n(dist - half), hi: n(dist + half) };
+    };
     const stopChargeSound = () => {
       if (chargeSound) audioEngine.chargeStop();
       chargeSound = false;
@@ -173,6 +185,8 @@ export default function SquatJump({
       cam.reset();
       stopChargeSound();
       space.current = { down: false, released: false };
+      audioEngine.markUi();
+      cues.restart();
     };
     restartRef.current = restart;
     const resize = () => {
@@ -203,6 +217,7 @@ export default function SquatJump({
         const ax = target.axis === "x";
         lastNeed = Math.abs(ax ? target.x - run.px : target.z - run.pz);
       }
+      cues.release();
       audioEngine.launchPower = Math.min(1, charge / barMax);
       audioEngine.sfx("g05Launch");
       const l = run.jump(charge);
@@ -241,6 +256,8 @@ export default function SquatJump({
             strong: l.kind === "perfect" || bonus,
           });
           cb.current.onGameEvent("land");
+          if (run.cleared) cues.complete();
+          else cues.landed(l.kind, run.combo);
           if (!run.over) scene.advance(visible(), run.current, run.target);
           if (run.cleared) {
             state = "over";
@@ -250,6 +267,7 @@ export default function SquatJump({
         } else if (isFail(l.kind)) {
           state = "over";
           overAt.current = performance.now();
+          cues.fail();
           cb.current.onGameEvent("fall");
         } else {
           state = "ready"; // 留在原台：不得分也不失败，可以再蓄力
@@ -327,14 +345,19 @@ export default function SquatJump({
         session.reset();
         cam.reset();
         stopChargeSound();
+        cues.chargeCancel();
       } else {
         if (state !== "over" && tracking === "ok") effectiveMs += dtMs;
         if (cancel && state === "charging") {
           state = "ready";
           charge = 0;
           stopChargeSound();
+          cues.chargeCancel();
         }
-        if (state === "ready" && pressing) state = "charging";
+        if (state === "ready" && pressing) {
+          state = "charging";
+          cues.chargeStart();
+        }
         if (state === "charging" && pressing && !chargeSound) {
           audioEngine.chargeStart();
           chargeSound = true;
@@ -349,10 +372,12 @@ export default function SquatJump({
               state = "ready";
               charge = 0;
               cam.reset();
+              cues.chargeCancel();
             }
           }
         }
         if (chargeSound) audioEngine.chargeLevel(charge / barMax);
+        if (state === "charging") cues.chargeLevel(charge / barMax, bandFor());
         scene.charge = state === "charging" ? charge / barMax : 0;
         scene.step(dt);
       }

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { audioEngine } from "../audio/engine";
 import { cameraVision } from "../vision/CameraVision";
 import {
   DEMO_LEAN_PROFILE,
@@ -39,6 +40,10 @@ export default function LeanCalibrationView({
     u: 0,
   });
   const [error, setError] = useState("");
+  // 错误反馈：出现错误提示时一声短促的低音（带 1.2 s 冷却）
+  useEffect(() => {
+    if (error) audioEngine.ui("ui-error");
+  }, [error]);
   useEffect(() => {
     let cancelled = false,
       raf = 0,
