@@ -462,6 +462,15 @@ export default function YukeeRun({
       );
       ctx.restore();
       ctx.imageSmoothingEnabled = false;
+      const imgTop = GROUND_Y - destH;
+      if (imgTop > -top) {
+        // 原画上缘与扩展天空柔和衔接，避免一条硬边
+        const seam = ctx.createLinearGradient(0, imgTop - 1, 0, imgTop + 22);
+        seam.addColorStop(0, "#47a6dd");
+        seam.addColorStop(1, "#47a6dd00");
+        ctx.fillStyle = seam;
+        ctx.fillRect(0, imgTop - 1, W, 23);
+      }
     }
 
     // Layer 2：独立白云，速度比底图更慢；矩形簇保持像素边缘。
@@ -528,7 +537,7 @@ export default function YukeeRun({
     ctx.fillRect(0, GROUND_Y, W, H - GROUND_Y + bottomExtra);
     if (bottomExtra > 0) {
       // 扩展出的下方土地：同速滚动的深色土层与碎石，保持地面连续
-      ctx.fillStyle = "#123129";
+      ctx.fillStyle = "#14382f";
       ctx.fillRect(0, H, W, bottomExtra);
       const pebOff = worldX % 40;
       ctx.fillStyle = "#1d4a3e";
