@@ -58,6 +58,28 @@ test("直达四款真实游戏；初始不请求摄像头；左右箭头与目�
   expect(await page.evaluate(() => (window as any).cameraCalls)).toBe(0);
 });
 
+async function noPageScroll(page: import("@playwright/test").Page) {
+  return page.evaluate(() => {
+    const de = document.documentElement, app = document.querySelector<HTMLElement>(".arcade-app")!;
+    return de.scrollHeight <= innerHeight + 1 && de.scrollWidth <= innerWidth + 1 && app.scrollHeight <= app.clientHeight + 1 && app.scrollWidth <= app.clientWidth + 1;
+  });
+}
+
+test("带浏览器工具栏 / 系统缩放的常见可用视口：选择页无整页滚动，预览保持 1290:205", async ({ page }) => {
+  for (const [w, h] of [[1280, 600], [1366, 657], [1536, 730], [1440, 789], [1920, 937], [2560, 1297]]) {
+    await page.setViewportSize({ width: w, height: h });
+    await page.goto("/");
+    await expect(page.getByTestId("game-selection")).toBeVisible();
+    await page.waitForTimeout(900);
+    expect(await noPageScroll(page)).toBe(true);
+    const box = await page.getByTestId("selection-preview").boundingBox();
+    expect(box!.width / box!.height).toBeCloseTo(1290 / 205, 1);
+    const card = await page.locator(".selection-active").evaluate((el) => el.scrollHeight - el.clientHeight);
+    expect(card).toBeLessThanOrEqual(1);
+    for (const name of ["进入游戏", "上一款游戏", "下一款游戏"]) await expect(page.getByRole("button", { name, exact: true })).toBeInViewport();
+  }
+});
+
 for (const [width, height] of [
   [1280, 720],
   [1366, 768],
@@ -89,6 +111,8 @@ for (const [width, height] of [
         .locator("main")
         .evaluate((el) => el.scrollWidth <= el.clientWidth),
     ).toBe(true);
+    // Final Polish V2：整页与应用根节点都不得出现纵向滚动
+    expect(await noPageScroll(page)).toBe(true);
     await page.screenshot({
       path: `docs/screenshots/final-polish/selection-${width}.png`,
     });
@@ -99,6 +123,21 @@ for (const [width, height] of [
       expect(viewport!.x).toBe(0);
       expect(viewport!.width).toBe(width);
       expect(viewport!.height).toBe(height - (width <= 800 ? 60 : 72));
+      expect(await noPageScroll(page)).toBe(true);
+      if (width > 800) {
+        // 画面铺满游戏区：G01/G03/G05 画布、G02 背景画面覆盖整个游戏视口
+        const cover = await page.locator(".game-viewport").evaluate((vp, i) => {
+          const v = vp.getBoundingClientRect();
+          let r: DOMRect;
+          if (i === 1) {
+            const svg = vp.querySelector<SVGSVGElement>(".wing-svg")!;
+            const m = svg.getScreenCTM()!, vb = svg.viewBox.baseVal;
+            r = new DOMRect(m.e + vb.x * m.a, m.f + vb.y * m.d, vb.width * m.a, vb.height * m.d);
+          } else r = vp.querySelector("canvas")!.getBoundingClientRect();
+          return { l: r.left - v.left, t: r.top - v.top, r: v.right - r.right, b: v.bottom - r.bottom };
+        }, index);
+        for (const gap of Object.values(cover)) expect(gap).toBeLessThanOrEqual(2);
+      }
       await page.getByRole("button", { name: "暂停游戏", exact: true }).click();
       await expect(page.getByTestId("session-dialog")).toBeVisible();
       const modal = await page.getByTestId("session-dialog").boundingBox();

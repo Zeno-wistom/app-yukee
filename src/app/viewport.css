@@ -35,20 +35,21 @@ body,
     min-height: 0;
     display: flex;
     align-items: center;
+    justify-content: center;
+    /* 尺寸容器：卡片按「可用高度 − 说明区高度」反推宽度，预览横幅始终保持 1290:205 接图契约 */
+    container-type: size;
+    --detail-h: 240px;
   }
   .selection-active {
-    flex: 1 1 auto;
-    min-width: 0;
+    flex: none;
+    width: min(100%, calc((100cqh - var(--detail-h)) * 1290 / 205));
+    min-width: min(100%, 720px);
     max-height: 100%;
     display: flex;
     flex-direction: column;
-    container-type: inline-size;
   }
   .selection-preview {
-    flex: 0 1 auto;
-    aspect-ratio: auto;
-    height: calc(100cqw * 205 / 1290);
-    min-height: 64px;
+    flex: none;
   }
   .selection-detail {
     flex: none;
@@ -74,6 +75,9 @@ body,
   }
   .selection-detail {
     padding: 16px 26px;
+  }
+  .selection-carousel {
+    --detail-h: 212px;
   }
   .selection-story h2 {
     font-size: 26px;
@@ -116,6 +120,10 @@ body,
   }
   .selection-carousel {
     flex: none;
+    container-type: normal;
+  }
+  .selection-active {
+    width: 100%;
   }
 }
 /* 窄屏/手机沿用原有流式布局，在选择区内部滚动 */
@@ -133,6 +141,7 @@ body,
   }
 }
 @media (min-width: 2200px) and (min-height: 1150px) {
+  .selection-carousel { --detail-h: 330px; }
   .selection-heading h1 { font-size: 56px; }
   .selection-heading p { font-size: 15px; }
   .selection-detail { padding: 48px 56px; }
@@ -146,4 +155,10 @@ body,
   .selection-pagination b { font-size: 14px; }
   .selection-footer { font-size: 12px; }
   .selection-arrow { width: 54px; height: 78px; }
+}
+@media (min-width: 1800px) {
+  .selection-carousel { --detail-h: 298px; }
+}
+@media (min-width: 2200px) and (min-height: 1150px) {
+  .selection-carousel { --detail-h: 340px; }
 }
