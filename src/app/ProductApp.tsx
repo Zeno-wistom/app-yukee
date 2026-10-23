@@ -83,17 +83,17 @@ export default function ProductApp() {
     // The native AudioContext constructor measured 83ms on this PC. Warm it
     // after entrance motion, while idle, rather than inside the first start click.
     const timer = setTimeout(() => {
-      // 同时预取几个很小的 UI 音效（约 60 KB，后台线程解码），第一次点击就有反馈
-      const warm = () => { audioEngine.prepare(); audioEngine.preloadGroup("ui"); };
-      if ("requestIdleCallback" in window) idle = window.requestIdleCallback(warm);
-      else warm();
+      // 空闲预热只建音频图，不发任何音频请求（motion.spec 契约）
+      if ("requestIdleCallback" in window) idle = window.requestIdleCallback(() => audioEngine.prepare());
+      else audioEngine.prepare();
     }, 1100);
     return () => { clearTimeout(timer); if (idle !== undefined) window.cancelIdleCallback(idle); };
   }, [selection]);
   const prepare = () => {
     const id = GAMES[state.selectionIndex].id;
-    // 意图阶段就开始取回该游戏的 BGM 与音效（异步解码，不阻塞点击）
+    // 意图阶段（悬停 / 聚焦 / 点击）才取回 UI 音效与该游戏的 BGM、音效（异步解码，不阻塞点击）
     audioEngine.preloadGame(id);
+    audioEngine.preloadGroup("ui");
     // Warm the existing split chunk on intent, without mounting calibration or requesting camera access.
     const loaders: Record<string, () => Promise<unknown>> = {
       yukeeRun: () => import("../games/CalibrationView"),
@@ -208,6 +208,20 @@ export default function ProductApp() {
       if (selection) audioEngine.stopEffects();
     }
   }, [playing, paused, selection, state.activeGame]);
+  // 第一次真实交互（按下鼠标 / 触摸 / 按键）时预取约 60 KB 的 UI 音效
+  useEffect(() => {
+    const first = () => {
+      audioEngine.prepare();
+      audioEngine.preloadGroup("ui");
+    };
+    const opts = { capture: true, once: true } as const;
+    window.addEventListener("pointerdown", first, opts);
+    window.addEventListener("keydown", first, opts);
+    return () => {
+      window.removeEventListener("pointerdown", first, opts);
+      window.removeEventListener("keydown", first, opts);
+    };
+  }, []);
   // 主要按钮的通用点击音：已有专属交互音（暂停、继续、退出……）的点击不再叠加
   useEffect(() => {
     const click = (e: MouseEvent) => {
