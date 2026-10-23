@@ -6,8 +6,9 @@ import { f2, f3, SquatDebugPanel, useSquatDebugToggle, type DebugRow } from "./S
 import type { PoseFrame } from "../../vision/wingPose";
 import type { GameResult } from "../../state/machine";
 import type { GameEventKind } from "../YukeeRun";
-import { distanceToCharge, isFail, isSuccess, JUMP_CONFIG, JumpRun, type LandingKind } from "./jumpLogic";
+import { chargeToDistance, distanceToCharge, isFail, isSuccess, JUMP_CONFIG, JumpRun, type LandingKind } from "./jumpLogic";
 import { JumpScene } from "./squatJumpScene";
+import { CAMERA_CHARGE, CameraCharge } from "./chargeModel";
 import "./squatJump.css";
 
 export type SquatMode = "camera" | "demo";
@@ -29,8 +30,10 @@ interface Hud {
   gapCharge: number;
   effectiveMs: number;
   combo: number;
+  /** 蓄力条上的目标区（0–1，按蓄力条满格归一化）：可落区与中心区 */
+  band: { lo: number; hi: number; plo: number; phi: number };
   /** 调试 */
-  dbg: { phase: string; ok: boolean; zero: number; peakU: number; failMs: number; armed: boolean; miss: SquatMissReason; visL: number; visR: number; fps: number; releasedBy: string; lastCharge: number };
+  dbg: { phase: string; ok: boolean; zero: number; peakU: number; failMs: number; armed: boolean; miss: SquatMissReason; visL: number; visR: number; fps: number; releasedBy: string; lastCharge: number; rate: number; frozen: boolean; held: number; lastDist: number; lastNeed: number };
 }
 
 const FAIL_TEXT: Partial<Record<LandingKind, string>> = {
@@ -89,7 +92,8 @@ export default function SquatJump({
     gapCharge: 0,
     effectiveMs: 0,
     combo: 0,
-    dbg: { phase: "ready", ok: true, zero: 0, peakU: 0, failMs: 0, armed: false, miss: "", visL: 0, visR: 0, fps: 0, releasedBy: "", lastCharge: 0 },
+    band: { lo: 0, hi: 0, plo: 0, phi: 0 },
+    dbg: { phase: "ready", ok: true, zero: 0, peakU: 0, failMs: 0, armed: false, miss: "", visL: 0, visR: 0, fps: 0, releasedBy: "", lastCharge: 0, rate: 0, frozen: false, held: 0, lastDist: 0, lastNeed: 0 },
   });
   const debug = useSquatDebugToggle();
 
@@ -134,6 +138,11 @@ export default function SquatJump({
     const scene = new JumpScene();
     let run = new JumpRun(seed);
     const session = new SquatSession(profile);
+    const cam = new CameraCharge();
+    // 蓄力条满格：键盘 1.5 秒；摄像头 1.3（不再允许极端过冲）
+    const barMax = mode === "camera" ? CAMERA_CHARGE.maxCharge : JUMP_CONFIG.maxChargeSec;
+    let lastDist = 0,
+      lastNeed = 0;
     let state: CtrlState = "ready";
     let charge = 0,
       perfects = 0,
@@ -161,6 +170,7 @@ export default function SquatJump({
       perfects = 0;
       effectiveMs = 0;
       session.reset();
+      cam.reset();
       stopChargeSound();
       space.current = { down: false, released: false };
     };
@@ -189,11 +199,26 @@ export default function SquatJump({
       const target = run.target;
       stopChargeSound();
       lastCharge = charge;
-      audioEngine.launchPower = Math.min(1, charge / JUMP_CONFIG.maxChargeSec);
+      {
+        const ax = target.axis === "x";
+        lastNeed = Math.abs(ax ? target.x - run.px : target.z - run.pz);
+      }
+      audioEngine.launchPower = Math.min(1, charge / barMax);
       audioEngine.sfx("g05Launch");
       const l = run.jump(charge);
       el.dataset.lastCharge = charge.toFixed(3);
       el.dataset.lastDist = l.dist.toFixed(3);
+      lastDist = l.dist;
+      squatDebugLog.push({
+        t: Math.round(performance.now()),
+        src: "game",
+        ev: "jump",
+        input: mode,
+        charge: +charge.toFixed(3),
+        dist: +l.dist.toFixed(3),
+        needDist: +lastNeed.toFixed(3),
+        result: l.kind,
+      });
       state = "flying";
       cb.current.onGameEvent("jump");
       scene.startJump(l, target.axis, () => {
@@ -231,6 +256,7 @@ export default function SquatJump({
           audioEngine.sfx("g05Land");
         }
         session.reset();
+        cam.reset();
         charge = 0;
       });
     };
@@ -267,8 +293,8 @@ export default function SquatJump({
         release = lastSq.release;
         cancel = lastSq.cancel;
         tracking = lastSq.tracking;
-        // 确认蹲位前的等待也算进蓄力（体感上「一蹲下就开始蓄」）
-        if (lastSq.enteredDownSec > 0 && state === "ready") charge = Math.min(JUMP_CONFIG.maxChargeSec, lastSq.enteredDownSec);
+        // 摄像头蓄力：按幅度加权、缓入、开始站起即冻结（见 chargeModel.ts）
+        if (state === "ready" || state === "charging") charge = cam.step(dt, lastSq, profile).charge;
         if (lastSq.release) lastReleasedBy = lastSq.releasedBy;
         if (p && p.at > lastPoseAt) {
           lastPoseAt = p.at;
@@ -284,6 +310,8 @@ export default function SquatJump({
             zero: +lastSq.zero.toFixed(4),
             peakU: +lastSq.peakU.toFixed(3),
             charge: +charge.toFixed(3),
+            rate: +cam.rate.toFixed(3),
+            frozen: cam.frozen,
             rel: lastSq.release ? lastSq.releasedBy : "",
             cancel: lastSq.cancel,
             miss,
@@ -297,6 +325,7 @@ export default function SquatJump({
           charge = 0;
         }
         session.reset();
+        cam.reset();
         stopChargeSound();
       } else {
         if (state !== "over" && tracking === "ok") effectiveMs += dtMs;
@@ -313,17 +342,18 @@ export default function SquatJump({
         if (chargeSound && !pressing) stopChargeSound();
         if (state === "charging") {
           // 摄像头回升途中 pressing=false：蓄力冻结，等站回确认再释放
-          if (pressing) charge = Math.min(JUMP_CONFIG.maxChargeSec, charge + dt);
+          if (pressing && mode === "demo") charge = Math.min(JUMP_CONFIG.maxChargeSec, charge + dt);
           if (release) {
-            if (charge >= 0.06) doJump();
+            if (charge >= (mode === "camera" ? CAMERA_CHARGE.minJump : 0.06)) doJump();
             else {
               state = "ready";
               charge = 0;
+              cam.reset();
             }
           }
         }
-        if (chargeSound) audioEngine.chargeLevel(charge / JUMP_CONFIG.maxChargeSec);
-        scene.charge = state === "charging" ? charge / JUMP_CONFIG.maxChargeSec : 0;
+        if (chargeSound) audioEngine.chargeLevel(charge / barMax);
+        scene.charge = state === "charging" ? charge / barMax : 0;
         scene.step(dt);
       }
       scene.draw(ctx);
@@ -333,6 +363,15 @@ export default function SquatJump({
           tgt = run.target;
         const dist = tgt ? Math.abs(tgt.axis === "x" ? tgt.x - run.px : tgt.z - run.pz) : 0;
         let gap = 0;
+        const band = { lo: 0, hi: 0, plo: 0, phi: 0 };
+        if (tgt) {
+          const half = (tgt.axis === "x" ? tgt.w : tgt.d) / 2;
+          const n = (d: number) => Math.max(0, Math.min(1, distanceToCharge(d) / barMax));
+          band.lo = n(dist - half);
+          band.hi = n(dist + half);
+          band.plo = n(dist - JUMP_CONFIG.perfectRadius);
+          band.phi = n(dist + JUMP_CONFIG.perfectRadius);
+        }
         if (tgt && cur) {
           const ax = tgt.axis === "x";
           const curEdge = (ax ? cur.x - run.px : cur.z - run.pz) + (ax ? cur.w : cur.d) / 2;
@@ -354,6 +393,7 @@ export default function SquatJump({
           gapCharge: gap > 0 ? distanceToCharge(gap) : 0,
           effectiveMs,
           combo: run.combo,
+          band,
           dbg: {
             phase: lastSq?.phase ?? "ready",
             ok: lastSq?.ok ?? true,
@@ -367,6 +407,11 @@ export default function SquatJump({
             fps: poseFrames.length,
             releasedBy: lastReleasedBy,
             lastCharge,
+            rate: cam.rate,
+            frozen: cam.frozen,
+            held: cam.heldSec,
+            lastDist,
+            lastNeed,
           },
         });
       }
@@ -392,7 +437,11 @@ export default function SquatJump({
   }, [hud.state, restart]);
 
   const target = JUMP_CONFIG.targetJumps;
-  const pct = Math.round((hud.charge / JUMP_CONFIG.maxChargeSec) * 100);
+  const barMax = mode === "camera" ? CAMERA_CHARGE.maxCharge : JUMP_CONFIG.maxChargeSec;
+  const fill = Math.min(1, hud.charge / barMax);
+  const pct = Math.round(fill * 100);
+  const inBand = hud.state === "charging" && fill >= hud.band.lo && fill <= hud.band.hi;
+  const pastBand = hud.state === "charging" && fill > hud.band.hi;
   const thresholds = squatThresholds(profile);
   const instruction =
     hud.state === "over"
@@ -410,7 +459,11 @@ export default function SquatJump({
             : hud.state === "charging"
               ? hud.u < thresholds.downU
                 ? "站直，就会起跳"
-                : "保持浅蹲蓄力，站直起跳"
+                : pastBand
+                  ? "够远了，现在站直"
+                  : inBand
+                    ? "进入落点区，站直起跳"
+                    : "保持浅蹲，看蓄力进入亮区"
               : hud.failed && hud.u > 0.4
                 ? hud.failed === "scale"
                   ? "身体别前探，轻轻下蹲"
@@ -459,8 +512,10 @@ export default function SquatJump({
       {hud.state !== "over" && (
         <footer className="squat-guide">
           <b role="status">{instruction}</b>
-          <div className="squat-bar" aria-label={`蓄力 ${pct}%`}>
-            <i style={{ transform: `scaleX(${hud.charge / JUMP_CONFIG.maxChargeSec})` }} className={pct >= 100 ? "full" : ""} />
+          <div className={`squat-bar${inBand ? " in-band" : ""}${pastBand ? " past-band" : ""}`} aria-label={`蓄力 ${pct}%`} data-testid="squat-bar">
+            <span className="squat-band" style={{ left: `${hud.band.lo * 100}%`, width: `${Math.max(0, hud.band.hi - hud.band.lo) * 100}%` }} />
+            <span className="squat-band-perfect" style={{ left: `${hud.band.plo * 100}%`, width: `${Math.max(0, hud.band.phi - hud.band.plo) * 100}%` }} />
+            <i style={{ transform: `scaleX(${fill})` }} className={pct >= 100 ? "full" : ""} />
           </div>
           {mode === "camera" && (
             <div className="squat-u" aria-hidden>
@@ -499,7 +554,9 @@ export default function SquatJump({
               ["基线修正", `${f3(hud.dbg.zero)} W0`],
               ["本轮峰值 u", f2(hud.dbg.peakU)],
               ["蓄力", `${hud.charge.toFixed(2)} s（上次 ${hud.dbg.lastCharge.toFixed(2)} s）`],
-              ["需要蓄力", `${hud.needCharge.toFixed(2)} s`],
+              ["需要蓄力", `${hud.needCharge.toFixed(2)} s（落点区 ${(hud.band.lo * barMax).toFixed(2)}–${(hud.band.hi * barMax).toFixed(2)}）`],
+              ["蓄力速度", `${hud.dbg.rate.toFixed(2)} /s${hud.dbg.frozen ? " · 回升冻结" : ""} · 已蹲 ${hud.dbg.held.toFixed(2)} s`],
+              ["上次跳跃", hud.dbg.lastDist ? `${hud.dbg.lastDist.toFixed(2)} / 需 ${hud.dbg.lastNeed.toFixed(2)}（${hud.last ?? ""}）` : "–"],
               ["上次释放", hud.dbg.releasedBy || "–"],
               ["幅度 A", `${f3(profile.amp)} W0 · W0 ${Math.round(profile.w0)}px`],
               ["实际入蹲门槛", `${(thresholds.downQ * profile.w0).toFixed(1)} px · ${f3(thresholds.downU)} A`],

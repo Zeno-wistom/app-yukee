@@ -36,6 +36,8 @@ export const JUMP_CONFIG = {
   /** 平台间净空隙范围 */
   gapMin: 0.55,
   gapMax: 2.0,
+  /** 前两跳的空隙上限（热身） */
+  warmupGapMax: 1.2,
   /** 中心命中半径（世界单位） */
   perfectRadius: 0.24,
   /** 连续成功次数达到即通关 */
@@ -101,7 +103,9 @@ export class PlatformGenerator {
     }
     const bonus = index >= 2 && shape === "box" && r() < 0.16;
     const proto = { w, d } as Platform;
-    const gap = JUMP_CONFIG.gapMin + r() * (JUMP_CONFIG.gapMax - JUMP_CONFIG.gapMin);
+    // 热身：前两跳空隙较小，先熟悉蓄力手感；之后恢复完整范围
+    const gapMax = index <= 2 ? JUMP_CONFIG.warmupGapMax : JUMP_CONFIG.gapMax;
+    const gap = JUMP_CONFIG.gapMin + r() * (gapMax - JUMP_CONFIG.gapMin);
     const dist = halfAlong(from, axis) + gap + halfAlong(proto, axis);
     return {
       id: this.id++,

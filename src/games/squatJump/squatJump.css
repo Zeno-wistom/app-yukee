@@ -511,3 +511,38 @@
   line-height: 2.6em;
   white-space: nowrap;
 }
+
+/* ———— 蓄力条落点区（v2 手感）：亮区 = 能落上目标的蓄力，中心细线 = 中心命中 ———— */
+.squat-jump .squat-bar {
+  position: relative;
+}
+.squat-jump .squat-bar i {
+  position: relative;
+  z-index: 1;
+  opacity: 0.92;
+}
+.squat-band,
+.squat-band-perfect {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+.squat-band {
+  background: #ffe9a8;
+  box-shadow: inset 0 0 0 var(--px, 1px) #e7b85a;
+}
+.squat-band-perfect {
+  z-index: 2;
+  background: #ffffffcc;
+  box-shadow: 0 0 0 var(--px, 1px) #f2a64a;
+  min-width: 2px;
+  mix-blend-mode: normal;
+}
+.squat-jump .squat-bar.in-band i {
+  background: repeating-linear-gradient(90deg, #ffd56a 0 calc(0.8 * var(--portal-cqw)), #ffc44a calc(0.8 * var(--portal-cqw)) calc(1 * var(--portal-cqw)));
+}
+.squat-jump .squat-bar.past-band i {
+  background: repeating-linear-gradient(90deg, #ff9a8a 0 calc(0.8 * var(--portal-cqw)), #ff8270 calc(0.8 * var(--portal-cqw)) calc(1 * var(--portal-cqw)));
+}

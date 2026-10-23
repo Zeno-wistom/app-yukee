@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
-import { setSquatDebug, squatDebugEnabled, squatDebugLog } from "../../vision/squatPose";
+import { setSquatDebug, squatDebugAllowed, squatDebugEnabled, squatDebugLog } from "../../vision/squatPose";
 
-/** 调试开关：?g05debug=1 或按 D 切换（记在本机 localStorage） */
+/** 调试开关：?g05debug=1，或在开发构建 / 调试地址下按 D 切换（记在本机 localStorage） */
 export function useSquatDebugToggle() {
   const [on, setOn] = useState(squatDebugEnabled);
   useEffect(() => {
+    if (!squatDebugAllowed()) return;
     const key = (e: KeyboardEvent) => {
       if (e.repeat || e.ctrlKey || e.metaKey || e.altKey) return;
       if (e.key === "d" || e.key === "D") {

@@ -635,10 +635,21 @@ export const squatDebugLog = {
 if (typeof window !== "undefined") (window as unknown as { __g05debug?: typeof squatDebugLog }).__g05debug = squatDebugLog;
 
 /** 调试开关：URL ?g05debug=1，或在 G05 页按 D 切换（存 localStorage） */
+/** 调试只在开发构建或带 ?g05debug=1 的地址可用；正式展示按 D 不会弹出开发信息 */
+export function squatDebugAllowed() {
+  if (typeof window === "undefined") return false;
+  try {
+    if (import.meta.env?.DEV) return true;
+    return new URLSearchParams(window.location.search).has("g05debug");
+  } catch {
+    return false;
+  }
+}
 export function squatDebugEnabled() {
   if (typeof window === "undefined") return false;
   try {
     if (new URLSearchParams(window.location.search).get("g05debug") === "1") return true;
+    if (!squatDebugAllowed()) return false;
     return window.localStorage.getItem("yukee.g05debug") === "1";
   } catch {
     return false;
