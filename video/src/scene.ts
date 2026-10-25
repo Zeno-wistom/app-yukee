@@ -44,8 +44,56 @@ const rbox = (w: number, h: number, d: number, r: number, m: THREE.Material) => 
   mesh.castShadow = true; mesh.receiveShadow = true; return mesh;
 };
 
+// ———————————————————— 程序化材质贴图（无外部素材，避免授权问题与贴图拉伸） ————————————————————
+let seedV = 12345;
+const rnd = () => ((seedV = (seedV * 16807) % 2147483647) / 2147483647);
+function canvasTex(w: number, h: number, draw: (g: CanvasRenderingContext2D) => void, srgb = true, repeat: [number, number] = [1, 1]) {
+  const c = document.createElement("canvas"); c.width = w; c.height = h; draw(c.getContext("2d")!);
+  const t = new THREE.CanvasTexture(c); if (srgb) t.colorSpace = THREE.SRGBColorSpace;
+  t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(...repeat); t.anisotropy = 8; return t;
+}
+/** 橡木：沿长度方向的细密木纹 + 少量深色纹理线 */
+const woodMap = canvasTex(2048, 512, (g) => {
+  g.fillStyle = "#c9a57d"; g.fillRect(0, 0, 2048, 512);
+  for (let i = 0; i < 900; i++) {
+    const y = rnd() * 512, a = 0.04 + rnd() * 0.08, l = 300 + rnd() * 1700, x = rnd() * 2048;
+    g.strokeStyle = rnd() > 0.5 ? `rgba(120,82,48,${a})` : `rgba(235,205,165,${a})`;
+    g.lineWidth = 0.6 + rnd() * 2.2; g.beginPath(); g.moveTo(x - l / 2, y);
+    g.bezierCurveTo(x - l / 4, y + (rnd() - 0.5) * 6, x + l / 4, y + (rnd() - 0.5) * 6, x + l / 2, y + (rnd() - 0.5) * 4); g.stroke();
+  }
+});
+/** 浅色木地板：宽 18 cm 的条板，每块色调略有差异，板缝细线 */
+const floorMap = canvasTex(1024, 1024, (g) => {
+  const pw = 1024 / 11;
+  for (let i = 0; i < 11; i++) {
+    let y0 = 0;
+    while (y0 < 1024) {
+      const len = 260 + rnd() * 520; const v = 150 + rnd() * 18;
+      g.fillStyle = `rgb(${v + 22},${v + 8},${v - 10})`; g.fillRect(i * pw, y0, pw, len);
+      for (let k = 0; k < 26; k++) { g.strokeStyle = `rgba(110,85,60,${0.03 + rnd() * 0.05})`; g.lineWidth = 0.6 + rnd(); const x = i * pw + rnd() * pw; g.beginPath(); g.moveTo(x, y0); g.lineTo(x + (rnd() - 0.5) * 4, y0 + len); g.stroke(); }
+      g.fillStyle = "rgba(70,55,40,0.35)"; g.fillRect(i * pw, y0, pw, 1.5); y0 += len;
+    }
+    g.fillStyle = "rgba(70,55,40,0.4)"; g.fillRect(i * pw, 0, 1.5, 1024);
+  }
+}, true, [7, 7]);
+/** 拉丝金属粗糙度（G 通道）：沿产品长度方向的细丝纹 */
+const brushedRough = canvasTex(1024, 1024, (g) => {
+  g.fillStyle = "rgb(200,200,200)"; g.fillRect(0, 0, 1024, 1024);
+  for (let i = 0; i < 2600; i++) { const v = 150 + rnd() * 105; g.fillStyle = `rgba(${v},${v},${v},0.55)`; g.fillRect(rnd() * 1024 - 300, rnd() * 1024, 200 + rnd() * 700, 0.6 + rnd() * 1.2); }
+}, false);
+/** 接触阴影：径向柔边 */
+const blobTex = canvasTex(256, 256, (g) => {
+  const gr = g.createRadialGradient(128, 128, 10, 128, 128, 128);
+  gr.addColorStop(0, "rgba(0,0,0,0.55)"); gr.addColorStop(0.55, "rgba(0,0,0,0.22)"); gr.addColorStop(1, "rgba(0,0,0,0)");
+  g.fillStyle = gr; g.fillRect(0, 0, 256, 256);
+});
+function contactShadow(x: number, z: number, w: number, d: number, y = DESK.h + 0.0008, rotY = 0, op = 0.5) {
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(w, d), new THREE.MeshBasicMaterial({ map: blobTex, transparent: true, opacity: op, depthWrite: false }));
+  m.rotation.set(-Math.PI / 2, 0, rotY); m.position.set(x, y, z); m.renderOrder = 1; scene.add(m); return m;
+}
+
 // ———————————————————— 房间 ————————————————————
-const floor = new THREE.Mesh(new THREE.PlaneGeometry(14, 14), std("#a8998a", 0.78));
+const floor = new THREE.Mesh(new THREE.PlaneGeometry(14, 14), new THREE.MeshStandardMaterial({ map: floorMap, color: "#d8cdbf", roughness: 0.62 }));
 floor.rotation.x = -Math.PI / 2; floor.receiveShadow = true; scene.add(floor);
 const wall = new THREE.Mesh(new THREE.PlaneGeometry(14, 5), std("#d9d3c9", 0.95));
 wall.position.set(0, 2.5, -0.9); wall.receiveShadow = true; scene.add(wall);
@@ -61,7 +109,7 @@ const sill = rbox(0.12, 0.03, 1.45, 0.006, std("#ebe7df", 0.5)); sill.position.s
 const skirting = rbox(14, 0.08, 0.02, 0.005, std("#e2ddd3", 0.7)); skirting.position.set(0, 0.04, -0.89); scene.add(skirting);
 
 // ———————————————————— 桌子 ————————————————————
-const oak = std("#c7a47d", 0.55);
+const oak = new THREE.MeshPhysicalMaterial({ map: woodMap, roughness: 0.48, clearcoat: 0.25, clearcoatRoughness: 0.45 });
 const deskTop = rbox(DESK.w, DESK.t, DESK.d, 0.008, oak);
 deskTop.position.set(0, DESK.h - DESK.t / 2, DESK.z); scene.add(deskTop);
 const legM = std("#f1efea", 0.35, 0.2);
@@ -91,6 +139,14 @@ for (let i = 0; i < 9; i++) {
   leaf.position.set(-0.56 + Math.cos(a) * 0.025, DESK.h + 0.15 + (i % 3) * 0.01, -0.2 + Math.sin(a) * 0.025);
   leaf.rotation.set(Math.sin(a) * 0.5, -a, Math.cos(a) * 0.5); leaf.castShadow = true; scene.add(leaf);
 }
+
+// 桌面物体的接触阴影（日光阴影之外的近距离遮蔽，让物体真正「放在」桌上）
+contactShadow(0, 0.19, 0.42, 0.18, DESK.h + 0.0008, 0, 0.45);
+contactShadow(0.31, 0.2, 0.09, 0.14, DESK.h + 0.0008, 0, 0.5);
+contactShadow(-0.45, 0.05, 0.13, 0.13, DESK.h + 0.0008, 0, 0.55);
+contactShadow(0.48, -0.05, 0.26, 0.33, DESK.h + 0.0008, -0.18, 0.35);
+contactShadow(-0.56, -0.2, 0.16, 0.16, DESK.h + 0.0008, 0, 0.5);
+contactShadow(0, MON.z - 0.04, 0.32, 0.25, DESK.h + 0.0008, 0, 0.5);
 
 // ———————————————————— 显示器 ————————————————————
 const monBlack = std("#1b1d1f", 0.35, 0.1);
@@ -143,8 +199,25 @@ const product = new THREE.Group(); scene.add(product);
 let lampScreen: THREE.Mesh | null = null;
 let diffuserMats: THREE.MeshStandardMaterial[] = [];
 // 拉丝不锈钢（银灰）：金属度 1、粗糙度 0.3，颜色为中性灰，环境反射保持中性
-const steel = new THREE.MeshPhysicalMaterial({ color: "#c3c4c5", metalness: 1, roughness: 0.3, clearcoat: 0.15, clearcoatRoughness: 0.35, envMapIntensity: 1.1 });
-const steelBar = new THREE.MeshPhysicalMaterial({ color: "#b9babb", metalness: 1, roughness: 0.34, envMapIntensity: 1.1 });
+// 产品专用「影棚」环境：顶部大柔光箱 + 左右长条灯 + 暖色桌面反光 + 中灰四壁，
+// 让金属表面出现柔和的明暗过渡与长条高光（产品摄影常用布光），环境整体为中性色，不引入蓝色偏色。
+const studioEnv = (() => {
+  const st = new THREE.Scene();
+  const room = new THREE.Mesh(new THREE.BoxGeometry(10, 6, 10), new THREE.MeshBasicMaterial({ color: new THREE.Color(0.27, 0.265, 0.26), side: THREE.BackSide }));
+  st.add(room);
+  const panel = (w: number, h: number, c: THREE.Color, pos: [number, number, number], rot: [number, number, number]) => {
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ color: c, side: THREE.DoubleSide }));
+    m.position.set(...pos); m.rotation.set(...rot); st.add(m);
+  };
+  panel(3.6, 1.6, new THREE.Color(3.0, 2.95, 2.85), [0, 2.9, 0.3], [Math.PI / 2, 0, 0]); // 顶部柔光
+  panel(0.45, 3.2, new THREE.Color(2.8, 2.7, 2.55), [-4.5, 1.2, 1.5], [0, Math.PI / 2, 0]); // 左侧长条灯
+  panel(0.35, 3.0, new THREE.Color(1.3, 1.27, 1.22), [4.5, 1.2, 1.0], [0, -Math.PI / 2, 0]); // 右侧补光
+  panel(8, 3, new THREE.Color(0.42, 0.34, 0.26), [0, -2.9, 1.0], [-Math.PI / 2, 0, 0]); // 桌面暖反光
+  panel(5, 2.0, new THREE.Color(0.95, 0.94, 0.92), [0, 1.0, 4.9], [0, Math.PI, 0]); // 正前方（相机后）浅墙
+  return pmrem.fromScene(st, 0.02).texture;
+})();
+const steel = new THREE.MeshPhysicalMaterial({ color: "#bdbfc1", metalness: 1, roughness: 0.32, roughnessMap: brushedRough, clearcoat: 0.08, clearcoatRoughness: 0.4, envMap: studioEnv, envMapIntensity: 0.95 });
+const steelBar = new THREE.MeshPhysicalMaterial({ color: "#b3b5b7", metalness: 1, roughness: 0.36, roughnessMap: brushedRough, envMap: studioEnv, envMapIntensity: 0.95 });
 const backMat = new THREE.MeshPhysicalMaterial({ color: "#efebe4", roughness: 0.55, metalness: 0, emissive: new THREE.Color("#ffe6c8"), emissiveIntensity: 0.25 });
 const lampSpot = new THREE.SpotLight("#fff1dc", 0, 1.6, 0.95, 0.65, 1.2);
 const PRODUCT = {
@@ -168,12 +241,18 @@ async function loadProduct() {
     if (!mesh.isMesh) return;
     mesh.castShadow = true; mesh.receiveShadow = true;
     const name = mesh.name || mesh.parent?.name || "";
+    // 拉丝方向沿产品长度（Rhino X）：按局部坐标生成平面投影 UV，只用于粗糙度细纹，不影响几何
+    if (!mesh.geometry.getAttribute("uv")) {
+      const pos = mesh.geometry.getAttribute("position"); const uv = new Float32Array(pos.count * 2);
+      for (let i = 0; i < pos.count; i++) { uv[i * 2] = pos.getX(i) * 6; uv[i * 2 + 1] = (pos.getY(i) + pos.getZ(i)) * 40; }
+      mesh.geometry.setAttribute("uv", new THREE.BufferAttribute(uv, 2));
+    }
     if (name.startsWith("backcover")) {
       mesh.material = backMat;
     } else if (name.startsWith("screen")) {
-      mesh.material = new THREE.MeshPhysicalMaterial({ color: "#07090a", roughness: 0.06, metalness: 0, clearcoat: 1, clearcoatRoughness: 0.03 });
+      mesh.material = new THREE.MeshPhysicalMaterial({ color: "#07090a", roughness: 0.06, metalness: 0, clearcoat: 1, clearcoatRoughness: 0.03, envMap: studioEnv, envMapIntensity: 0.8 });
     } else if (name.startsWith("camera")) {
-      mesh.material = new THREE.MeshPhysicalMaterial({ color: "#050506", roughness: 0.08, metalness: 0.2, clearcoat: 1, clearcoatRoughness: 0.02 });
+      mesh.material = new THREE.MeshPhysicalMaterial({ color: "#050506", roughness: 0.08, metalness: 0.2, clearcoat: 1, clearcoatRoughness: 0.02, envMap: studioEnv, envMapIntensity: 1.2 });
     } else if (name.startsWith("lampshade")) {
       mesh.material = steelBar;
     } else {
@@ -238,7 +317,7 @@ let tl: ReturnType<typeof buildTimeline>;
 function officePose(t: number, relaxed = false): Pose {
   const p = lerpPose(seated, seated, 0);
   const tired = relaxed ? 0 : ramp(t, CUES.timelapseStart, CUES.timelapseEnd);
-  const mouseUse = relaxed ? wnd(t, 44.0, 45.4, 0.35, 0.35) : wnd(t, 3.0, 4.5, 0.35, 0.35) + wnd(t, 8.2, 8.9, 0.25, 0.3);
+  const mouseUse = relaxed ? Math.min(1, wnd(t, CUES.returnReach, CUES.returnClick + 0.45, 0.35, 0.3) + wnd(t, 44.4, 45.4, 0.35, 0.35)) : wnd(t, 3.0, 4.5, 0.35, 0.35) + wnd(t, 8.2, 8.9, 0.25, 0.3);
   const glanceNotes = relaxed ? 0 : wnd(t, 3.6, 4.4, 0.3, 0.35);
   const fast = t > CUES.timelapseStart && t < CUES.timelapseEnd ? 1.8 : 1; // 时间流逝镜头里打字更快
   const typing = (1 - mouseUse) * (1 - ramp(t, CUES.reminder + 0.1, CUES.reminder + 0.5) * (relaxed ? 0 : 1));
@@ -263,7 +342,7 @@ function officePose(t: number, relaxed = false): Pose {
   p.elbowL = rub;
   p.look = p.look.clone().add(V(0.08 * rub, -0.12 * rub, 0));
   p.side = -0.05 * rub;
-  if (relaxed) { p.lean -= 0.06; p.chest -= 0.03; }
+  if (relaxed) { p.lean -= 0.06; p.chest -= 0.03; p.handR.y -= pulse(t, CUES.returnClick, 0.18) * 0.006; }
   return p;
 }
 
@@ -392,7 +471,7 @@ const CAMS: Record<string, [CamKey, CamKey]> = {
   lampClose: [{ p: V(-0.3, monTop - 0.03, 0.56), t: PT.clone().add(V(0, -0.012, 0)), fov: 28 }, { p: V(-0.19, monTop - 0.022, 0.42), t: PT.clone().add(V(0, -0.01, 0)), fov: 25 }],
   overShoulder: [{ p: V(1.0, 1.55, 1.95), t: V(-0.08, 1.1, -0.1), fov: 32 }, { p: V(0.8, 1.5, 1.66), t: V(-0.08, 1.13, -0.1), fov: 32 }],
   standSide: [{ p: V(2.15, 1.25, 1.02), t: V(-0.08, 0.95, 0.66), fov: 42 }, { p: V(2.25, 1.25, 1.2), t: V(-0.08, 0.95, 0.75), fov: 42 }],
-  headCam: [{ p: V(1.12, 1.52, 0.3), t: V(0.0, 1.36, SPOT_Z), fov: 42 }, { p: V(1.08, 1.51, 0.32), t: V(0.0, 1.36, SPOT_Z), fov: 42 }],
+  headCam: [{ p: V(1.22, 1.58, 0.16), t: V(0.0, 1.45, SPOT_Z), fov: 38 }, { p: V(1.18, 1.57, 0.2), t: V(0.0, 1.45, SPOT_Z), fov: 38 }],
   backCam: [{ p: V(0.42, 1.48, 3.05), t: V(0.0, 1.12, 0.45), fov: 38 }, { p: V(0.36, 1.46, 2.95), t: V(0.0, 1.12, 0.45), fov: 38 }],
   backWide: [{ p: V(-0.95, 1.62, 3.0), t: V(0.0, 1.12, 0.35), fov: 36 }, { p: V(-0.72, 1.56, 2.75), t: V(0.0, 1.12, 0.35), fov: 36 }],
   sideCam: [{ p: V(2.55, 1.12, 1.62), t: V(0.0, 0.88, SPOT_Z - 0.05), fov: 40 }, { p: V(2.5, 1.12, 1.58), t: V(0.0, 0.88, SPOT_Z - 0.05), fov: 40 }],
@@ -460,6 +539,20 @@ function lampAt(t: number) {
   return { lv, c };
 }
 
+// 眨眼：不等间隔（2.4–4.6 s），注意到提醒、抬头看 YUKEE 时各眨一次；单次 0.16 s
+const BLINKS = (() => {
+  const out: number[] = []; let x = 0.9, seed = 7;
+  const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+  while (x < DURATION) { out.push(x); x += 2.4 + rnd() * 2.2; }
+  out.push(CUES.lookUp + 0.35, CUES.standing + 0.2, 40.6);
+  return out.sort((a, b) => a - b);
+})();
+function blinkAt(t: number) {
+  let v = 0;
+  for (const b of BLINKS) { const d = t - b; if (d >= 0 && d < 0.16) v = Math.max(v, Math.sin((d / 0.16) * Math.PI)); }
+  return v;
+}
+
 // ———————————————————— 帧驱动 ————————————————————
 async function renderFrame(f: number, camOverride?: string, kOverride?: number) {
   const t = f / FPS;
@@ -473,7 +566,10 @@ async function renderFrame(f: number, camOverride?: string, kOverride?: number) 
   if (camOverride === "pip") { camName = (shot as any).pip; k = (t - shot.start) / (shot.end - shot.start); }
   else if (camOverride) { camName = camOverride; k = kOverride ?? k; }
   setCamera(camName || "establish", Math.max(0, Math.min(1, k)));
-  person.apply(poseAt(t));
+  const pose = poseAt(t);
+  pose.blink = blinkAt(t);
+  pose.breath = Math.sin((t * 2 * Math.PI) / (t > GAMES.g01.start - 2 && t < 40.5 ? 2.6 : 3.9)); // 运动时呼吸更快
+  person.apply(pose);
   chairAt(t);
   // 时间流逝：阳光角度与色温变化
   const tl01 = ramp(t, CUES.timelapseStart, CUES.timelapseEnd);

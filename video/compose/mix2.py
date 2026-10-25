@@ -65,9 +65,11 @@ while t < CUES["reminder"]:
         put(key_click() * np.array([pan, 2 - pan], np.float32), t, rng.uniform(0.045, 0.08))
     fast = 1.8 if CUES["timelapseStart"] < t < CUES["timelapseEnd"] else 1.0
     t += (rng.uniform(0.09, 0.22) if rng.random() > 0.08 else rng.uniform(0.4, 0.7)) / fast
-t = CUES["backToWork"] + 0.4
+t = CUES["returnClick"] + 0.55  # 点完「回到专注」后手回到键盘再打字；44.4–45.4 s 用鼠标，不出键声
 while t < DUR - 1.0:
-    put(key_click(), t, rng.uniform(0.03, 0.05)); t += rng.uniform(0.12, 0.3)
+    if not (44.4 < t < 45.4):
+        put(key_click(), t, rng.uniform(0.03, 0.05))
+    t += rng.uniform(0.12, 0.3)
 
 # —— 3. 转场气流（时间流逝、进入游戏、回到产品） ——
 def whoosh(d=0.9):
@@ -93,6 +95,7 @@ put(chime(1318.5, bright=0.5), c, 0.13); put(chime(1568.0, bright=0.5), c + 0.14
 
 # —— 5. 「开始活动」点击 ——
 put(load(f"{ROOT}/public/audio/sfx/ui-click.wav"), CUES["click"], 0.4)
+put(load(f"{ROOT}/public/audio/sfx/ui-click.wav"), CUES["returnClick"], 0.3)  # 奖励页「回到专注」
 
 # —— 6. 选择页真实 UI 音效 ——
 sel_t0 = CUES["selectStart"] - TL["SELECT_LEAD"]

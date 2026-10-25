@@ -343,7 +343,7 @@ def frame(f):
     if 42.6 <= t < 45.2:
         k = min(ramp(t, 42.6, 43.0), 1 - ramp(t, 44.8, 45.2))
         if k > 0: scrim(L(), k)
-        caption(L(), t, 42.75, 45.1, "05  BACK TO WORK · 回到工作", "动一动，再回到工作", "灯光恢复暖白，安静陪伴", top=TOPY)
+        caption(L(), t, 42.75, 45.1, "05  BACK TO WORK · 回到工作", "点「回到专注」，继续工作", "灯光恢复暖白，安静陪伴", top=TOPY)
     if t >= CUES["endTitle"]:
         end_title(L(), t)
     if rgba is not None:

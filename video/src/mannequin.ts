@@ -21,6 +21,8 @@ export type Pose = {
   side?: number; // 躯干侧倾（弧度，正 = 向右）
   elbowL?: number; // 0–1：肘部抬起外展（如揉脖子）
   elbowR?: number;
+  blink?: number; // 0–1 眨眼
+  breath?: number; // -1–1 呼吸相位
 };
 
 const L = {
@@ -64,12 +66,20 @@ const UP = new THREE.Vector3(0, 1, 0);
 
 /** 手：掌 + 并拢四指（微屈）+ 拇指。局部坐标：+Y 指向指尖，+Z 为手背，-Z 为掌心。成人手长约 18.5 cm、掌宽 8.4 cm。 */
 function handGeo() {
-  const palm = new RoundedBoxGeometry(0.082, 0.1, 0.03, 3, 0.012); palm.translate(0, 0.05, 0);
-  const fingers = new RoundedBoxGeometry(0.076, 0.085, 0.022, 3, 0.01);
-  fingers.translate(0, 0.0425, 0); fingers.rotateX(-0.28); fingers.translate(0, 0.098, -0.004);
-  const thumb = new THREE.CapsuleGeometry(0.011, 0.045, 4, 10); thumb.rotateZ(0.75); thumb.translate(-0.05, 0.045, -0.01);
-  for (const g of [palm, fingers, thumb]) { g.deleteAttribute("uv"); }
-  return mergeGeometries([palm, fingers, thumb].map((g) => (g.index ? g.toNonIndexed() : g)))!;
+  const palm = new RoundedBoxGeometry(0.078, 0.098, 0.027, 3, 0.012); palm.translate(0, 0.05, 0);
+  // 四指分开（食指→小指长度 7.5/8.2/7.7/6.3 cm，指径约 1.7 cm），两节微屈，避免「连指手套」感
+  const parts: THREE.BufferGeometry[] = [palm];
+  const fx = [0.027, 0.009, -0.009, -0.026], fl = [0.075, 0.082, 0.077, 0.063], fr = [0.0088, 0.0092, 0.0088, 0.0078];
+  for (let i = 0; i < 4; i++) {
+    const a = new THREE.CapsuleGeometry(fr[i], fl[i] * 0.48, 4, 10); a.translate(0, fl[i] * 0.24, 0); a.rotateX(-0.22);
+    const b = new THREE.CapsuleGeometry(fr[i] * 0.92, fl[i] * 0.42, 4, 10); b.translate(0, fl[i] * 0.21, 0); b.rotateX(-0.55);
+    b.translate(0, Math.cos(0.22) * fl[i] * 0.5, -Math.sin(0.22) * fl[i] * 0.5);
+    for (const g of [a, b]) { g.rotateZ(-fx[i] * 1.6); g.translate(fx[i], 0.097, -0.002); parts.push(g); }
+  }
+  const thumb = new THREE.CapsuleGeometry(0.0105, 0.042, 4, 10); thumb.rotateZ(0.72); thumb.translate(-0.047, 0.044, -0.011);
+  parts.push(thumb);
+  for (const g of parts) { if (g.getAttribute("uv")) g.deleteAttribute("uv"); }
+  return mergeGeometries(parts.map((g) => (g.index ? g.toNonIndexed() : g)))!;
 }
 function place(m: THREE.Object3D, a: THREE.Vector3, b: THREE.Vector3) {
   m.position.copy(a);
@@ -113,7 +123,7 @@ export class Mannequin {
     add("neck", limbGeo(0.042, 0.038, L.neck), skin);
     const head = add("head", new THREE.SphereGeometry(1, 40, 28), skin);
     head.scale.set(0.094, 0.118, 0.106);
-    const hairCap = new THREE.Mesh(new THREE.SphereGeometry(1, 40, 24, 0, Math.PI * 2, 0, Math.PI * 0.56), hair);
+    const hairCap = new THREE.Mesh(new THREE.SphereGeometry(1, 48, 28, 0, Math.PI * 2, 0, Math.PI * 0.6), hair);
     hairCap.castShadow = true;
     add("nose", new THREE.ConeGeometry(0.015, 0.036, 12), skin);
     const eyeM = new THREE.MeshPhysicalMaterial({ color: "#1d1a19", roughness: 0.25, clearcoat: 1 });
@@ -126,12 +136,13 @@ export class Mannequin {
     this.parts.hair = hairCap;
     this.root.add(hairCap);
     for (const s of ["L", "R"]) {
-      add("thigh" + s, limbGeo(0.068, 0.05, L.thigh), pants);
+      add("thigh" + s, limbGeo(0.072, 0.052, L.thigh), pants);
       add("shin" + s, limbGeo(0.05, 0.04, L.shin), pants);
-      add("upper" + s, limbGeo(0.048, 0.04, L.upper), knit);
-      add("fore" + s, limbGeo(0.04, 0.03, L.fore), knit);
+      add("upper" + s, limbGeo(0.044, 0.036, L.upper), knit);
+      add("fore" + s, limbGeo(0.036, 0.027, L.fore), knit);
+      add("cuff" + s, limbGeo(0.03, 0.029, 0.02), knit);
       add("hand" + s, handGeo(), skin).scale.set(s === "L" ? -1 : 1, 1, 1);
-      add("delt" + s, new THREE.SphereGeometry(1, 24, 16), knit).scale.set(0.058, 0.052, 0.056);
+      add("delt" + s, new THREE.SphereGeometry(1, 24, 16), knit).scale.set(0.052, 0.046, 0.05);
       add("ear" + s, new THREE.SphereGeometry(1, 14, 10), skin).scale.set(0.012, 0.03, 0.02);
       add("shoe" + s, new THREE.SphereGeometry(1, 24, 14), shoe).scale.set(0.048, 0.04, 0.125);
     }
@@ -152,7 +163,8 @@ export class Mannequin {
     P.torso.position.copy(waist);
     const tq = new THREE.Quaternion().setFromUnitVectors(UP, neckBase.clone().sub(waist).normalize());
     P.torso.quaternion.copy(tq.multiply(new THREE.Quaternion().setFromAxisAngle(UP, p.yaw)));
-    P.torso.scale.set(1, neckBase.distanceTo(waist) / 0.517, 0.64);
+    const br = 1 + 0.012 * (p.breath || 0);
+    P.torso.scale.set(br, neckBase.distanceTo(waist) / 0.517, 0.64 * (1 + 0.018 * (p.breath || 0)));
     P.pelvis.position.copy(p.pelvis);
     P.pelvis.quaternion.setFromAxisAngle(UP, p.yaw);
     // 头颈
@@ -166,8 +178,8 @@ export class Mannequin {
     const m = new THREE.Matrix4().lookAt(headCenter, headCenter.clone().sub(headDir), UP);
     P.head.quaternion.setFromRotationMatrix(m);
     P.hair.position.copy(headCenter.clone().add(new THREE.Vector3(0, 0.008, 0)).sub(headDir.clone().multiplyScalar(0.01)));
-    P.hair.quaternion.copy(P.head.quaternion).multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), -0.5));
-    P.hair.scale.set(0.103, 0.127, 0.116);
+    P.hair.quaternion.copy(P.head.quaternion).multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), -0.62));
+    P.hair.scale.set(0.102, 0.126, 0.115);
     const hq = P.head.quaternion; // 头部局部：+Z 朝前（Matrix4.lookAt 的 z 轴 = 视线方向）
     const hf = new THREE.Vector3(0, 0, 1).applyQuaternion(hq), hr = new THREE.Vector3(1, 0, 0).applyQuaternion(hq), hu = new THREE.Vector3(0, 1, 0).applyQuaternion(hq);
     P.nose.position.copy(headCenter.clone().add(hf.clone().multiplyScalar(0.104)).add(hu.clone().multiplyScalar(-0.012)));
@@ -178,7 +190,7 @@ export class Mannequin {
       return headCenter.clone().add(hr.clone().multiplyScalar(x)).add(hu.clone().multiplyScalar(y)).add(hf.clone().multiplyScalar(zz));
     };
     for (const [s, sign] of [["L", -1], ["R", 1]] as const) {
-      P["eye" + s].position.copy(onFace(sign * 0.034, 0.012)); P["eye" + s].quaternion.copy(hq);
+      P["eye" + s].position.copy(onFace(sign * 0.034, 0.012)); P["eye" + s].quaternion.copy(hq); P["eye" + s].scale.set(0.0105, 0.0125 * (1 - 0.88 * (p.blink || 0)), 0.006);
       P["brow" + s].position.copy(onFace(sign * 0.036, 0.03).add(hf.clone().multiplyScalar(0.002)));
       P["brow" + s].quaternion.copy(hq).multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), Math.PI / 2 - sign * 0.12));
     }
@@ -199,6 +211,7 @@ export class Mannequin {
       const { joint: elbow, end } = ik(sh, hand, L.upper, L.fore, pole);
       place(P["upper" + s], sh, elbow);
       place(P["fore" + s], elbow, end);
+      { const fdc = end.clone().sub(elbow).normalize(); place(P["cuff" + s], end.clone().sub(fdc.clone().multiplyScalar(0.028)), end); }
       const fd = end.clone().sub(elbow).normalize();
       const hang = Math.max(0, Math.min(1, (-fd.y - 0.35) / 0.5));
       const palmN = new THREE.Vector3(0, -1, 0).lerp(right.clone().multiplyScalar(-sign), hang).normalize(); // 掌心朝向
@@ -241,5 +254,7 @@ export function lerpPose(a: Pose, b: Pose, k: number): Pose {
     side: (a.side || 0) + ((b.side || 0) - (a.side || 0)) * k,
     elbowL: (a.elbowL || 0) + ((b.elbowL || 0) - (a.elbowL || 0)) * k,
     elbowR: (a.elbowR || 0) + ((b.elbowR || 0) - (a.elbowR || 0)) * k,
+    blink: Math.max(a.blink || 0, b.blink || 0),
+    breath: (a.breath || 0) + ((b.breath || 0) - (a.breath || 0)) * k,
   };
 }

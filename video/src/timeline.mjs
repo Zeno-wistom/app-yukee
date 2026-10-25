@@ -55,6 +55,8 @@ export const CUES = {
   standing: 15.4,
   selectStart: 15.4,
   backToWork: 42.6,
+  returnReach: 42.75, // 坐下后伸手握鼠标
+  returnClick: 43.25, // 奖励界面点「回到专注」（产品真实流程：reward → RETURN_WORK → focus）
   endTitle: 45.5,
 };
 
@@ -112,7 +114,7 @@ export function buildTimeline(allEvents) {
     { t: GAMES.g01.start - 0.3, state: "playful", event: "enterGame" }, // 游戏中 → playful
     ...out.success.map((s) => ({ t: s.t, state: "playful", event: "success" })),
     { t: 40.0, state: "celebrate" }, // reward → celebrate
-    { t: CUES.backToWork + 0.6, state: "calm" },
+    { t: CUES.returnClick + 0.2, state: "calm" },
   ];
   return out;
 }
