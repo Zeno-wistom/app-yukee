@@ -10,7 +10,7 @@ import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js";
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 import { Mannequin, V, lerpPose, type Pose } from "./mannequin";
-import { FPS, WIDTH, HEIGHT, CUES, SHOTS, buildTimeline, gameFrameAt, monitorSourceAt, shotAt } from "./timeline.mjs";
+import { FPS, WIDTH, HEIGHT, CUES, SHOTS, GAMES, DURATION, buildTimeline, gameFrameAt, monitorSourceAt, shotAt } from "./timeline.mjs";
 
 const q = new URLSearchParams(location.search);
 const W = +(q.get("w") || WIDTH), H = +(q.get("h") || HEIGHT);
@@ -53,7 +53,7 @@ const sideWall = new THREE.Mesh(new THREE.PlaneGeometry(10, 5), std("#d4cdc2", 0
 sideWall.rotation.y = Math.PI / 2; sideWall.position.set(-3.0, 2.5, 3); sideWall.receiveShadow = true; scene.add(sideWall);
 // 窗（侧墙上的柔光面板）
 const win = new THREE.Mesh(new THREE.PlaneGeometry(1.3, 1.45), new THREE.MeshBasicMaterial({ color: "#f6efe2" }));
-win.rotation.y = Math.PI / 2; win.position.set(-2.975, 1.6, 1.2); scene.add(win);
+win.rotation.y = Math.PI / 2; win.position.set(-2.968, 1.6, 1.2); scene.add(win);
 const winFrame = rbox(0.04, 1.53, 1.38, 0.01, std("#ebe7df", 0.5)); winFrame.position.set(-2.995, 1.6, 1.2); scene.add(winFrame);
 for (const dz of [-0.217, 0.217]) { const mull = rbox(0.03, 1.45, 0.025, 0.004, std("#ebe7df", 0.5)); mull.position.set(-2.96, 1.6, 1.2 + dz); scene.add(mull); }
 const sill = rbox(0.12, 0.03, 1.45, 0.006, std("#ebe7df", 0.5)); sill.position.set(-2.94, 0.86, 1.2); scene.add(sill);
@@ -135,12 +135,17 @@ sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048);
 Object.assign(sun.shadow.camera, { left: -2.2, right: 2.2, top: 2.2, bottom: -1.2, near: 0.5, far: 10 });
 sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.02; sun.shadow.radius = 4;
 scene.add(sun, sun.target);
-const fill = new THREE.DirectionalLight("#dfe8ff", 0.22); fill.position.set(3, 2.2, 3); scene.add(fill);
+// 中性补光（不带蓝色偏色，避免把金属灰染成浅蓝）
+const fill = new THREE.DirectionalLight("#f4f1ec", 0.25); fill.position.set(3, 2.2, 3); scene.add(fill);
 
 // ———————————————————— YUKEE 实体模型（用户提供的 3dm → GLB，未改形） ————————————————————
 const product = new THREE.Group(); scene.add(product);
 let lampScreen: THREE.Mesh | null = null;
 let diffuserMats: THREE.MeshStandardMaterial[] = [];
+// 拉丝不锈钢（银灰）：金属度 1、粗糙度 0.3，颜色为中性灰，环境反射保持中性
+const steel = new THREE.MeshPhysicalMaterial({ color: "#c3c4c5", metalness: 1, roughness: 0.3, clearcoat: 0.15, clearcoatRoughness: 0.35, envMapIntensity: 1.1 });
+const steelBar = new THREE.MeshPhysicalMaterial({ color: "#b9babb", metalness: 1, roughness: 0.34, envMapIntensity: 1.1 });
+const backMat = new THREE.MeshPhysicalMaterial({ color: "#efebe4", roughness: 0.55, metalness: 0, emissive: new THREE.Color("#ffe6c8"), emissiveIntensity: 0.25 });
 const lampSpot = new THREE.SpotLight("#fff1dc", 0, 1.6, 0.95, 0.65, 1.2);
 const PRODUCT = {
   // Rhino 毫米坐标中的装配基准（来自 parts.json 包围盒）
@@ -156,20 +161,23 @@ async function loadProduct() {
   // 安装基准：壳体底面（z=-14.4mm，前后 y∈[-83.2,-64.2]）是最低的承重面，放在显示器顶面；
   // 灯条（y∈[-99.7,-83.2]）伸出显示器前表面之外向下照明；后盖底面比承重面高 2.2mm，悬于顶面之上不穿插。
   m.position.set(-PRODUCT.centerX * 0.001, monTop - PRODUCT.bottomZ * 0.001 + 0.0001, monFront + PRODUCT.restY * 0.001 + 0.0005);
+  // 材质以宣传海报（产品真实外观）为准：拉丝不锈钢银灰机身 + 同材质灯条、深色玻璃屏、黑色镜头、
+  // 磨砂乳白后盖（背光透出暖光）、灯条底部暖白扩散光。几何完全来自 3dm，不做任何变形。
   m.traverse((o) => {
     const mesh = o as THREE.Mesh;
     if (!mesh.isMesh) return;
     mesh.castShadow = true; mesh.receiveShadow = true;
-    const mat = mesh.material as THREE.MeshStandardMaterial;
     const name = mesh.name || mesh.parent?.name || "";
-    if (name.startsWith("backcover")) { // 玻璃（半透磨砂）
-      mesh.material = new THREE.MeshPhysicalMaterial({ color: "#d7d7d1", roughness: 0.35, transmission: 0.25, thickness: 0.002, metalness: 0 });
+    if (name.startsWith("backcover")) {
+      mesh.material = backMat;
     } else if (name.startsWith("screen")) {
-      mesh.material = new THREE.MeshPhysicalMaterial({ color: "#0b0c0d", roughness: 0.08, clearcoat: 1 });
+      mesh.material = new THREE.MeshPhysicalMaterial({ color: "#07090a", roughness: 0.06, metalness: 0, clearcoat: 1, clearcoatRoughness: 0.03 });
     } else if (name.startsWith("camera")) {
-      mesh.material = new THREE.MeshPhysicalMaterial({ color: "#1a1b1d", roughness: 0.15, clearcoat: 1 });
-    } else if (mat && "roughness" in mat) {
-      mesh.material = new THREE.MeshPhysicalMaterial({ color: mat.color, roughness: name.startsWith("lampshade") ? 0.42 : 0.32, clearcoat: 0.35, clearcoatRoughness: 0.4 });
+      mesh.material = new THREE.MeshPhysicalMaterial({ color: "#050506", roughness: 0.08, metalness: 0.2, clearcoat: 1, clearcoatRoughness: 0.02 });
+    } else if (name.startsWith("lampshade")) {
+      mesh.material = steelBar;
+    } else {
+      mesh.material = steel;
     }
   });
   product.add(m);
@@ -178,7 +186,7 @@ async function loadProduct() {
   m.traverse((o) => {
     const mesh = o as THREE.Mesh;
     if (mesh.isMesh && /backcover_46|shell_45/.test(mesh.name)) {
-      const em = new THREE.MeshStandardMaterial({ color: "#fff7ea", emissive: new THREE.Color("#ffe8c4"), emissiveIntensity: 0, roughness: 0.6 });
+      const em = new THREE.MeshStandardMaterial({ color: "#fff7ea", emissive: new THREE.Color("#ffe3bd"), emissiveIntensity: 0, roughness: 0.6 });
       mesh.material = em; diffuserMats.push(em);
     }
   });
@@ -203,107 +211,202 @@ async function loadProduct() {
 const person = new Mannequin(); scene.add(person.root);
 const LAMP_EYE = V(-0.035, monTop + 0.03, monFront + 0.02);
 const SCREEN_C = V(0, monCenterY, monFront);
+const SPOT_Z = 0.98; // 站立活动位置：骨盆离显示器约 1.1 m（摄像头能看到全身上半部）
 const seated: Pose = {
-  pelvis: V(0, 0.56, 0.7), yaw: 0, lean: 0.14, chest: 0.06, look: SCREEN_C.clone().add(V(0, -0.03, 0)),
-  handL: V(-0.105, DESK.h + 0.042, 0.235), handR: V(0.105, DESK.h + 0.042, 0.235),
-  footL: V(-0.13, 0, 0.42), footR: V(0.13, 0, 0.38), heel: 0,
+  pelvis: V(0, 0.56, 0.62), yaw: 0, lean: 0.12, chest: 0.06, look: SCREEN_C.clone().add(V(0, -0.03, 0)),
+  handL: V(-0.105, DESK.h + 0.03, 0.245), handR: V(0.105, DESK.h + 0.03, 0.245),
+  footL: V(-0.13, 0, 0.34), footR: V(0.13, 0, 0.3), heel: 0, side: 0,
 };
 const standing: Pose = {
-  pelvis: V(0.0, 0.955, 1.32), yaw: 0, lean: 0.02, chest: 0.0, look: SCREEN_C.clone(),
-  handL: V(-0.24, 0.9, 1.36), handR: V(0.24, 0.9, 1.36),
-  footL: V(-0.125, 0, 1.3), footR: V(0.125, 0, 1.3), heel: 0,
+  pelvis: V(0.0, 0.955, SPOT_Z), yaw: 0, lean: 0.02, chest: 0.0, look: SCREEN_C.clone(),
+  handL: V(-0.2, 0.9, SPOT_Z + 0.04), handR: V(0.2, 0.9, SPOT_Z + 0.04),
+  footL: V(-0.125, 0, SPOT_Z - 0.02), footR: V(0.125, 0, SPOT_Z - 0.02), heel: 0, side: 0,
 };
 const squat: Pose = {
   ...standing,
-  pelvis: V(0.0, 0.78, 1.45), lean: 0.46, chest: 0.04,
-  handL: V(-0.16, 1.02, 1.02), handR: V(0.16, 1.02, 1.02),
+  pelvis: V(0.0, 0.78, SPOT_Z + 0.13), lean: 0.46, chest: 0.04,
+  handL: V(-0.16, 1.02, SPOT_Z - 0.32), handR: V(0.16, 1.02, SPOT_Z - 0.32),
 };
 const ease = (x: number) => (x <= 0 ? 0 : x >= 1 ? 1 : x * x * (3 - 2 * x));
 const ramp = (t: number, a: number, b: number) => ease((t - a) / (b - a));
+const pulse = (t: number, a: number, d: number) => Math.sin(Math.max(0, Math.min(1, (t - a) / d)) * Math.PI);
+const wnd = (t: number, a: number, b: number, fi: number, fo: number) => ramp(t, a, a + fi) * (1 - ramp(t, b, b + fo));
 
 let tl: ReturnType<typeof buildTimeline>;
 
+/** 坐姿办公：打字 / 用鼠标 / 看笔记 / 调整坐姿 / 随时间轻微疲劳 */
+function officePose(t: number, relaxed = false): Pose {
+  const p = lerpPose(seated, seated, 0);
+  const tired = relaxed ? 0 : ramp(t, CUES.timelapseStart, CUES.timelapseEnd);
+  const mouseUse = relaxed ? wnd(t, 44.0, 45.4, 0.35, 0.35) : wnd(t, 3.0, 4.5, 0.35, 0.35) + wnd(t, 8.2, 8.9, 0.25, 0.3);
+  const glanceNotes = relaxed ? 0 : wnd(t, 3.6, 4.4, 0.3, 0.35);
+  const fast = t > CUES.timelapseStart && t < CUES.timelapseEnd ? 1.8 : 1; // 时间流逝镜头里打字更快
+  const typing = (1 - mouseUse) * (1 - ramp(t, CUES.reminder + 0.1, CUES.reminder + 0.5) * (relaxed ? 0 : 1));
+  const tap = (ph: number) => Math.max(0, Math.sin(t * 2 * Math.PI * 2.9 * fast + ph)) ** 3 * 0.011 * Math.max(0, typing);
+  p.handL.y += tap(0) + 0.003 * Math.sin(t * 1.3);
+  p.handR.y += tap(2.2) + 0.003 * Math.sin(t * 1.1 + 1);
+  p.handL.x += 0.012 * Math.sin(t * 0.7); p.handR.x += 0.014 * Math.sin(t * 0.55 + 2);
+  // 鼠标：右手移到鼠标上并小幅移动
+  const mouse = V(0.31 + 0.012 * Math.sin(t * 2.3), DESK.h + 0.035, 0.245 + 0.01 * Math.sin(t * 1.7));
+  p.handR = p.handR.clone().lerp(mouse, mouseUse);
+  // 呼吸、坐姿微调
+  p.pelvis.y += 0.003 * Math.sin(t * 1.6);
+  p.pelvis.x += relaxed ? 0 : 0.012 * ramp(t, 5.3, 5.9);
+  p.lean += 0.01 * Math.sin(t * 0.8);
+  // 疲劳：上身前探、头低一点
+  p.lean += 0.1 * tired; p.chest += 0.1 * tired;
+  p.look = p.look.clone().add(V(0, -0.06 * tired, 0));
+  p.look = p.look.clone().lerp(V(0.5, DESK.h, -0.05), glanceNotes);
+  // 揉脖子（左手）
+  const rub = relaxed ? 0 : wnd(t, CUES.neckRub, CUES.neckRub + 1.1, 0.35, 0.4);
+  p.handL = p.handL.clone().lerp(V(-0.045 + 0.012 * Math.sin(t * 9), 1.16, 0.6), rub);
+  p.elbowL = rub;
+  p.look = p.look.clone().add(V(0.08 * rub, -0.12 * rub, 0));
+  p.side = -0.05 * rub;
+  if (relaxed) { p.lean -= 0.06; p.chest -= 0.03; }
+  return p;
+}
+
 function poseAt(t: number): Pose {
-  if (t < CUES.standing) {
-    let p = lerpPose(seated, seated, 0);
-    // 打字：左右手交替轻敲 + 轻微呼吸
-    const typing = 1 - ramp(t, CUES.reminder + 0.5, CUES.reminder + 1.0) * (1 - ramp(t, 6.8, 7.4)) - ramp(t, CUES.lookUp - 0.2, CUES.lookUp + 0.2);
-    const tap = (ph: number) => Math.max(0, Math.sin(t * 2 * Math.PI * 3.1 + ph)) ** 3 * 0.012 * Math.max(0, typing);
-    p.handL.y += tap(0) + 0.004 * Math.sin(t * 1.3);
-    p.handR.y += tap(2.2) + 0.004 * Math.sin(t * 1.1 + 1);
-    p.handL.x += 0.012 * Math.sin(t * 0.7); p.handR.x += 0.015 * Math.sin(t * 0.55 + 2);
-    p.pelvis.y += 0.003 * Math.sin(t * 1.6);
-    p.lean += 0.01 * Math.sin(t * 0.8);
-    // 提醒出现：抬眼看挂灯（S2 中短暂抬头），S3 中正式抬头看 YUKEE 并点头回应
-    const glance = ramp(t, CUES.reminder + 0.4, CUES.reminder + 0.9) * (1 - ramp(t, 6.9, 7.5));
-    const look = ramp(t, CUES.lookUp, CUES.lookUp + 0.55) * (1 - ramp(t, CUES.reachMouse + 0.2, CUES.reachMouse + 0.8));
-    const nod = Math.sin(Math.max(0, Math.min(1, (t - (CUES.lookUp + 0.9)) / 0.5)) * Math.PI) * 0.03;
-    const toLamp = Math.max(glance * 0.7, look);
-    p.look = p.look.clone().lerp(LAMP_EYE, toLamp).add(V(0, -nod, 0));
-    p.lean -= 0.07 * look; // 靠回椅背抬头
-    // 手伸向鼠标并点击「开始活动」
-    const reach = ramp(t, CUES.reachMouse, CUES.reachMouse + 0.6);
-    p.handR = p.handR.clone().lerp(V(0.31, DESK.h + 0.045, 0.235), reach);
-    const click = Math.max(0, Math.sin(Math.max(0, Math.min(1, (t - 10.9) / 0.18)) * Math.PI)) * 0.006;
-    p.handR.y -= click;
+  // —— 办公 → 提醒 → 回应 ——
+  if (t < CUES.standUp) {
+    const p = officePose(t);
+    const look = ramp(t, CUES.lookUp, CUES.lookUp + 0.5);
+    const nod = pulse(t, CUES.nod, 0.45) * 0.035;
+    p.look = p.look.clone().lerp(LAMP_EYE, look * (1 - ramp(t, CUES.reachMouse + 0.35, CUES.reachMouse + 0.8))).add(V(0, -nod, 0));
+    p.lean -= 0.12 * look; p.chest -= 0.08 * look; // 靠回椅背、伸展一下
+    const reach = ramp(t, CUES.reachMouse, CUES.reachMouse + 0.5);
+    p.handR = p.handR.clone().lerp(V(0.31, DESK.h + 0.035, 0.245), reach);
+    p.handR.y -= pulse(t, CUES.click, 0.18) * 0.006;
+    p.handL = p.handL.clone().lerp(V(-0.16, DESK.h + 0.03, 0.31), look); // 左手离开键盘，放松
     return p;
   }
-  // —— 站立，按真实游戏事件做浅蹲/起身 ——
-  let k = 0, heel = 0;
-  for (const j of tl.jumps) {
-    // 下蹲在蓄力开始（press）前 0.32 s 起，press 时到达浅蹲；回升在 release 前 0.26 s 开始，release 时站直
-    const down = ramp(t, j.press - 0.32, j.press + 0.02);
-    const up = ramp(t, j.release - 0.26, j.release + 0.02);
-    // 蓄力过程中略微再沉一点（越蓄越深，最多 15%）
-    const deepen = 0.15 * ramp(t, j.press, j.release - 0.26) * (1 - up);
-    k = Math.max(k, down * (1 - up) * (0.85 + deepen));
-    const pop = Math.sin(Math.max(0, Math.min(1, (t - j.release) / 0.32)) * Math.PI);
-    heel = Math.max(heel, pop * 0.9);
+  // —— 起身、后退一步 ——
+  if (t < CUES.standing) {
+    const sitEnd = officePose(CUES.standUp - 0.01);
+    sitEnd.handR = V(0.31, DESK.h + 0.035, 0.245); sitEnd.handL = V(-0.16, DESK.h + 0.03, 0.31); sitEnd.look = SCREEN_C.clone();
+    const a = ramp(t, CUES.standUp, CUES.stepBack + 0.1); // 起身
+    const mid: Pose = {
+      ...standing, pelvis: V(0, 0.92, 0.66), lean: 0.12,
+      handL: V(-0.22, 0.88, 0.68), handR: V(0.22, 0.88, 0.68),
+      footL: V(-0.13, 0, 0.58), footR: V(0.13, 0, 0.56),
+    };
+    let p = lerpPose(sitEnd, mid, a);
+    // 起身时身体先前倾再直立
+    p.lean += 0.32 * pulse(t, CUES.standUp, 0.6);
+    const b = ramp(t, CUES.stepBack, CUES.standing - 0.1); // 后退一步
+    p = lerpPose(p, standing, b);
+    const fl = ramp(t, CUES.stepBack, CUES.stepBack + 0.35), fr = ramp(t, CUES.stepBack + 0.3, CUES.stepBack + 0.65);
+    p.footL = mid.footL.clone().lerp(standing.footL, a >= 1 ? fl : 0); p.footL.y += pulse(t, CUES.stepBack, 0.35) * 0.06;
+    p.footR = mid.footR.clone().lerp(standing.footR, a >= 1 ? fr : 0); p.footR.y += pulse(t, CUES.stepBack + 0.3, 0.35) * 0.06;
+    if (a < 1) { p.footL = sitEnd.footL.clone().lerp(mid.footL, a); p.footR = sitEnd.footR.clone().lerp(mid.footR, a); }
+    return p;
   }
-  let p = lerpPose(standing, squat, k);
-  p.heel = heel;
-  p.pelvis.y += heel * 0.035;
-  // 呼吸与轻微重心摆动（避免站姿僵硬）
+  // —— 回到办公（放松的坐姿） ——
+  if (t >= CUES.backToWork) {
+    const p = officePose(t, true);
+    const g = wnd(t, 43.7, 44.4, 0.3, 0.3);
+    p.look = p.look.clone().lerp(LAMP_EYE, g);
+    return p;
+  }
+  // —— 站立：四款游戏的体感动作，由真实游戏事件驱动 ——
+  let p = lerpPose(standing, standing, 0);
   p.pelvis.x += 0.006 * Math.sin(t * 0.9);
   p.pelvis.y += 0.003 * Math.sin(t * 1.7);
   p.handL.x += 0.006 * Math.sin(t * 1.1); p.handR.x -= 0.006 * Math.sin(t * 1.2);
-  // 第二跳完美落地后：小幅握拳庆祝
-  const last = tl.jumps[tl.jumps.length - 1];
-  const cheer = ramp(t, last.landed + 0.05, last.landed + 0.35) * (1 - ramp(t, last.landed + 1.1, last.landed + 1.6));
-  p.handR = p.handR.clone().lerp(V(0.2, 1.14, 1.18), cheer);
-  // 收尾：抬头看 YUKEE
-  const lookLamp = ramp(t, 24.6, 25.4);
-  p.look = p.look.clone().lerp(LAMP_EYE, lookLamp);
+  const G = tl.games;
+  // G01：抬头 = 跳；低头 = 蹲；转头 = 收能量（只动头颈）
+  if (G.g01 && t < GAMES.g01.end + 0.5) {
+    let look = SCREEN_C.clone();
+    for (const a of G.g01.acts) {
+      const k = ramp(t, a.press - 0.12, a.press + 0.06) * (1 - ramp(t, a.release, a.release + 0.22));
+      const off = a.kind === "up" ? V(0, 0.8, 0) : a.kind === "down" ? V(0, -0.6, 0.1) : a.kind === "left" ? V(-0.75, 0, 0.1) : V(0.75, 0, 0.1);
+      look = look.add(off.multiplyScalar(k));
+    }
+    p.look = look;
+  }
+  // G02：缓慢展开双臂 → 保持 → 缓慢回位
+  if (G.g02 && t >= GAMES.g02.start - 1 && t < GAMES.g02.end + 0.6) {
+    let k = 0;
+    for (const a of G.g02.acts) {
+      const open = ramp(t, a.press - 0.1, a.charged) * (1 - ramp(t, a.release - 0.05, a.rep - 0.05));
+      k = Math.max(k, open);
+    }
+    p.handL = p.handL.clone().lerp(V(-0.72, 1.36, SPOT_Z + 0.05), k);
+    p.handR = p.handR.clone().lerp(V(0.72, 1.36, SPOT_Z + 0.05), k);
+    p.chest -= 0.04 * k;
+  }
+  // G03：躯干向阳光一侧轻轻侧倾，接住后回中
+  if (G.g03 && t >= GAMES.g03.start - 1 && t < GAMES.g03.end + 0.6) {
+    let side = 0;
+    for (const a of G.g03.acts) {
+      const k = ramp(t, a.press - 0.18, a.press + 0.12) * (1 - ramp(t, a.release - 0.05, a.release + 0.22));
+      side += a.side * k;
+    }
+    p.side = 0.18 * side;
+    p.pelvis.x -= 0.03 * side;
+    p.handL = p.handL.clone().add(V(-0.04 * Math.abs(side), 0.02 * Math.abs(side), 0));
+    p.handR = p.handR.clone().add(V(0.04 * Math.abs(side), 0.02 * Math.abs(side), 0));
+  }
+  // G05：浅蹲蓄力（press 时到达浅蹲，越蓄越深）→ 站直起跳（release）
+  if (G.g05 && t >= GAMES.g05.start - 1.2) {
+    let k = 0, heel = 0;
+    for (const j of G.g05.acts) {
+      const down = ramp(t, j.press - 0.32, j.press + 0.02);
+      const up = ramp(t, j.release - 0.26, j.release + 0.02);
+      const deepen = 0.15 * ramp(t, j.press, j.release - 0.26) * (1 - up);
+      k = Math.max(k, down * (1 - up) * (0.85 + deepen));
+      heel = Math.max(heel, pulse(t, j.release, 0.32) * 0.9);
+    }
+    p = lerpPose(p, { ...squat, look: p.look }, k);
+    p.heel = heel; p.pelvis.y += heel * 0.035;
+    // 最后一跳完美落地：握拳
+    const last = G.g05.acts.filter((a) => a.landed < GAMES.g05.end).pop();
+    if (last) p.handR = p.handR.clone().lerp(V(0.2, 1.16, SPOT_Z - 0.12), wnd(t, last.landed + 0.05, last.landed + 1.0, 0.3, 0.45));
+  }
+  // 收尾（40–42.6）：伸个懒腰
+  const stretch = wnd(t, 40.2, 41.6, 0.5, 0.6);
+  p.handL = p.handL.clone().lerp(V(-0.13, 1.93, SPOT_Z + 0.02), stretch);
+  p.handR = p.handR.clone().lerp(V(0.13, 1.93, SPOT_Z + 0.02), stretch);
+  p.look = p.look.clone().lerp(LAMP_EYE, ramp(t, 41.4, 41.9));
   return p;
 }
 
 function chairAt(t: number) {
-  if (t < CUES.standing) { chair.position.set(0, 0, 0.8); chair.rotation.y = 0; }
-  else { chair.position.set(-1.0, 0, 0.62); chair.rotation.y = 1.1; }
+  if (t < CUES.standUp) { chair.position.set(0, 0, 0.72); chair.rotation.y = 0; }
+  else if (t < CUES.backToWork) {
+    const k = ramp(t, CUES.standUp + 0.05, CUES.standUp + 0.8);
+    const k2 = t > CUES.standing ? 1 : 0; // 镜头外把椅子推到一旁
+    chair.position.set(-0.55 * k - 0.95 * k2, 0, 0.72 + 0.55 * k - 0.3 * k2);
+    chair.rotation.y = 0.6 * k + 0.7 * k2;
+  } else { chair.position.set(0, 0, 0.72); chair.rotation.y = 0; }
 }
 
 // ———————————————————— 镜头 ————————————————————
 const camera = new THREE.PerspectiveCamera(36, W / H, 0.01, 40);
 type CamKey = { p: THREE.Vector3; t: THREE.Vector3; fov: number };
+const PT = V(0, monTop + 0.012, monFront - 0.01); // 产品中心
 const CAMS: Record<string, [CamKey, CamKey]> = {
-  establish: [{ p: V(2.45, 1.66, 2.85), t: V(0.05, 0.98, 0.15), fov: 33 }, { p: V(2.0, 1.52, 2.35), t: V(0.0, 1.0, 0.1), fov: 32 }],
-  lampClose: [{ p: V(-0.34, monTop + 0.06, 0.62), t: V(0.0, monTop + 0.01, monFront), fov: 30 }, { p: V(-0.24, monTop + 0.045, 0.5), t: V(0.0, monTop + 0.012, monFront), fov: 27 }],
-  overShoulder: [{ p: V(0.85, 1.56, 1.95), t: V(0.0, 1.1, -0.05), fov: 40 }, { p: V(0.0, monCenterY + 0.004, 0.33), t: V(0, monCenterY + 0.004, monFront), fov: 42 }],
-  squatSide: [{ p: V(2.6, 1.3, 2.05), t: V(-0.14, 0.86, 0.6), fov: 40 }, { p: V(2.48, 1.27, 1.9), t: V(-0.14, 0.86, 0.6), fov: 39 }],
-  pip: [{ p: V(2.95, 1.02, 1.42), t: V(0.0, 0.85, 1.2), fov: 41 }, { p: V(2.9, 1.02, 1.38), t: V(0.0, 0.85, 1.2), fov: 41 }],
-  outro: [{ p: V(2.48, 1.27, 1.9), t: V(-0.14, 0.86, 0.6), fov: 39 }, { p: V(3.0, 1.9, 3.7), t: V(0.0, 1.0, 0.3), fov: 36 }],
+  establish: [{ p: V(2.65, 1.78, 3.05), t: V(0.0, 0.95, 0.2), fov: 34 }, { p: V(1.38, 1.44, 1.78), t: V(0.0, 1.0, 0.22), fov: 34 }],
+  profile: [{ p: V(1.6, 1.2, 0.62), t: V(-0.08, 1.0, 0.3), fov: 38 }, { p: V(1.5, 1.18, 0.46), t: V(-0.08, 1.0, 0.28), fov: 38 }],
+  lampClose: [{ p: V(-0.3, monTop - 0.03, 0.56), t: PT.clone().add(V(0, -0.012, 0)), fov: 28 }, { p: V(-0.19, monTop - 0.022, 0.42), t: PT.clone().add(V(0, -0.01, 0)), fov: 25 }],
+  overShoulder: [{ p: V(1.0, 1.55, 1.95), t: V(-0.08, 1.1, -0.1), fov: 32 }, { p: V(0.8, 1.5, 1.66), t: V(-0.08, 1.13, -0.1), fov: 32 }],
+  standSide: [{ p: V(2.15, 1.25, 1.02), t: V(-0.08, 0.95, 0.66), fov: 42 }, { p: V(2.25, 1.25, 1.2), t: V(-0.08, 0.95, 0.75), fov: 42 }],
+  headCam: [{ p: V(1.12, 1.52, 0.3), t: V(0.0, 1.36, SPOT_Z), fov: 42 }, { p: V(1.08, 1.51, 0.32), t: V(0.0, 1.36, SPOT_Z), fov: 42 }],
+  backCam: [{ p: V(0.42, 1.48, 3.05), t: V(0.0, 1.12, 0.45), fov: 38 }, { p: V(0.36, 1.46, 2.95), t: V(0.0, 1.12, 0.45), fov: 38 }],
+  backWide: [{ p: V(-0.95, 1.62, 3.0), t: V(0.0, 1.12, 0.35), fov: 36 }, { p: V(-0.72, 1.56, 2.75), t: V(0.0, 1.12, 0.35), fov: 36 }],
+  sideCam: [{ p: V(2.55, 1.12, 1.62), t: V(0.0, 0.88, SPOT_Z - 0.05), fov: 40 }, { p: V(2.5, 1.12, 1.58), t: V(0.0, 0.88, SPOT_Z - 0.05), fov: 40 }],
+  squatSide: [{ p: V(2.35, 1.3, 2.05), t: V(-0.18, 0.88, 0.5), fov: 40 }, { p: V(2.22, 1.27, 1.88), t: V(-0.18, 0.88, 0.5), fov: 40 }],
+  lampHero: [{ p: V(-0.34, monTop - 0.015, 0.44), t: PT, fov: 26 }, { p: V(0.12, monTop + 0.005, 0.5), t: PT, fov: 26 }],
+  relaxed: [{ p: V(1.95, 1.48, 2.05), t: V(0.0, 1.0, 0.3), fov: 32 }, { p: V(1.72, 1.42, 1.78), t: V(0.0, 1.0, 0.3), fov: 32 }],
+  // 片尾：产品在画面右侧，左侧留给标题
+  heroEnd: [{ p: V(0.34, monTop + 0.085, 0.42), t: V(-0.11, monTop + 0.01, monFront), fov: 25 }, { p: V(0.24, monTop + 0.065, 0.38), t: V(-0.1, monTop + 0.01, monFront), fov: 25 }],
 };
 const easeIO = (x: number) => (x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2);
 function setCamera(name: string, k: number) {
   const [a, b] = CAMS[name];
-  let e = name === "overShoulder" ? easeIO(k) : name === "outro" ? easeIO(k) : k * 0.5 + easeIO(k) * 0.5;
-  if (name === "overShoulder") {
-    // 绕过人物头部：先从右肩外侧经过，再收拢到屏幕正前方
-    const mid = V(0.36, 1.32, 0.78);
-    const p0 = a.p, p2 = b.p;
-    const u = e; const pt = p0.clone().multiplyScalar((1 - u) * (1 - u)).add(mid.clone().multiplyScalar(2 * u * (1 - u))).add(p2.clone().multiplyScalar(u * u));
-    camera.position.copy(pt);
-  } else camera.position.copy(a.p).lerp(b.p, e);
+  const e = k * 0.4 + easeIO(k) * 0.6;
+  camera.position.copy(a.p).lerp(b.p, e);
   const tgt = a.t.clone().lerp(b.t, e);
   camera.fov = a.fov + (b.fov - a.fov) * e;
   camera.aspect = W / H;
@@ -324,43 +427,78 @@ async function loadTex(url: string) {
   return tex;
 }
 const pad = (n: number) => String(n).padStart(5, "0");
+const MON_FRAMES = Math.round(DURATION * FPS) - 1;
+export const SELECT_LEAD = 0.35; // 选择页录制从第 0.35 s 开始用
 async function monitorTexAt(t: number, f: number) {
   const src = monitorSourceAt(t);
-  if (src.kind === "game") return loadTex(`/out/g05/frames/${pad(gameFrameAt(t, tl))}.jpg`);
-  return loadTex(`/out/monitor/${pad(Math.min(f, 353))}.jpg`);
+  if (src.kind === "game") return loadTex(`/out/games/${src.game}/frames/${pad(gameFrameAt(src.game!, t, tl))}.jpg`);
+  if (src.kind === "select") {
+    const sf = Math.max(0, Math.min(tl.selectFrames - 1, Math.round((Math.max(t, CUES.selectStart) - CUES.selectStart + SELECT_LEAD) * FPS)));
+    return loadTex(`/out/games/select/frames/${pad(sf)}.jpg`);
+  }
+  return loadTex(`/out/monitor/${pad(Math.min(f, MON_FRAMES))}.jpg`);
+}
+
+// ———————————————————— 灯条（遵循产品灯光逻辑） ————————————————————
+const WARM = new THREE.Color("#ffd9a8"), PEACH = new THREE.Color("#ff9f80"), PINK = new THREE.Color("#d77ee0");
+function lampAt(t: number) {
+  // 默认：暖白常亮。时间流逝时略微变暖。提醒：先柔和呼吸，再给出更明确的颜色提示（暖 → 蜜桃 → 粉紫）；
+  // 用户选择「开始活动」后恢复暖白。游戏中常亮；成功反馈时轻微增亮。
+  let lv = 1;
+  const c = WARM.clone();
+  if (t > CUES.reminder && t < CUES.click + 0.3) {
+    const age = t - CUES.reminder;
+    lv = 0.75 + 0.3 * Math.sin(Math.min(1, age / 1.25) * Math.PI) * (t < CUES.colorCue ? 1 : 0);
+    const cue = ramp(t, CUES.colorCue - 0.2, CUES.colorCue + 0.5);
+    c.lerp(PEACH, Math.min(1, cue * 1.6)).lerp(PINK, ramp(t, CUES.colorCue + 0.4, CUES.colorCue + 1.0));
+    if (t >= CUES.colorCue) lv = 0.85 + 0.15 * Math.sin((t - CUES.colorCue) * Math.PI * 1.4);
+    const back = ramp(t, CUES.click, CUES.click + 0.3);
+    c.lerp(WARM, back); lv = lv + (1 - lv) * back;
+  }
+  for (const s of tl.success) lv += 0.35 * pulse(t, s.t, 0.45);
+  if (t >= 40 && t < 41.4) lv += 0.25 * pulse(t, 40.05, 1.3);
+  return { lv, c };
 }
 
 // ———————————————————— 帧驱动 ————————————————————
-function lampLevel(t: number) {
-  // 工作时常亮暖光；提醒时呼吸 3 次；之后恢复
-  let lv = 1;
-  if (t > CUES.reminder && t < CUES.reminder + 3.0) lv = 0.72 + 0.28 * Math.cos((t - CUES.reminder) * Math.PI * 2 * 1.0);
-  return lv;
-}
-async function renderFrame(f: number, camOverride?: string) {
+async function renderFrame(f: number, camOverride?: string, kOverride?: number) {
   const t = f / FPS;
   const shot = shotAt(t);
-  const camName = camOverride || shot.cam || "outro";
-  const k = (t - shot.start) / (shot.end - shot.start);
-  setCamera(camName, camOverride ? (t - 20.3) / 3.4 : Math.max(0, Math.min(1, k)));
+  let camName = shot.cam;
+  let k = (t - shot.start) / (shot.end - shot.start);
+  if (shot.kind === "game") {
+    if (shot.insert && t < shot.insert.end) { camName = shot.insert.cam; k = (t - shot.start) / (shot.insert.end - shot.start); }
+    else camName = shot.pip;
+  }
+  if (camOverride === "pip") { camName = (shot as any).pip; k = (t - shot.start) / (shot.end - shot.start); }
+  else if (camOverride) { camName = camOverride; k = kOverride ?? k; }
+  setCamera(camName || "establish", Math.max(0, Math.min(1, k)));
   person.apply(poseAt(t));
   chairAt(t);
+  // 时间流逝：阳光角度与色温变化
+  const tl01 = ramp(t, CUES.timelapseStart, CUES.timelapseEnd);
+  const late = t < CUES.timelapseStart ? 0 : 1;
+  sun.position.set(-3.6, 3.4 - 0.9 * Math.max(tl01, late * (t > CUES.timelapseEnd ? 1 : 0)), 2.0 - 1.1 * Math.max(tl01, late * (t > CUES.timelapseEnd ? 1 : 0)));
+  sun.color.set("#ffe9d0").lerp(new THREE.Color("#ffd2a6"), t >= CUES.timelapseStart ? tl01 : 0);
   screenMat.map = await monitorTexAt(t, f); screenMat.needsUpdate = true;
   if (lampScreen) {
     const lm = lampScreen.material as THREE.MeshBasicMaterial;
-    lm.map = await loadTex(`/out/lamp/${pad(Math.min(f, 929))}.jpg`); lm.needsUpdate = true;
+    lm.map = await loadTex(`/out/lamp/${pad(Math.min(f, MON_FRAMES))}.jpg`); lm.needsUpdate = true;
   }
-  const lv = lampLevel(t);
-  for (const m of diffuserMats) m.emissiveIntensity = 3.2 * lv;
-  lampSpot.intensity = 3.5 * lv;
+  const { lv, c } = lampAt(t);
+  for (const m of diffuserMats) { m.emissive.copy(c); m.emissiveIntensity = 1.5 * lv; }
+  lampSpot.color.copy(c); lampSpot.intensity = 3.4 * lv;
+  backMat.emissive.copy(c); backMat.emissiveIntensity = 0.22 * lv;
   renderer.render(scene, camera);
-  // 等 GPU 完成
   const gl = renderer.getContext(); gl.finish();
 }
 
 (async () => {
-  const ev = await (await fetch("/out/g05/events.json")).json();
-  tl = buildTimeline(ev);
+  const all: Record<string, any> = {};
+  for (const g of ["g01", "g02", "g03", "g05"]) all[g] = await (await fetch(`/out/games/${g}/events.json`)).json();
+  tl = buildTimeline(all);
+  const sel = await (await fetch("/out/games/select/events.json")).json();
+  (tl as any).selectFrames = sel.frames;
   await loadProduct();
   (window as any).__renderFrame = renderFrame;
   // 验证截图用：任意机位渲染第 f 帧（不影响成片镜头）

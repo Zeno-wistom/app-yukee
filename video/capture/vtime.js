@@ -10,15 +10,17 @@
   const realSetTimeout = window.setTimeout.bind(window);
   const t0Date = window.__VT_DATE || realDateNow();
   let vnow = 0; // 虚拟毫秒
+  let dOff = 0; // 时间流逝镜头用：只平移墙上时钟，不影响动画时间
   let seq = 1;
   const timers = new Map(); // id -> {at, fn, args, interval}
   let rafs = new Map();
   performance.now = () => vnow;
-  Date.now = () => t0Date + vnow;
+  Date.now = () => t0Date + vnow + dOff;
   const RD = Date;
   // new Date() 无参时也用虚拟时间
-  window.Date = new Proxy(RD, { construct(t, a) { return a.length ? new t(...a) : new t(t0Date + vnow); }, apply(t, th, a) { return new t(t0Date + vnow).toString(); } });
-  window.Date.now = () => t0Date + vnow;
+  window.Date = new Proxy(RD, { construct(t, a) { return a.length ? new t(...a) : new t(t0Date + vnow + dOff); }, apply(t, th, a) { return new t(t0Date + vnow + dOff).toString(); } });
+  window.Date.now = () => t0Date + vnow + dOff;
+  window.__vtAddDate = (ms) => { dOff += ms; };
   window.setTimeout = (fn, ms = 0, ...args) => { const id = seq++; timers.set(id, { at: vnow + Math.max(0, +ms || 0), fn, args, interval: 0 }); return id; };
   window.setInterval = (fn, ms = 0, ...args) => { const id = seq++; const iv = Math.max(1, +ms || 1); timers.set(id, { at: vnow + iv, fn, args, interval: iv }); return id; };
   window.clearTimeout = window.clearInterval = (id) => { timers.delete(id); };

@@ -3,24 +3,33 @@ import { chromium } from "playwright";
 import fs from "node:fs";
 import { FPS, CUES, DURATION, buildTimeline } from "../src/timeline.mjs";
 const ROOT = "/workspace/work/hark-video-demo/video/out";
-const tl = buildTimeline(JSON.parse(fs.readFileSync(`${ROOT}/g05/events.json`, "utf8")));
+const all = {}; for (const g of ["g01", "g02", "g03", "g05"]) all[g] = JSON.parse(fs.readFileSync(`${ROOT}/games/${g}/events.json`, "utf8"));
+const tl = buildTimeline(all);
 const which = process.argv[2] || "monitor,lamp";
 const b = await chromium.launch({ executablePath: "/usr/bin/chromium" });
 // 显示器光标：用户伸手握鼠标（CUES.reachMouse）后移向「开始活动」，10.9 s 按下（与人物右手点击同一时刻）
 let btn = null;
 async function cursorAt(page, t) {
-  if (t < CUES.monitorReminder + 0.4) return;
+  if (t < CUES.monitorReminder + 0.4 || t > CUES.click + 1.0) { if (t > CUES.click + 1.0) await page.evaluate(() => { const c = document.getElementById("__cursor"); if (c) c.style.display = "none"; }); return; }
   if (!btn) { const bb = await page.getByRole("button", { name: /开始活动/ }).boundingBox(); btn = { x: bb.x + bb.width * 0.42, y: bb.y + bb.height / 2 }; }
-  const a = { x: 1500, y: 820 }; const k = Math.max(0, Math.min(1, (t - 10.25) / 0.6)); const e = k < 0.5 ? 4 * k ** 3 : 1 - (-2 * k + 2) ** 3 / 2;
-  const x = a.x + (btn.x - a.x) * e, y = a.y + (btn.y - a.y) * e; const down = t >= 10.9 && t < 11.08;
-  await page.evaluate(([x, y, d]) => { document.getElementById("__cursor").style.transform = `translate(${x - 5}px,${y - 2}px) scale(${d ? 0.85 : 1})`; }, [x, y, down]);
-  if (t >= 10.9 && !page.__down) { page.__down = true; await page.mouse.move(x, y); await page.mouse.down(); }
-  if (t >= 11.08 && page.__down && !page.__up) { page.__up = true; await page.mouse.up(); }
+  const a = { x: 1500, y: 820 }; const k = Math.max(0, Math.min(1, (t - (CUES.reachMouse + 0.15)) / 0.6)); const e = k < 0.5 ? 4 * k ** 3 : 1 - (-2 * k + 2) ** 3 / 2;
+  const x = a.x + (btn.x - a.x) * e, y = a.y + (btn.y - a.y) * e; const down = t >= CUES.click && t < CUES.click + 0.18;
+  await page.evaluate(([x, y, d]) => {
+    let c = document.getElementById("__cursor");
+    if (!c) { // 录制页重渲染时可能移除覆盖层：重新挂到 body 末尾
+      c = document.createElement("div"); c.id = "__cursor";
+      c.style.cssText = "position:fixed;left:0;top:0;width:30px;height:30px;z-index:2147483647;pointer-events:none";
+      c.innerHTML = '<svg viewBox="0 0 24 24" width="30" height="30"><path d="M3 2l7.5 19 2.6-7.6L21 10.8z" fill="#fff" stroke="#1a1a1a" stroke-width="1.6" stroke-linejoin="round"/></svg>';
+      document.body.appendChild(c);
+    }
+    c.style.transform = `translate(${x - 5}px,${y - 2}px) scale(${d ? 0.85 : 1})`;
+  }, [x, y, down]);
+  // 光标只做视觉；不真正点击（录制页的 dispatch 为空函数，状态由时间轴切换）
 }
 async function run(name, url, viewport, endT, schedule) {
   const out = `${ROOT}/${name}`; fs.rmSync(out, { recursive: true, force: true }); fs.mkdirSync(out, { recursive: true });
-  const ctx = await b.newContext({ viewport, deviceScaleFactor: 1 });
-  await ctx.addInitScript(`window.__VT_DATE=${Date.parse("2026-10-23T15:29:30Z")};`);
+  const ctx = await b.newContext({ viewport, deviceScaleFactor: 1, timezoneId: "Asia/Macau", locale: "zh-CN" });
+  await ctx.addInitScript(`window.__VT_DATE=${Date.parse("2026-10-23T14:40:10+08:00")};`);
   await ctx.addInitScript({ path: new URL("./vtime.js", import.meta.url).pathname });
   const page = await ctx.newPage();
   page.on("pageerror", (e) => console.log("[err]", e.message));
@@ -35,7 +44,7 @@ async function run(name, url, viewport, endT, schedule) {
   const n = Math.ceil(endT * FPS); let si = 0;
   for (let f = 0; f < n; f++) {
     const t = f / FPS;
-    while (si < schedule.length && schedule[si].t <= t + 1e-6) { await page.evaluate((s) => s.fn === "state" ? window.__screen(s.v) : window.__lampEvent(s.v), schedule[si]); si++; }
+    while (si < schedule.length && schedule[si].t <= t + 1e-6) { await page.evaluate((s) => s.fn === "state" ? window.__screen(s.v) : s.fn === "date" ? window.__vtAddDate(s.v) : window.__lampEvent(s.v), schedule[si]); si++; }
     if (name === "monitor") await cursorAt(page, t);
     await page.evaluate((dt) => window.__vt.step(dt), 1000 / FPS);
     await page.screenshot({ path: `${out}/${String(f).padStart(5, "0")}.jpg`, type: "jpeg", quality: 93 });
@@ -43,8 +52,9 @@ async function run(name, url, viewport, endT, schedule) {
   await ctx.close(); console.log(name, n, "frames");
 }
 if (which.includes("monitor"))
-  await run("monitor", "http://127.0.0.1:5290/screens.html?view=monitor&phase=focus", { width: 1920, height: 1080 }, CUES.screenCut + 0.2,
-    [{ t: CUES.monitorReminder, fn: "state", v: "weakReminder" }]);
+  await run("monitor", "http://127.0.0.1:5290/screens.html?view=monitor&phase=focus", { width: 1920, height: 1080 }, DURATION,
+    [{ t: CUES.timelapseStart + 2.0, fn: "date", v: 45 * 60000 }, { t: CUES.monitorReminder, fn: "state", v: "weakReminder" },
+     { t: 39.0, fn: "date", v: 4 * 60000 }, { t: 40.0, fn: "state", v: "focus" }]);
 if (which.includes("lamp")) {
   const sch = [];
   for (const k of tl.lamp) { sch.push({ t: k.t, fn: "state", v: k.state }); if (k.event) sch.push({ t: k.t + 0.01, fn: "event", v: k.event }); }
